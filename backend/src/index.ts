@@ -13,6 +13,7 @@ import schoolRoutes from './modules/schools/schools.routes';
 import listingRoutes from './modules/listings/listings.routes';
 import requestRoutes from './modules/requests/requests.routes';
 import matchRoutes from './modules/matches/matches.routes';
+import adminRoutes from './modules/admin/admin.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +39,7 @@ app.use('/api/schools', schoolRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/matches', matchRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
