@@ -6,6 +6,12 @@ BookSwap is a mobile app for parents to exchange school textbooks. Parents can l
 
 ## Tech Stack
 
+### Web (`/web`)
+- **Framework:** Next.js 14 (App Router)
+- **UI:** Tailwind CSS + Lucide icons
+- **State:** React Query + Zustand
+- **Forms:** React Hook Form + Zod
+
 ### Backend (`/backend`)
 - **Runtime:** Node.js + TypeScript
 - **Framework:** Express.js
@@ -22,6 +28,14 @@ BookSwap is a mobile app for parents to exchange school textbooks. Parents can l
 
 ## What's Already Set Up
 
+### Web
+- ✅ `package.json` with Next.js, Tailwind, React Query
+- ✅ `tailwind.config.js`
+- ✅ Public pages: Home, Browse
+- ✅ Admin layout with sidebar navigation
+- ✅ Admin pages: Dashboard, Users, Listings, Requests, Schools (scaffolded)
+- ✅ API client with auth interceptors
+
 ### Backend
 - ✅ `package.json` with all dependencies
 - ✅ `prisma/schema.prisma` with full database schema
@@ -35,6 +49,41 @@ BookSwap is a mobile app for parents to exchange school textbooks. Parents can l
 - ✅ Placeholder screens in `src/screens/`
 
 ## What Needs to Be Built
+
+### Web - Priority Order
+
+1. **Login/Register Flow**
+   - `/login` page with OTP flow
+   - `/register` page for new users
+   - Auth state management with Zustand
+   - Protected routes for logged-in users
+
+2. **User Dashboard**
+   - `/dashboard` - user's own listings, requests, matches
+   - `/dashboard/listings/new` - create listing form
+   - `/dashboard/requests/new` - create request form
+
+3. **Browse & Search**
+   - Connect `/browse` to real API
+   - Listing detail page `/listings/[id]`
+   - Request modal from listing detail
+
+4. **Admin Dashboard**
+   - `/admin/dashboard` - real stats from API
+   - `/admin/users` - list users with search/filter
+   - `/admin/listings` - manage all listings
+   - `/admin/requests` - view all requests
+   - `/admin/schools` - add/edit/verify schools
+   - Create admin-only API endpoints
+
+5. **Backend Admin Endpoints Needed**
+   - `GET /api/admin/stats` - dashboard stats
+   - `GET /api/admin/users` - list all users
+   - `GET /api/admin/listings` - list all listings
+   - `GET /api/admin/schools` - list all schools
+   - `POST /api/admin/schools` - create school
+   - `PUT /api/admin/schools/:id` - update school
+   - Add admin auth middleware
 
 ### Backend - Priority Order
 
