@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users (Parents)
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  phone         String    @unique
+  city          String
+  address       String?
+  schoolId      String?
+  school        School?   @relation(fields: [schoolId], references: [id])
+  board         Board
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  children      Child[]
+  listings      Listing[]
+  requests      Request[]
+  givenMatches  Match[]   @relation("Giver")
+  receivedMatches Match[] @relation("Receiver")
+  notifications Notification[]
+
+  @@index([city, board])
+}
+
+// Children (linked to parent)
+model Child {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String?
+  gender       String?
+  currentClass Int      // 1-12
+  schoolId     String?
+  school       School?  @relation(fields: [schoolId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([userId, currentClass])
+}
+
+// Schools (master data)
+model School {
+  id         String   @id @default(uuid())
+  name       String
+  city       String
+  board      Board
+  address    String?
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  users      User[]
+  children   Child[]
+  listings   Listing[]
+  requests   Request[]
+
+  @@index([city, board])
+}
+
+// Book Listings
+model Listing {
+  id                 String            @id @default(uuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id])
+  listingType        ListingType
+  board              Board
+  class              Int
+  schoolId           String?
+  school             School?           @relation(fields: [schoolId], references: [id])
+  city               String
+  yearOfPurchase     Int?
+  condition          BookCondition
+  exchangePreference ExchangePreference[]
+  status             ListingStatus     @default(ACTIVE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  items              ListingItem[]
+  images             ListingImage[]
+  matches            Match[]
+
+  @@index([board, class, city, status])
+  @@index([schoolId, status])
+}
+
+// Book Items (for individual books in a listing)
+model ListingItem {
+  id         String         @id @default(uuid())
+  listingId  String
+  listing    Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  subject    String
+  title      String?
+  publisher  String?
+  condition  BookCondition?
+  createdAt  DateTime       @default(now())
+
+  images     ListingImage[]
+}
+
+// Listing Images
+model ListingImage {
+  id            String       @id @default(uuid())
+  listingId     String
+  listing       Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingItemId String?
+  listingItem   ListingItem? @relation(fields: [listingItemId], references: [id])
+  imageType     ImageType?
+  imageUrl      String
+  createdAt     DateTime     @default(now())
+}
+
+// Book Requests
+model Request {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  board        Board
+  class        Int
+  subjects     String[]      // optional filter
+  schoolId     String?
+  school       School?       @relation(fields: [schoolId], references: [id])
+  city         String
+  minCondition BookCondition?
+  status       RequestStatus @default(OPEN)
+  isFloated    Boolean       @default(false) // waiting for future listings
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  matches      Match[]
+
+  @@index([board, class, city, status])
+}
+
+// Matches (when request matches listing)
+model Match {
+  id               String       @id @default(uuid())
+  listingId        String
+  listing          Listing      @relation(fields: [listingId], references: [id])
+  requestId        String
+  request          Request      @relation(fields: [requestId], references: [id])
+  giverId          String
+  giver            User         @relation("Giver", fields: [giverId], references: [id])
+  receiverId       String
+  receiver         User         @relation("Receiver", fields: [receiverId], references: [id])
+  status           MatchStatus  @default(PENDING)
+  exchangeMethod   ExchangePreference?
+  exchangeDate     DateTime?
+  exchangeLocation String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+// Notifications
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  channel   NotificationChannel
+  title     String?
+  body      String?
+  data      Json?
+  isRead    Boolean          @default(false)
+  sentAt    DateTime         @default(now())
+}
+
+// OTP Storage
+model Otp {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, otp])
+}
+
+// Enums
+enum Board {
+  CBSE
+  ICSE
+  STATE
+  IB
+  IGCSE
+}
+
+enum ListingType {
+  SET
+  INDIVIDUAL
+}
+
+enum BookCondition {
+  UNUSED
+  ALMOST_NEW
+  WATER_MARKS
+  UNDERLINED
+}
+
+enum ExchangePreference {
+  PICKUP
+  SCHOOL
+  PORTER
+}
+
+enum ListingStatus {
+  ACTIVE
+  RESERVED
+  EXCHANGED
+  CANCELLED
+}
+
+enum RequestStatus {
+  OPEN
+  MATCHED
+  FULFILLED
+  CANCELLED
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum ImageType {
+  FRONT
+  BACK
+  MIDDLE
+}
+
+enum NotificationType {
+  MATCH_FOUND
+  REQUEST_RECEIVED
+  EXCHANGE_CONFIRMED
+  EXCHANGE_COMPLETED
+  FLOAT_MATCHED
+}
+
+enum NotificationChannel {
+  PUSH
+  WHATSAPP
+  EMAIL
+}

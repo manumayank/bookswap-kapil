@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>BookSwap - Product Requirements Document</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">BookSwap - Product Requirements Document</h1>
+</header>
+<h1 id="bookswap---school-book-exchange-platform">BookSwap - School Book
+Exchange Platform</h1>
+<h2 id="product-requirements-document">Product Requirements
+Document</h2>
+<p><strong>Version:</strong> 1.0<br />
+<strong>Date:</strong> February 2026<br />
+<strong>Author:</strong> Kapil (via Manu)</p>
+<hr />
+<h2 id="problem-statement">1. Problem Statement</h2>
+<p>School textbooks in India cost ₹15,000+ per student per year. When
+kids graduate to the next class, parents have no easy way to sell or
+donate these books. Meanwhile, other parents are buying the same books
+brand new.</p>
+<p><strong>Current workarounds:</strong> - WhatsApp school groups
+(chaotic, no structure) - Local shops (pay very little) - Throw away /
+store indefinitely</p>
+<p><strong>Opportunity:</strong> Connect parents within the same
+school/city/board to exchange books directly.</p>
+<hr />
+<h2 id="solution-overview">2. Solution Overview</h2>
+<p>A mobile-first platform where parents can: 1. <strong>List
+books</strong> they want to give away (free or priced later) 2.
+<strong>Request books</strong> for their child’s upcoming class 3.
+<strong>Get matched</strong> with other parents in same
+school/city/board 4. <strong>Exchange</strong> without revealing
+personal details</p>
+<hr />
+<h2 id="user-personas">3. User Personas</h2>
+<h3 id="primary-parent-giver">Primary: Parent (Giver)</h3>
+<ul>
+<li>Has books from completed school year</li>
+<li>Wants to declutter / help other parents</li>
+<li>Needs easy listing process</li>
+</ul>
+<h3 id="primary-parent-receiver">Primary: Parent (Receiver)</h3>
+<ul>
+<li>Child starting new class</li>
+<li>Wants affordable/free books</li>
+<li>Needs books before school starts</li>
+</ul>
+<h3 id="secondary-school-admin-future">Secondary: School Admin
+(Future)</h3>
+<ul>
+<li>Could facilitate exchanges on campus</li>
+<li>Track book donations for CSR</li>
+</ul>
+<hr />
+<h2 id="core-features-mvp">4. Core Features (MVP)</h2>
+<h3 id="registration-profile">4.1 Registration &amp; Profile</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>Text</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Email</td>
+<td>Email</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Phone</td>
+<td>Phone</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>City</td>
+<td>Dropdown</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Address</td>
+<td>Text</td>
+<td>✓ (for pickup)</td>
+</tr>
+<tr>
+<td>School Name</td>
+<td>Searchable dropdown</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Education Board</td>
+<td>Dropdown (CBSE/ICSE/State/IB)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Number of Kids</td>
+<td>Number</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Class of Kid 1</td>
+<td>Dropdown (1-12)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Class of Kid 2</td>
+<td>Dropdown</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Class of Kid 3</td>
+<td>Dropdown</td>
+<td>Optional</td>
+</tr>
+</tbody>
+</table>
+<h3 id="login-authentication">4.2 Login / Authentication</h3>
+<ul>
+<li><strong>Email + OTP</strong> (primary)</li>
+<li>Optional: Google Sign-in</li>
+<li>Phone OTP as backup</li>
+</ul>
+<h3 id="offer-books-give-away">4.3 Offer Books (Give Away)</h3>
+<p><strong>Listing Type:</strong> - [ ] Complete Set (all books for a
+class) - [ ] Individual Books</p>
+<p><strong>Book Details:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Education Board</td>
+<td>Dropdown</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Class</td>
+<td>Dropdown</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Subject</td>
+<td>Dropdown/Multi-select</td>
+<td>✓ (if individual)</td>
+</tr>
+<tr>
+<td>School</td>
+<td>Auto-filled or select</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>City</td>
+<td>Auto-filled</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Year of Purchase</td>
+<td>Dropdown</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td>Radio</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Images</td>
+<td>Upload (3 per book)</td>
+<td>Recommended</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Condition Options:</strong> 1. 📗 Unused (still in plastic)
+2. 📘 Almost New (minimal use) 3. 📙 Water/Tea Marks (some stains) 4. 📕
+Underlined/Highlighted (written notes)</p>
+<p><strong>Image Requirements:</strong> - Front cover - Back cover<br />
+- Random middle page (to show condition)</p>
+<p><strong>Exchange Preferences:</strong> - [ ] Pickup from my address -
+[ ] Exchange at school - [ ] Porter/Courier (receiver pays)</p>
+<h3 id="request-books">4.4 Request Books</h3>
+<p><strong>Search Filters:</strong> - Education Board - Class - Subject
+(optional) - School (optional - same school preferred) - City -
+Condition (minimum acceptable)</p>
+<p><strong>If no match found:</strong> → “Float Request” - saves request
+and notifies when matching books listed</p>
+<p><strong>Notifications:</strong> - In-app push notification - WhatsApp
+notification (to all matching criteria)</p>
+<h3 id="matching-exchange-flow">4.5 Matching &amp; Exchange Flow</h3>
+<pre><code>┌─────────────┐         ┌─────────────┐
+│   GIVER     │         │  RECEIVER   │
+│  Lists      │         │  Requests   │
+│  Books      │         │  Books      │
+└──────┬──────┘         └──────┬──────┘
+       │                       │
+       └───────────┬───────────┘
+                   │
+                   ▼
+          ┌───────────────┐
+          │    MATCHING   │
+          │    ENGINE     │
+          │ (School/City/ │
+          │  Board/Class) │
+          └───────┬───────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │  NOTIFICATION │
+          │  • In-App     │
+          │  • WhatsApp   │
+          └───────┬───────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │   EXCHANGE    │
+          │  • Accept     │
+          │  • Schedule   │
+          │  • Complete   │
+          └───────────────┘</code></pre>
+<p><strong>Privacy:</strong> Platform mediates. Personal details
+(address/phone) shared only after both parties confirm exchange.</p>
+<h3 id="sample-papers-phase-2">4.6 Sample Papers (Phase 2)</h3>
+<p><strong>Upload:</strong> - Class - Subject - School/Board - Year -
+File (PDF)</p>
+<p><strong>Download:</strong> - Browse by Class → Subject → Board - Free
+download</p>
+<hr />
+<h2 id="screens-mvp">5. Screens (MVP)</h2>
+<h3 id="onboarding">5.1 Onboarding</h3>
+<ol type="1">
+<li>Splash Screen</li>
+<li>Login (Email + OTP)</li>
+<li>Registration Form</li>
+<li>Add Children Details</li>
+</ol>
+<h3 id="home">5.2 Home</h3>
+<ul>
+<li>Quick actions: “Give Books” / “Need Books”</li>
+<li>Active listings count</li>
+<li>Pending requests count</li>
+<li>Recent matches</li>
+</ul>
+<h3 id="give-books">5.3 Give Books</h3>
+<ol type="1">
+<li>Select: Set or Individual</li>
+<li>Book details form</li>
+<li>Condition selection</li>
+<li>Image upload</li>
+<li>Exchange preference</li>
+<li>Preview &amp; Submit</li>
+</ol>
+<h3 id="need-books">5.4 Need Books</h3>
+<ol type="1">
+<li>Filter selection</li>
+<li>Results list</li>
+<li>Book detail view</li>
+<li>“Request This” button</li>
+<li>Float request (if no match)</li>
+</ol>
+<h3 id="my-activity">5.5 My Activity</h3>
+<ul>
+<li>My Listings (active/completed)</li>
+<li>My Requests (pending/matched)</li>
+<li>Exchange History</li>
+</ul>
+<h3 id="notifications">5.6 Notifications</h3>
+<ul>
+<li>Match alerts</li>
+<li>Request updates</li>
+<li>Exchange confirmations</li>
+</ul>
+<h3 id="profile">5.7 Profile</h3>
+<ul>
+<li>Edit profile</li>
+<li>Manage children</li>
+<li>Settings</li>
+<li>Logout</li>
+</ul>
+<hr />
+<h2 id="notifications-strategy">6. Notifications Strategy</h2>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>In-App</th>
+<th>WhatsApp</th>
+<th>Email</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New match found</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>Request received</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>Exchange confirmed</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Exchange completed</td>
+<td>✓</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Floated request matched</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="non-functional-requirements">7. Non-Functional Requirements</h2>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App Load Time</td>
+<td>&lt; 3 sec</td>
+</tr>
+<tr>
+<td>Search Results</td>
+<td>&lt; 1 sec</td>
+</tr>
+<tr>
+<td>Image Upload</td>
+<td>&lt; 5 sec per image</td>
+</tr>
+<tr>
+<td>Availability</td>
+<td>99.5%</td>
+</tr>
+<tr>
+<td>Languages</td>
+<td>English, Hindi (Phase 2)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="success-metrics">8. Success Metrics</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target (3 months)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Registered Users</td>
+<td>5,000</td>
+</tr>
+<tr>
+<td>Books Listed</td>
+<td>10,000</td>
+</tr>
+<tr>
+<td>Successful Exchanges</td>
+<td>1,000</td>
+</tr>
+<tr>
+<td>User Retention (D30)</td>
+<td>40%</td>
+</tr>
+<tr>
+<td>Schools Covered</td>
+<td>100</td>
+</tr>
+<tr>
+<td>Cities</td>
+<td>5 major metros</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="monetization-future">9. Monetization (Future)</h2>
+<p><strong>Phase 1 (MVP):</strong> Free - focus on adoption</p>
+<p><strong>Phase 2 Options:</strong> 1. <strong>Premium
+Listings</strong> - Featured/boosted visibility 2. <strong>Transaction
+Fee</strong> - Small fee on paid exchanges 3. <strong>Porter
+Integration</strong> - Commission on delivery 4. <strong>School
+Partnerships</strong> - B2B for bulk exchanges 5. <strong>Ads</strong> -
+Stationery/tuition services</p>
+<hr />
+<h2 id="risks-mitigations">10. Risks &amp; Mitigations</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fake listings</td>
+<td>Image verification, user ratings</td>
+</tr>
+<tr>
+<td>No-shows</td>
+<td>Confirmation flow, soft penalties</td>
+</tr>
+<tr>
+<td>Data privacy</td>
+<td>Mediated exchange, no direct sharing</td>
+</tr>
+<tr>
+<td>Low supply</td>
+<td>Seed with school partnerships</td>
+</tr>
+<tr>
+<td>Seasonal demand</td>
+<td>Push listings post-exam season</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mvp-scope-summary">11. MVP Scope Summary</h2>
+<p><strong>In Scope:</strong> - ✅ User registration &amp; login (Email
+OTP) - ✅ Profile with children details - ✅ List books (set/individual)
+- ✅ Request books with filters - ✅ Matching engine
+(school/city/board/class) - ✅ In-app notifications - ✅ WhatsApp
+notifications (basic) - ✅ Exchange flow (accept/schedule/complete)</p>
+<p><strong>Out of Scope (Phase 2):</strong> - ❌ Payments/pricing - ❌
+Sample papers - ❌ Porter integration - ❌ School admin portal - ❌
+Multi-language</p>
+<hr />
+<h2 id="timeline-estimate">12. Timeline Estimate</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Duration</th>
+<th>Deliverable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Design</td>
+<td>2 weeks</td>
+<td>Wireframes, UI design</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>4 weeks</td>
+<td>API, database, matching</td>
+</tr>
+<tr>
+<td>Mobile App</td>
+<td>4 weeks</td>
+<td>React Native / Flutter</td>
+</tr>
+<tr>
+<td>Testing</td>
+<td>2 weeks</td>
+<td>QA, beta testing</td>
+</tr>
+<tr>
+<td>Launch</td>
+<td>1 week</td>
+<td>Play Store, soft launch</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total:</strong> ~13 weeks for MVP</p>
+<hr />
+<p><em>Next: Technical Architecture &amp; Database Design</em></p>
+</body>
+</html>

@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookswap-postgres
+    environment:
+      POSTGRES_USER: bookswap
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bookswap_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - bookswap_postgres_data:/var/lib/postgresql/data
+
+  # Optional: Redis for session storage / rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: bookswap-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - bookswap_redis_data:/data
+
+volumes:
+  bookswap_postgres_data:
+  bookswap_redis_data:
