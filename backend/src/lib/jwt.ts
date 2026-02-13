@@ -9,11 +9,11 @@ export interface JwtPayload {
 }
 
 export function generateToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as string });
 }
 
 export function generateRefreshToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' as string });
 }
 
 export function verifyToken(token: string): JwtPayload {

@@ -1,6 +1,5 @@
 import multer from 'multer';
 import path from 'path';
-import { v4 as uuid } from 'crypto';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || '5242880');
