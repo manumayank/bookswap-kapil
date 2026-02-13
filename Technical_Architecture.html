@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>BookSwap - Technical Architecture</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">BookSwap - Technical Architecture</h1>
+</header>
+<h1 id="bookswap---technical-architecture">BookSwap - Technical
+Architecture</h1>
+<h2 id="system-architecture">1. System Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENTS                                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                         │
+│  │ Mobile App  │  │  PWA/Web    │  │   Admin     │                         │
+│  │(React Native│  │  (Future)   │  │   Panel     │                         │
+│  │ or Flutter) │  │             │  │             │                         │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘                         │
+└─────────┼────────────────┼────────────────┼─────────────────────────────────┘
+          │                │                │
+          └────────────────┼────────────────┘
+                           │ HTTPS
+                           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           API GATEWAY                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  • Rate Limiting  • JWT Auth  • Request Logging  • CORS             │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        BACKEND SERVICES                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │    Auth      │  │   Listing    │  │   Matching   │  │ Notification │    │
+│  │   Service    │  │   Service    │  │   Service    │  │   Service    │    │
+│  │  (OTP/JWT)   │  │  (CRUD)      │  │  (Search)    │  │ (Push/WA)    │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                      │
+│  │    User      │  │   Exchange   │  │    Media     │                      │
+│  │   Service    │  │   Service    │  │   Service    │                      │
+│  │  (Profile)   │  │  (Workflow)  │  │  (Images)    │                      │
+│  └──────────────┘  └──────────────┘  └──────────────┘                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                           │
+          ┌────────────────┼────────────────┬────────────────┐
+          ▼                ▼                ▼                ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  PostgreSQL  │  │    Redis     │  │ Elasticsearch│  │     S3       │
+│  (Primary)   │  │   (Cache)    │  │  (Search)    │  │  (Images)    │
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        EXTERNAL SERVICES                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                      │
+│  │   WhatsApp   │  │  Firebase    │  │   SendGrid   │                      │
+│  │  Business    │  │    FCM       │  │   (Email)    │                      │
+│  │    API       │  │   (Push)     │  │              │                      │
+│  └──────────────┘  └──────────────┘  └──────────────┘                      │
+└─────────────────────────────────────────────────────────────────────────────┘</code></pre>
+<hr />
+<h2 id="tech-stack-recommendation">2. Tech Stack Recommendation</h2>
+<h3 id="option-a-cost-effective-recommended-for-mvp">Option A:
+Cost-Effective (Recommended for MVP)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 44%" />
+<col style="width: 29%" />
+</colgroup>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mobile</strong></td>
+<td>React Native</td>
+<td>Cross-platform, JS ecosystem</td>
+</tr>
+<tr>
+<td><strong>Backend</strong></td>
+<td>Node.js + Express</td>
+<td>Fast development, easy hiring</td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td>PostgreSQL</td>
+<td>Reliable, free, good for relational data</td>
+</tr>
+<tr>
+<td><strong>Cache</strong></td>
+<td>Redis</td>
+<td>Sessions, OTP storage</td>
+</tr>
+<tr>
+<td><strong>Search</strong></td>
+<td>PostgreSQL Full-Text</td>
+<td>Good enough for MVP</td>
+</tr>
+<tr>
+<td><strong>Storage</strong></td>
+<td>AWS S3 / Cloudinary</td>
+<td>Image hosting</td>
+</tr>
+<tr>
+<td><strong>Push</strong></td>
+<td>Firebase FCM</td>
+<td>Free tier generous</td>
+</tr>
+<tr>
+<td><strong>WhatsApp</strong></td>
+<td>WhatsApp Business API</td>
+<td>Via provider like Gupshup/Twilio</td>
+</tr>
+<tr>
+<td><strong>Hosting</strong></td>
+<td>Railway / Render / AWS</td>
+<td>Start small, scale as needed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Estimated Monthly Cost (MVP):</strong>
+₹5,000-10,000/month</p>
+<h3 id="option-b-scale-ready">Option B: Scale-Ready</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mobile</strong></td>
+<td>Flutter</td>
+</tr>
+<tr>
+<td><strong>Backend</strong></td>
+<td>NestJS (TypeScript)</td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td>PostgreSQL + Read Replicas</td>
+</tr>
+<tr>
+<td><strong>Search</strong></td>
+<td>Elasticsearch</td>
+</tr>
+<tr>
+<td><strong>Queue</strong></td>
+<td>Redis + BullMQ</td>
+</tr>
+<tr>
+<td><strong>Hosting</strong></td>
+<td>AWS ECS / Kubernetes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="database-schema">3. Database Schema</h2>
+<h3 id="core-tables">3.1 Core Tables</h3>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Users</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> users (</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    name <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    email <span class="dt">VARCHAR</span>(<span class="dv">255</span>) <span class="kw">UNIQUE</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    phone <span class="dt">VARCHAR</span>(<span class="dv">15</span>) <span class="kw">UNIQUE</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    city <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    address TEXT,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    school_id UUID <span class="kw">REFERENCES</span> schools(<span class="kw">id</span>),</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    board <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>, <span class="co">-- CBSE, ICSE, STATE, IB</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    is_verified <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW(),</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    updated_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co">-- Children (linked to parent)</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> children (</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    user_id UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    name <span class="dt">VARCHAR</span>(<span class="dv">100</span>),</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    gender <span class="dt">VARCHAR</span>(<span class="dv">10</span>),</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    current_class <span class="dt">INT</span> <span class="kw">NOT</span> <span class="kw">NULL</span>, <span class="co">-- 1-12</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    school_id UUID <span class="kw">REFERENCES</span> schools(<span class="kw">id</span>),</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="co">-- Schools (master data)</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> schools (</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    name <span class="dt">VARCHAR</span>(<span class="dv">255</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    city <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    board <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    address TEXT,</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    is_verified <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="co">-- Book Listings</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> listings (</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    user_id UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    listing_type <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>, <span class="co">-- &#39;SET&#39; or &#39;INDIVIDUAL&#39;</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    board <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> <span class="dt">INT</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>    school_id UUID <span class="kw">REFERENCES</span> schools(<span class="kw">id</span>),</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>    city <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    year_of_purchase <span class="dt">INT</span>,</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>    condition <span class="dt">VARCHAR</span>(<span class="dv">30</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>, <span class="co">-- UNUSED, ALMOST_NEW, WATER_MARKS, UNDERLINED</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    exchange_preference <span class="dt">VARCHAR</span>(<span class="dv">30</span>)[], <span class="co">-- PICKUP, SCHOOL, PORTER</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    status <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">DEFAULT</span> <span class="st">&#39;ACTIVE&#39;</span>, <span class="co">-- ACTIVE, RESERVED, EXCHANGED, CANCELLED</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW(),</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>    updated_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a><span class="co">-- Book Items (for individual books in a listing)</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> listing_items (</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>    listing_id UUID <span class="kw">REFERENCES</span> listings(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>    subject <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>    title <span class="dt">VARCHAR</span>(<span class="dv">255</span>),</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>    publisher <span class="dt">VARCHAR</span>(<span class="dv">100</span>),</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>    condition <span class="dt">VARCHAR</span>(<span class="dv">30</span>),</span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a><span class="co">-- Listing Images</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> listing_images (</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>    listing_id UUID <span class="kw">REFERENCES</span> listings(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>    listing_item_id UUID <span class="kw">REFERENCES</span> listing_items(<span class="kw">id</span>),</span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>    image_type <span class="dt">VARCHAR</span>(<span class="dv">20</span>), <span class="co">-- FRONT, BACK, MIDDLE</span></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>    image_url TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a><span class="co">-- Book Requests</span></span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> requests (</span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>    user_id UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>    board <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> <span class="dt">INT</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>    subjects <span class="dt">VARCHAR</span>(<span class="dv">100</span>)[], <span class="co">-- optional filter</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>    school_id UUID <span class="kw">REFERENCES</span> schools(<span class="kw">id</span>), <span class="co">-- optional</span></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>    city <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>    min_condition <span class="dt">VARCHAR</span>(<span class="dv">30</span>), <span class="co">-- minimum acceptable</span></span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a>    status <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">DEFAULT</span> <span class="st">&#39;OPEN&#39;</span>, <span class="co">-- OPEN, MATCHED, FULFILLED, CANCELLED</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a>    is_floated <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>, <span class="co">-- waiting for future listings</span></span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW(),</span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>    updated_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a><span class="co">-- Matches (when request matches listing)</span></span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> matches (</span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a>    listing_id UUID <span class="kw">REFERENCES</span> listings(<span class="kw">id</span>),</span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>    request_id UUID <span class="kw">REFERENCES</span> requests(<span class="kw">id</span>),</span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>    giver_id UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a>    receiver_id UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a>    status <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">DEFAULT</span> <span class="st">&#39;PENDING&#39;</span>, <span class="co">-- PENDING, ACCEPTED, REJECTED, COMPLETED</span></span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a>    exchange_method <span class="dt">VARCHAR</span>(<span class="dv">30</span>),</span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>    exchange_date <span class="dt">DATE</span>,</span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>    exchange_location TEXT,</span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW(),</span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a>    updated_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a><span class="co">-- Notifications Log</span></span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> notifications (</span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a>    user_id UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a>    <span class="kw">type</span> <span class="dt">VARCHAR</span>(<span class="dv">30</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>, <span class="co">-- MATCH_FOUND, REQUEST_RECEIVED, EXCHANGE_CONFIRMED</span></span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a>    channel <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>, <span class="co">-- PUSH, WHATSAPP, EMAIL</span></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a>    title <span class="dt">VARCHAR</span>(<span class="dv">255</span>),</span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a>    <span class="kw">body</span> TEXT,</span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a>    <span class="kw">data</span> JSONB,</span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true" tabindex="-1"></a>    is_read <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true" tabindex="-1"></a>    sent_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-120"><a href="#cb2-120" aria-hidden="true" tabindex="-1"></a><span class="co">-- OTP Storage (use Redis in production)</span></span>
+<span id="cb2-121"><a href="#cb2-121" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> otps (</span>
+<span id="cb2-122"><a href="#cb2-122" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-123"><a href="#cb2-123" aria-hidden="true" tabindex="-1"></a>    email <span class="dt">VARCHAR</span>(<span class="dv">255</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-124"><a href="#cb2-124" aria-hidden="true" tabindex="-1"></a>    otp <span class="dt">VARCHAR</span>(<span class="dv">6</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-125"><a href="#cb2-125" aria-hidden="true" tabindex="-1"></a>    expires_at <span class="dt">TIMESTAMP</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-126"><a href="#cb2-126" aria-hidden="true" tabindex="-1"></a>    is_used <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-127"><a href="#cb2-127" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-128"><a href="#cb2-128" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-129"><a href="#cb2-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-130"><a href="#cb2-130" aria-hidden="true" tabindex="-1"></a><span class="co">-- Sample Papers (Phase 2)</span></span>
+<span id="cb2-131"><a href="#cb2-131" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sample_papers (</span>
+<span id="cb2-132"><a href="#cb2-132" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-133"><a href="#cb2-133" aria-hidden="true" tabindex="-1"></a>    uploaded_by UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-134"><a href="#cb2-134" aria-hidden="true" tabindex="-1"></a>    board <span class="dt">VARCHAR</span>(<span class="dv">20</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-135"><a href="#cb2-135" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> <span class="dt">INT</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-136"><a href="#cb2-136" aria-hidden="true" tabindex="-1"></a>    subject <span class="dt">VARCHAR</span>(<span class="dv">100</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-137"><a href="#cb2-137" aria-hidden="true" tabindex="-1"></a>    <span class="dt">year</span> <span class="dt">INT</span>,</span>
+<span id="cb2-138"><a href="#cb2-138" aria-hidden="true" tabindex="-1"></a>    school_id UUID <span class="kw">REFERENCES</span> schools(<span class="kw">id</span>),</span>
+<span id="cb2-139"><a href="#cb2-139" aria-hidden="true" tabindex="-1"></a>    file_url TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-140"><a href="#cb2-140" aria-hidden="true" tabindex="-1"></a>    downloads <span class="dt">INT</span> <span class="kw">DEFAULT</span> <span class="dv">0</span>,</span>
+<span id="cb2-141"><a href="#cb2-141" aria-hidden="true" tabindex="-1"></a>    created_at <span class="dt">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()</span>
+<span id="cb2-142"><a href="#cb2-142" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<h3 id="indexes">3.2 Indexes</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Fast lookups for matching</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_listings_search <span class="kw">ON</span> listings(board, <span class="kw">class</span>, city, status);</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_listings_school <span class="kw">ON</span> listings(school_id, status);</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_requests_search <span class="kw">ON</span> requests(board, <span class="kw">class</span>, city, status);</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_children_class <span class="kw">ON</span> children(user_id, current_class);</span></code></pre></div>
+<hr />
+<h2 id="api-endpoints-rest">4. API Endpoints (REST)</h2>
+<h3 id="authentication">4.1 Authentication</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/auth/send-otp</code></td>
+<td>Send OTP to email</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/verify-otp</code></td>
+<td>Verify OTP, return JWT</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/refresh</code></td>
+<td>Refresh access token</td>
+</tr>
+</tbody>
+</table>
+<h3 id="users">4.2 Users</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/users/register</code></td>
+<td>Create new user</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/users/me</code></td>
+<td>Get current user profile</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/users/me</code></td>
+<td>Update profile</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/users/me/children</code></td>
+<td>Add child</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/users/me/children/:id</code></td>
+<td>Update child</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/users/me/children/:id</code></td>
+<td>Remove child</td>
+</tr>
+</tbody>
+</table>
+<h3 id="listings">4.3 Listings</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/listings</code></td>
+<td>Create new listing</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/listings</code></td>
+<td>Search listings (with filters)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/listings/:id</code></td>
+<td>Get listing details</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/listings/:id</code></td>
+<td>Update listing</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/listings/:id</code></td>
+<td>Cancel listing</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/listings/:id/images</code></td>
+<td>Upload images</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/listings/my</code></td>
+<td>Get my listings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="requests">4.4 Requests</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/requests</code></td>
+<td>Create book request</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/requests</code></td>
+<td>Get my requests</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/requests/:id</code></td>
+<td>Get request details</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/requests/:id</code></td>
+<td>Update request</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/requests/:id</code></td>
+<td>Cancel request</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/requests/:id/float</code></td>
+<td>Float request for future match</td>
+</tr>
+</tbody>
+</table>
+<h3 id="matches-exchanges">4.5 Matches &amp; Exchanges</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/matches</code></td>
+<td>Get my matches</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/matches/:id</code></td>
+<td>Get match details</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/matches/:id/accept</code></td>
+<td>Accept match</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/matches/:id/reject</code></td>
+<td>Reject match</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/matches/:id/schedule</code></td>
+<td>Schedule exchange</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/matches/:id/complete</code></td>
+<td>Mark as completed</td>
+</tr>
+</tbody>
+</table>
+<h3 id="schools-master-data">4.6 Schools (Master Data)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/schools</code></td>
+<td>Search schools</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/schools/:id</code></td>
+<td>Get school details</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/schools/suggest</code></td>
+<td>Suggest new school</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="matching-algorithm">5. Matching Algorithm</h2>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Pseudo-code for matching engine</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">async</span> <span class="kw">function</span> <span class="fu">findMatches</span>(request) {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Priority 1: Same school</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> matches <span class="op">=</span> <span class="cf">await</span> db<span class="op">.</span><span class="at">listings</span><span class="op">.</span><span class="fu">find</span>({</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">board</span><span class="op">:</span> request<span class="op">.</span><span class="at">board</span><span class="op">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">class</span><span class="op">:</span> request<span class="op">.</span><span class="at">class</span><span class="op">,</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">school_id</span><span class="op">:</span> request<span class="op">.</span><span class="at">school_id</span><span class="op">,</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">status</span><span class="op">:</span> <span class="st">&#39;ACTIVE&#39;</span><span class="op">,</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">condition</span><span class="op">:</span> { <span class="dt">$gte</span><span class="op">:</span> request<span class="op">.</span><span class="at">min_condition</span> }</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (matches<span class="op">.</span><span class="at">length</span> <span class="op">&gt;</span> <span class="dv">0</span>) <span class="cf">return</span> matches<span class="op">;</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Priority 2: Same city + board</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  matches <span class="op">=</span> <span class="cf">await</span> db<span class="op">.</span><span class="at">listings</span><span class="op">.</span><span class="fu">find</span>({</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">board</span><span class="op">:</span> request<span class="op">.</span><span class="at">board</span><span class="op">,</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="dt">class</span><span class="op">:</span> request<span class="op">.</span><span class="at">class</span><span class="op">,</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="dt">city</span><span class="op">:</span> request<span class="op">.</span><span class="at">city</span><span class="op">,</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="dt">status</span><span class="op">:</span> <span class="st">&#39;ACTIVE&#39;</span><span class="op">,</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="dt">condition</span><span class="op">:</span> { <span class="dt">$gte</span><span class="op">:</span> request<span class="op">.</span><span class="at">min_condition</span> }</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> matches<span class="op">;</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co">// Condition ranking for comparison</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> CONDITION_RANK <span class="op">=</span> {</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;UNUSED&#39;</span><span class="op">:</span> <span class="dv">4</span><span class="op">,</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;ALMOST_NEW&#39;</span><span class="op">:</span> <span class="dv">3</span><span class="op">,</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;WATER_MARKS&#39;</span><span class="op">:</span> <span class="dv">2</span><span class="op">,</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;UNDERLINED&#39;</span><span class="op">:</span> <span class="dv">1</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>}<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="notification-flow">6. Notification Flow</h2>
+<pre><code>┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  New Listing│────▶│   Check     │────▶│   Send      │
+│   Created   │     │  Floated    │     │  WhatsApp   │
+└─────────────┘     │  Requests   │     │  + Push     │
+                    └─────────────┘     └─────────────┘
+
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  New Request│────▶│   Search    │────▶│   Show      │
+│   Created   │     │  Existing   │     │  Results    │
+└─────────────┘     │  Listings   │     │  or Float   │
+                    └─────────────┘     └─────────────┘</code></pre>
+<h3 id="whatsapp-message-template-example">WhatsApp Message Template
+(Example)</h3>
+<pre><code>📚 BookSwap Alert!
+
+Books matching your request are now available:
+
+📖 Class 8 - CBSE (Full Set)
+🏫 Same school: DPS RK Puram
+📍 New Delhi
+⭐ Condition: Almost New
+
+Open app to view &amp; request:
+[BUTTON: View Books]</code></pre>
+<hr />
+<h2 id="security-considerations">7. Security Considerations</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Auth</td>
+<td>JWT with short expiry, refresh tokens</td>
+</tr>
+<tr>
+<td>OTP Brute Force</td>
+<td>Rate limit (5 attempts/15 min)</td>
+</tr>
+<tr>
+<td>Image Upload</td>
+<td>Validate file type, size limit (5MB)</td>
+</tr>
+<tr>
+<td>Personal Data</td>
+<td>Share only after mutual acceptance</td>
+</tr>
+<tr>
+<td>Phone Privacy</td>
+<td>Mask phone numbers in listings</td>
+</tr>
+<tr>
+<td>SQL Injection</td>
+<td>Parameterized queries, ORM</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mvp-development-phases">8. MVP Development Phases</h2>
+<h3 id="phase-1-core-weeks-1-4">Phase 1: Core (Weeks 1-4)</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />User auth (email OTP)</label></li>
+<li><label><input type="checkbox" />Profile management</label></li>
+<li><label><input type="checkbox" />School master data</label></li>
+<li><label><input type="checkbox" />Basic listings CRUD</label></li>
+</ul>
+<h3 id="phase-2-exchange-weeks-5-6">Phase 2: Exchange (Weeks 5-6)</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Book requests</label></li>
+<li><label><input type="checkbox" />Matching engine</label></li>
+<li><label><input type="checkbox" />Exchange workflow</label></li>
+</ul>
+<h3 id="phase-3-notifications-weeks-7-8">Phase 3: Notifications (Weeks
+7-8)</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Push notifications
+(FCM)</label></li>
+<li><label><input type="checkbox" />WhatsApp integration</label></li>
+<li><label><input type="checkbox" />Float request alerts</label></li>
+</ul>
+<h3 id="phase-4-polish-weeks-9-10">Phase 4: Polish (Weeks 9-10)</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Image upload/gallery</label></li>
+<li><label><input type="checkbox" />Search improvements</label></li>
+<li><label><input type="checkbox" />Testing &amp; bug fixes</label></li>
+</ul>
+<h3 id="phase-5-launch-weeks-11-12">Phase 5: Launch (Weeks 11-12)</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Beta testing (1-2
+schools)</label></li>
+<li><label><input type="checkbox" />Play Store submission</label></li>
+<li><label><input type="checkbox" />Soft launch</label></li>
+</ul>
+<hr />
+<h2 id="hosting-devops-mvp">9. Hosting &amp; DevOps (MVP)</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Railway / Render                             │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  Node.js     │  │  PostgreSQL  │  │    Redis     │          │
+│  │  Backend     │  │  (Managed)   │  │  (Managed)   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────┼─────────────────────────────────┐
+│                    External Services                           │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │  Cloudinary  │  │   Gupshup    │  │   Firebase   │        │
+│  │  (Images)    │  │  (WhatsApp)  │  │    (FCM)     │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
+└───────────────────────────────────────────────────────────────┘</code></pre>
+<p><strong>Estimated Costs:</strong> | Service | Monthly Cost |
+|———|————–| | Railway (Backend + DB) | ₹1,500 | | Cloudinary (Images) |
+Free tier | | Firebase (Push) | Free tier | | Gupshup (WhatsApp) | ₹2-3
+per message | | Domain | ₹500/year | | <strong>Total</strong> |
+<strong>~₹5,000/month</strong> |</p>
+<hr />
+<p><em>Next steps: Wireframes &amp; UI Design</em></p>
+</body>
+</html>
