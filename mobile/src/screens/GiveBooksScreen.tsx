@@ -22,7 +22,6 @@ const listingSchema = z.object({
   board: z.enum(['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE']),
   class: z.string().min(1, 'Class is required'),
   city: z.string().min(2, 'City is required'),
-  condition: z.enum(['UNUSED', 'ALMOST_NEW', 'WATER_MARKS', 'UNDERLINED']),
   yearOfPurchase: z.string().optional(),
   items: z.array(
     z.object({
@@ -45,7 +44,8 @@ const CONDITIONS: { value: BookCondition; label: string }[] = [
 export default function GiveBooksScreen({ navigation }: any) {
   const { user } = useAuthStore();
   const createListing = useCreateListing();
-  const [exchangePrefs, setExchangePrefs] = useState<ExchangePreference[]>(['PICKUP']);
+  const [exchangePref, setExchangePref] = useState<ExchangePreference>('PICKUP');
+  const [conditions, setConditions] = useState<BookCondition[]>(['ALMOST_NEW']);
 
   const { control, handleSubmit, formState: { errors } } = useForm<ListingForm>({
     resolver: zodResolver(listingSchema),
@@ -54,39 +54,54 @@ export default function GiveBooksScreen({ navigation }: any) {
       board: user?.board || 'CBSE',
       class: '',
       city: user?.city || '',
-      condition: 'ALMOST_NEW',
       items: [{ subject: '', title: '', publisher: '' }],
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
-  const toggleExchangePref = (pref: ExchangePreference) => {
-    setExchangePrefs((prev) =>
-      prev.includes(pref)
-        ? prev.filter((p) => p !== pref)
-        : [...prev, pref]
+  const toggleCondition = (cond: BookCondition) => {
+    setConditions((prev) =>
+      prev.includes(cond)
+        ? prev.filter((c) => c !== cond)
+        : [...prev, cond]
     );
   };
 
   const onSubmit = async (data: ListingForm) => {
-    if (exchangePrefs.length === 0) {
-      Alert.alert('Error', 'Select at least one exchange preference');
+    console.log('onSubmit called with data:', data);
+    console.log('conditions:', conditions);
+    console.log('exchangePref:', exchangePref);
+    
+    if (conditions.length === 0) {
+      Alert.alert('Error', 'Select at least one book condition');
       return;
     }
 
     try {
-      await createListing.mutateAsync({
+      console.log('Creating listing with data:', {
         ...data,
         class: parseInt(data.class),
         yearOfPurchase: data.yearOfPurchase ? parseInt(data.yearOfPurchase) : undefined,
-        exchangePreference: exchangePrefs,
+        condition: conditions,
+        exchangePreference: [exchangePref],
       });
+      const result = await createListing.mutateAsync({
+        ...data,
+        class: parseInt(data.class),
+        yearOfPurchase: data.yearOfPurchase ? parseInt(data.yearOfPurchase) : undefined,
+        condition: conditions,
+        exchangePreference: [exchangePref],
+      });
+      console.log('Listing created:', result);
       Alert.alert('Success', 'Listing created! We will find matches for you.', [
         { text: 'OK', onPress: () => navigation.navigate('Home') },
       ]);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to create listing');
+      console.error('Create listing error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to create listing';
+      Alert.alert('Error', errorMsg);
     }
   };
 
@@ -120,17 +135,20 @@ export default function GiveBooksScreen({ navigation }: any) {
         control={control}
         name="board"
         render={({ field: { onChange, value } }) => (
-          <SegmentedButtons
-            value={value}
-            onValueChange={onChange}
-            buttons={[
-              { value: 'CBSE', label: 'CBSE' },
-              { value: 'ICSE', label: 'ICSE' },
-              { value: 'STATE', label: 'State' },
-              { value: 'IB', label: 'IB' },
-            ]}
-            style={styles.segmented}
-          />
+          <View style={styles.chipRow}>
+            {(['CBSE', 'ICSE', 'STATE', 'IB'] as const).map((b) => (
+              <Chip
+                key={b}
+                selected={value === b}
+                onPress={() => onChange(b)}
+                style={[styles.chip, value === b && styles.chipSelected]}
+                mode={value === b ? 'flat' : 'outlined'}
+                showSelectedCheck={false}
+              >
+                {b === 'STATE' ? 'State' : b}
+              </Chip>
+            ))}
+          </View>
         )}
       />
 
@@ -166,26 +184,22 @@ export default function GiveBooksScreen({ navigation }: any) {
         )}
       />
 
-      {/* Condition */}
+      {/* Condition - Multi-select */}
       <Text style={styles.label}>Book Condition</Text>
-      <Controller
-        control={control}
-        name="condition"
-        render={({ field: { onChange, value } }) => (
-          <View style={styles.chipRow}>
-            {CONDITIONS.map((c) => (
-              <Chip
-                key={c.value}
-                selected={value === c.value}
-                onPress={() => onChange(c.value)}
-                style={styles.chip}
-              >
-                {c.label}
-              </Chip>
-            ))}
-          </View>
-        )}
-      />
+      <View style={styles.chipRow}>
+        {CONDITIONS.map((c) => (
+          <Chip
+            key={c.value}
+            selected={conditions.includes(c.value)}
+            onPress={() => toggleCondition(c.value)}
+            style={[styles.chip, conditions.includes(c.value) && styles.chipSelected]}
+            mode={conditions.includes(c.value) ? 'flat' : 'outlined'}
+            showSelectedCheck={false}
+          >
+            {c.label}
+          </Chip>
+        ))}
+      </View>
 
       {/* Year of Purchase */}
       <Controller
@@ -203,15 +217,17 @@ export default function GiveBooksScreen({ navigation }: any) {
         )}
       />
 
-      {/* Exchange Preference */}
+      {/* Exchange Preference - Single-select */}
       <Text style={styles.label}>Exchange Preference</Text>
       <View style={styles.chipRow}>
         {(['PICKUP', 'SCHOOL', 'PORTER'] as ExchangePreference[]).map((pref) => (
           <Chip
             key={pref}
-            selected={exchangePrefs.includes(pref)}
-            onPress={() => toggleExchangePref(pref)}
-            style={styles.chip}
+            selected={exchangePref === pref}
+            onPress={() => setExchangePref(pref)}
+            style={[styles.chip, exchangePref === pref && styles.chipSelected]}
+            mode={exchangePref === pref ? 'flat' : 'outlined'}
+            showSelectedCheck={false}
           >
             {pref === 'PICKUP' ? 'Self Pickup' : pref === 'SCHOOL' ? 'At School' : 'Porter'}
           </Chip>
@@ -288,7 +304,13 @@ export default function GiveBooksScreen({ navigation }: any) {
 
       <Button
         mode="contained"
-        onPress={handleSubmit(onSubmit)}
+        onPress={handleSubmit(onSubmit, (formErrors) => {
+          console.log('Form validation errors:', formErrors);
+          const errorMessages = Object.entries(formErrors)
+            .map(([key, value]) => `${key}: ${value?.message || 'Invalid'}`)
+            .join('\n');
+          Alert.alert('Validation Error', errorMessages || 'Please check the form');
+        })}
         style={styles.submitButton}
         loading={createListing.isPending}
         disabled={createListing.isPending}
@@ -310,7 +332,7 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#4CAF50',
+    color: '#3B82F6',
   },
   label: {
     fontWeight: '600',
@@ -326,11 +348,14 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
     marginBottom: 12,
   },
   chip: {
-    marginBottom: 4,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipSelected: {
+    backgroundColor: '#3B82F6',
   },
   itemCard: {
     marginBottom: 12,
@@ -349,6 +374,6 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     paddingVertical: 6,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#3B82F6',
   },
 });

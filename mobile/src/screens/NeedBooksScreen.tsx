@@ -6,11 +6,10 @@ import {
   Button,
   Card,
   Chip,
-  SegmentedButtons,
   ActivityIndicator,
   Divider,
 } from 'react-native-paper';
-import { useListings, useCreateRequest, useFloatRequest } from '../hooks/useApi';
+import { useListings, useCreateRequest, useFloatRequest, useSchools } from '../hooks/useApi';
 import { useAuthStore } from '../stores/authStore';
 import { Listing, Board, BookCondition } from '../types';
 
@@ -19,6 +18,7 @@ export default function NeedBooksScreen({ navigation }: any) {
   const [board, setBoard] = useState<Board>(user?.board || 'CBSE');
   const [classNum, setClassNum] = useState('');
   const [city, setCity] = useState(user?.city || '');
+  const [school, setSchool] = useState('');
   const [searched, setSearched] = useState(false);
 
   const { data, isLoading, refetch } = useListings(
@@ -27,6 +27,7 @@ export default function NeedBooksScreen({ navigation }: any) {
           board,
           class: classNum ? parseInt(classNum) : undefined,
           city: city || undefined,
+          school: school || undefined,
         }
       : undefined
   );
@@ -44,14 +45,24 @@ export default function NeedBooksScreen({ navigation }: any) {
   };
 
   const handleRequest = async () => {
-    if (!classNum) return;
+    console.log('handleRequest called');
+    console.log('classNum:', classNum, 'board:', board, 'city:', city, 'school:', school);
+    
+    if (!classNum) {
+      Alert.alert('Error', 'Please search first before requesting');
+      return;
+    }
+    
     try {
+      console.log('Creating request...');
       const result = await createRequest.mutateAsync({
         board,
         class: parseInt(classNum),
         city,
+        school: school || undefined,
         subjects: [],
       });
+      console.log('Request created:', result);
 
       if (data?.data && data.data.length === 0) {
         Alert.alert(
@@ -69,7 +80,9 @@ export default function NeedBooksScreen({ navigation }: any) {
         Alert.alert('Success', 'Request created! Check My Activity for matches.');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to create request');
+      console.error('Request error:', error);
+      console.error('Error response:', error.response?.data);
+      Alert.alert('Error', error.response?.data?.error || error.message || 'Failed to create request');
     }
   };
 
@@ -116,17 +129,20 @@ export default function NeedBooksScreen({ navigation }: any) {
 
       {/* Search Filters */}
       <View style={styles.filters}>
-        <SegmentedButtons
-          value={board}
-          onValueChange={(v) => setBoard(v as Board)}
-          buttons={[
-            { value: 'CBSE', label: 'CBSE' },
-            { value: 'ICSE', label: 'ICSE' },
-            { value: 'STATE', label: 'State' },
-            { value: 'IB', label: 'IB' },
-          ]}
-          style={styles.segmented}
-        />
+        <View style={styles.chipRow}>
+          {(['CBSE', 'ICSE', 'STATE', 'IB'] as Board[]).map((b) => (
+            <Chip
+              key={b}
+              selected={board === b}
+              onPress={() => setBoard(b)}
+              style={[styles.chip, board === b && styles.chipSelected]}
+              mode={board === b ? 'flat' : 'outlined'}
+              showSelectedCheck={false}
+            >
+              {b === 'STATE' ? 'State' : b}
+            </Chip>
+          ))}
+        </View>
         <View style={styles.row}>
           <TextInput
             label="Class"
@@ -146,6 +162,15 @@ export default function NeedBooksScreen({ navigation }: any) {
             dense
           />
         </View>
+        <TextInput
+          label="School (optional)"
+          value={school}
+          onChangeText={setSchool}
+          mode="outlined"
+          style={styles.input}
+          dense
+          placeholder="e.g., Delhi Public School"
+        />
         <Button mode="contained" onPress={handleSearch} style={styles.searchButton}>
           Search
         </Button>
@@ -209,7 +234,7 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#4CAF50',
+    color: '#3B82F6',
   },
   filters: {
     backgroundColor: '#fff',
@@ -217,8 +242,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
-  segmented: {
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginBottom: 8,
+  },
+  chip: {
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  chipSelected: {
+    backgroundColor: '#3B82F6',
   },
   row: {
     flexDirection: 'row',
@@ -227,7 +261,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   searchButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#3B82F6',
   },
   resultCount: {
     marginBottom: 8,
@@ -259,7 +293,7 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   requestButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#3B82F6',
     marginBottom: 16,
   },
 });
