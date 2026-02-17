@@ -26,8 +26,9 @@ export default function HomeScreen({ navigation }: any) {
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}
     >
       <Text variant="headlineMedium" style={styles.title}>
-        BookSwap
+        🪃 Bookerang
       </Text>
+      <Text style={styles.tagline}>Books come back around</Text>
       {user && (
         <Text variant="bodyLarge" style={styles.greeting}>
           Welcome, {user.name}!
@@ -83,7 +84,7 @@ export default function HomeScreen({ navigation }: any) {
 
       {matches && matches.filter((m) => m.status === 'PENDING').length > 0 && (
         <Card
-          style={[styles.card, { marginTop: 16, backgroundColor: '#E8F5E9' }]}
+          style={[styles.card, { marginTop: 16, backgroundColor: '#DBEAFE' }]}
           onPress={() => navigation.navigate('MyActivity')}
         >
           <Card.Content>
@@ -102,17 +103,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#EFF6FF',
   },
   title: {
     textAlign: 'center',
     marginTop: 10,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#1E40AF',
+  },
+  tagline: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#3B82F6',
+    marginTop: 2,
   },
   greeting: {
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
     color: '#666',
   },
   cardContainer: {
@@ -138,7 +145,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    color: '#4CAF50',
+    color: '#3B82F6',
     fontWeight: 'bold',
   },
 });

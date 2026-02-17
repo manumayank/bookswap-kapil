@@ -11,7 +11,11 @@ export const createListingDto = z.object({
   schoolId: z.string().uuid().optional(),
   city: z.string().min(2),
   yearOfPurchase: z.number().int().optional(),
-  condition: conditionEnum,
+  // Accept both single condition or array (take first if array)
+  condition: z.union([
+    conditionEnum,
+    z.array(conditionEnum).min(1).transform(arr => arr[0])
+  ]),
   exchangePreference: z.array(exchangeEnum).min(1, 'Select at least one exchange preference'),
   items: z.array(
     z.object({

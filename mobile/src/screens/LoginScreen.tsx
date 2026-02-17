@@ -47,10 +47,13 @@ export default function LoginScreen({ navigation }: any) {
     >
       <View style={styles.inner}>
         <Text variant="headlineLarge" style={styles.title}>
-          BookSwap
+          🪃 Bookerang
         </Text>
         <Text variant="bodyLarge" style={styles.subtitle}>
-          Exchange school books with parents near you
+          Books come back around
+        </Text>
+        <Text variant="bodyMedium" style={styles.tagline}>
+          Swap, buy & sell preloved books
         </Text>
 
         <View style={styles.form}>
@@ -113,7 +116,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#EFF6FF',
   },
   inner: {
     flex: 1,
@@ -123,11 +126,17 @@ const styles = StyleSheet.create({
   title: {
     textAlign: 'center',
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#1E40AF',
   },
   subtitle: {
     textAlign: 'center',
     marginTop: 8,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  tagline: {
+    textAlign: 'center',
+    marginTop: 4,
     color: '#666',
   },
   form: {
@@ -139,7 +148,7 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     paddingVertical: 6,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#3B82F6',
   },
   linkButton: {
     marginTop: 8,

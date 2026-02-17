@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Bookerang",
+    "slug": "bookerang",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3B82F6"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bookerang.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3B82F6"
+      },
+      "package": "com.bookerang.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f906d688-d61e-4098-8dd6-9c6b2f7e78ab"
+      }
+    },
+    "owner": "manumayank"
+  }
+}

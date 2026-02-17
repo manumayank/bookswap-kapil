@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#4CAF50',
+    color: '#3B82F6',
   },
   card: {
     marginBottom: 12,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#3B82F6',
   },
   sectionHeader: {
     flexDirection: 'row',

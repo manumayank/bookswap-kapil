@@ -27,7 +27,7 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#4CAF50',
+        tabBarActiveTintColor: '#3B82F6',
         tabBarInactiveTintColor: 'gray',
       }}
     >
@@ -78,7 +78,7 @@ function AppNavigator() {
   if (isChecking) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }

@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Text, TextInput, Button, SegmentedButtons } from 'react-native-paper';
+import { Text, TextInput, Button, Chip } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -128,12 +128,20 @@ export default function RegisterScreen({ navigation }: any) {
             control={control}
             name="board"
             render={({ field: { onChange, value } }) => (
-              <SegmentedButtons
-                value={value}
-                onValueChange={onChange}
-                buttons={BOARDS}
-                style={styles.segmented}
-              />
+              <View style={styles.chipRow}>
+                {BOARDS.map((b) => (
+                  <Chip
+                    key={b.value}
+                    selected={value === b.value}
+                    onPress={() => onChange(b.value)}
+                    style={[styles.chip, value === b.value && styles.chipSelected]}
+                    mode={value === b.value ? 'flat' : 'outlined'}
+                    showSelectedCheck={false}
+                  >
+                    {b.label}
+                  </Chip>
+                ))}
+              </View>
             )}
           />
 
@@ -163,7 +171,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#3B82F6',
   },
   subtitle: {
     marginTop: 4,
@@ -180,13 +188,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '600',
   },
-  segmented: {
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginBottom: 16,
+  },
+  chip: {
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipSelected: {
+    backgroundColor: '#3B82F6',
   },
   button: {
     marginTop: 16,
     paddingVertical: 6,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#3B82F6',
   },
   error: {
     color: '#B00020',

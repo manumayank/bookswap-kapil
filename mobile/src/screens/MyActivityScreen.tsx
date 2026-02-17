@@ -23,17 +23,17 @@ import { Listing, BookRequest, Match } from '../types';
 type Tab = 'listings' | 'requests' | 'matches';
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: '#4CAF50',
+  ACTIVE: '#3B82F6',
   OPEN: '#2196F3',
   MATCHED: '#FF9800',
   PENDING: '#FF9800',
-  ACCEPTED: '#4CAF50',
+  ACCEPTED: '#3B82F6',
   RESERVED: '#FF9800',
-  FULFILLED: '#4CAF50',
-  COMPLETED: '#4CAF50',
+  FULFILLED: '#3B82F6',
+  COMPLETED: '#3B82F6',
   CANCELLED: '#999',
   REJECTED: '#F44336',
-  EXCHANGED: '#4CAF50',
+  EXCHANGED: '#3B82F6',
 };
 
 export default function MyActivityScreen() {
@@ -151,7 +151,7 @@ export default function MyActivityScreen() {
                 mode="contained"
                 compact
                 onPress={() => handleAccept(item.id)}
-                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+                style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
               >
                 Accept
               </Button>
@@ -172,7 +172,7 @@ export default function MyActivityScreen() {
                 mode="contained"
                 compact
                 onPress={() => handleComplete(item.id)}
-                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+                style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
               >
                 Mark Complete
               </Button>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#4CAF50',
+    color: '#3B82F6',
   },
   tabs: {
     marginBottom: 16,

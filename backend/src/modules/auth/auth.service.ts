@@ -2,7 +2,16 @@ import prisma from '../../lib/prisma';
 import { sendOtpEmail } from '../../lib/email';
 import { generateToken, generateRefreshToken, verifyToken } from '../../lib/jwt';
 
+// DEV MODE: Use fixed OTP for testing when SMTP not configured
+// Enabled when: no SMTP_USER, or SMTP_USER doesn't contain @, or DEV_OTP_MODE is set
+const DEV_MODE = !process.env.SMTP_USER?.includes('@') || process.env.DEV_OTP_MODE === 'true';
+const DEV_OTP = '123456';
+
 function generateOtp(): string {
+  if (DEV_MODE) {
+    console.log('🔐 DEV MODE: Using fixed OTP:', DEV_OTP);
+    return DEV_OTP;
+  }
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
@@ -19,6 +28,11 @@ export async function sendOtp(email: string) {
   await prisma.otp.create({
     data: { email, otp, expiresAt },
   });
+
+  if (DEV_MODE) {
+    console.log(`📧 DEV MODE: OTP for ${email} is ${otp} (email not sent)`);
+    return { message: 'OTP sent successfully', devMode: true, hint: 'Use 123456' };
+  }
 
   await sendOtpEmail(email, otp);
 
