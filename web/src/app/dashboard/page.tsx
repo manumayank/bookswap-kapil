@@ -1,17 +1,59 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
+const STATUS_STYLES: Record<string, string> = {
+  PENDING_APPROVAL: 'background: rgba(234, 179, 8, 0.15); color: #a16207;',
+  ACTIVE: 'background: rgba(16, 185, 129, 0.15); color: #047857;',
+  SOLD: 'background: rgba(99, 102, 241, 0.15); color: #4338ca;',
+  REJECTED: 'background: rgba(244, 63, 94, 0.15); color: #be123c;',
+  CANCELLED: 'background: rgba(113, 113, 122, 0.15); color: #52525b;',
+  EXCHANGED: 'background: rgba(99, 102, 241, 0.15); color: #4338ca;',
+};
+
+const DEAL_STATUS_STYLES: Record<string, string> = {
+  PENDING: 'background: rgba(234, 179, 8, 0.15); color: #a16207;',
+  ACCEPTED: 'background: rgba(16, 185, 129, 0.15); color: #047857;',
+  COMPLETED: 'background: rgba(99, 102, 241, 0.15); color: #4338ca;',
+  REJECTED: 'background: rgba(244, 63, 94, 0.15); color: #be123c;',
+  CANCELLED: 'background: rgba(113, 113, 122, 0.15); color: #52525b;',
+};
+
+function StatusBadge({ status, styleMap }: { status: string; styleMap: Record<string, string> }) {
+  const style = styleMap[status] || styleMap['CANCELLED'] || '';
+  return (
+    <span className="badge" style={Object.fromEntries(style.split(';').filter(Boolean).map(s => {
+      const [k, v] = s.split(':').map(x => x.trim());
+      const camelKey = k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      return [camelKey, v];
+    }))}>
+      {status.replace(/_/g, ' ')}
+    </span>
+  );
+}
+
 export default function DashboardPage() {
-  const { user, hydrate } = useAuthStore();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user, isAuthenticated, hydrate } = useAuthStore();
 
   useEffect(() => {
     hydrate();
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        router.replace('/login');
+      }
+    }
+  }, [isAuthenticated, router]);
 
   const { data: listings, isLoading: listingsLoading } = useQuery({
     queryKey: ['myListings'],
@@ -19,14 +61,7 @@ export default function DashboardPage() {
       const { data } = await api.get('/listings/my');
       return data.data;
     },
-  });
-
-  const { data: requests, isLoading: requestsLoading } = useQuery({
-    queryKey: ['myRequests'],
-    queryFn: async () => {
-      const { data } = await api.get('/requests');
-      return data.data;
-    },
+    retry: false,
   });
 
   const { data: matches, isLoading: matchesLoading } = useQuery({
@@ -35,165 +70,229 @@ export default function DashboardPage() {
       const { data } = await api.get('/matches');
       return data.data;
     },
+    retry: false,
   });
 
-  const activeListings = listings?.filter((l: any) => l.status === 'ACTIVE') || [];
-  const openRequests = requests?.filter((r: any) => r.status === 'OPEN' || r.status === 'MATCHED') || [];
-  const pendingMatches = matches?.filter((m: any) => m.status === 'PENDING' || m.status === 'ACCEPTED') || [];
+  const { data: requests } = useQuery({
+    queryKey: ['myRequests'],
+    queryFn: async () => {
+      const { data } = await api.get('/requests');
+      return data.data;
+    },
+    retry: false,
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (matchId: string) => api.post(`/matches/${matchId}/accept`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['myMatches'] }),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (matchId: string) => api.post(`/matches/${matchId}/reject`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['myMatches'] }),
+  });
+
+  const listingsArray = Array.isArray(listings) ? listings : [];
+  const matchesArray = Array.isArray(matches) ? matches : [];
+  const requestsArray = Array.isArray(requests) ? requests : [];
+
+  const myListingsCount = listingsArray.length;
+  const activeDealsCount = matchesArray.filter(
+    (m: any) => m.status === 'PENDING' || m.status === 'ACCEPTED'
+  ).length;
+  const openRequestsCount = requestsArray.filter(
+    (r: any) => r.status === 'OPEN' || r.status === 'MATCHED'
+  ).length;
 
   return (
-    <div>
-      {/* Welcome */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+    <div className="animate-fade-in">
+      {/* Welcome Header */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <h1 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>
           Welcome{user ? `, ${user.name}` : ''}!
         </h1>
-        <p className="text-gray-600 mt-1">Manage your book listings, requests, and matches.</p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.95rem' }}>
+          Manage your book listings, deals, and requests from here.
+        </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 gap-4 mb-8">
-        <Link
-          href="/dashboard/listings/new"
-          className="bg-green-600 text-white p-6 rounded-xl hover:bg-green-700 transition-colors"
-        >
-          <h3 className="text-lg font-semibold">Give Books</h3>
-          <p className="text-green-100 text-sm mt-1">List books you want to give away</p>
+      {/* Quick Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+        <div className="card-premium" style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--primary)' }}>
+            {myListingsCount}
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+            My Listings
+          </div>
+        </div>
+        <div className="card-premium" style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--secondary)' }}>
+            {activeDealsCount}
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+            Active Deals
+          </div>
+        </div>
+        <div className="card-premium" style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+            {openRequestsCount}
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+            Open Requests
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Action Buttons */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2.5rem' }}>
+        <Link href="/sell" className="btn btn-primary">
+          Sell a Book
         </Link>
-        <Link
-          href="/browse"
-          className="bg-blue-600 text-white p-6 rounded-xl hover:bg-blue-700 transition-colors"
-        >
-          <h3 className="text-lg font-semibold">Find Books</h3>
-          <p className="text-blue-100 text-sm mt-1">Search for books your child needs</p>
+        <Link href="/browse" className="btn btn-outline">
+          Browse Books
+        </Link>
+        <Link href="/dashboard/requests/new" className="btn btn-outline">
+          Request a Book
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl border p-6">
-          <div className="text-3xl font-bold text-green-600">{activeListings.length}</div>
-          <div className="text-gray-600 text-sm mt-1">Active Listings</div>
-        </div>
-        <div className="bg-white rounded-xl border p-6">
-          <div className="text-3xl font-bold text-blue-600">{openRequests.length}</div>
-          <div className="text-gray-600 text-sm mt-1">Open Requests</div>
-        </div>
-        <div className="bg-white rounded-xl border p-6">
-          <div className="text-3xl font-bold text-purple-600">{pendingMatches.length}</div>
-          <div className="text-gray-600 text-sm mt-1">Pending Matches</div>
-        </div>
-      </div>
-
-      {/* My Listings */}
-      <section className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">My Listings</h2>
-          <Link href="/dashboard/listings/new" className="text-sm text-green-600 hover:underline">
+      {/* My Listings Section */}
+      <section style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.35rem' }}>My Listings</h2>
+          <Link href="/sell" style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}>
             + New Listing
           </Link>
         </div>
-        <div className="bg-white rounded-xl border overflow-hidden">
-          {listingsLoading ? (
-            <div className="p-8 text-center text-gray-500">Loading...</div>
-          ) : !listings?.length ? (
-            <div className="p-8 text-center text-gray-500">
-              No listings yet.{' '}
-              <Link href="/dashboard/listings/new" className="text-green-600 hover:underline">
-                Create your first listing
-              </Link>
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Books</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Class</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Board</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Condition</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listings.map((listing: any) => (
-                  <tr key={listing.id} className="border-b hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium">
-                        {listing.items?.map((i: any) => i.subject).join(', ') || 'Book Set'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {listing.listingType === 'SET' ? 'Full Set' : 'Individual'} &middot; {listing.city}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">Class {listing.class}</td>
-                    <td className="px-6 py-4">{listing.board}</td>
-                    <td className="px-6 py-4 text-sm">{listing.condition.replace('_', ' ')}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${
-                          listing.status === 'ACTIVE'
-                            ? 'bg-green-100 text-green-800'
-                            : listing.status === 'EXCHANGED'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {listing.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+
+        {listingsLoading ? (
+          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+            Loading listings...
+          </div>
+        ) : listingsArray.length === 0 ? (
+          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+            No listings yet.{' '}
+            <Link href="/sell" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+              Create your first listing
+            </Link>
+          </div>
+        ) : (
+          <div className="grid-marketplace">
+            {listingsArray.map((listing: any) => {
+              const title =
+                listing.title ||
+                listing.items?.map((i: any) => i.subject).join(', ') ||
+                'Book Set';
+              return (
+                <div key={listing.id} className="card-premium" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, flex: 1, marginRight: '0.5rem' }}>
+                      {title}
+                    </h3>
+                    <StatusBadge status={listing.status} styleMap={STATUS_STYLES} />
+                  </div>
+                  {listing.price != null && (
+                    <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--primary)' }}>
+                      ₹{listing.price}
+                    </div>
+                  )}
+                  <div style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>
+                    {listing.condition?.replace(/_/g, ' ') || 'N/A'}
+                    {listing.board && ` · ${listing.board}`}
+                    {listing.class && ` · Class ${listing.class}`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* Matches */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4">My Matches</h2>
-        <div className="bg-white rounded-xl border overflow-hidden">
-          {matchesLoading ? (
-            <div className="p-8 text-center text-gray-500">Loading...</div>
-          ) : !matches?.length ? (
-            <div className="p-8 text-center text-gray-500">
-              No matches yet. Create listings or requests to get matched!
-            </div>
-          ) : (
-            <div className="divide-y">
-              {matches.map((match: any) => {
-                const isGiver = match.giverId === user?.id;
-                const other = isGiver ? match.receiver : match.giver;
-                return (
-                  <div key={match.id} className="p-4 flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">
-                        {isGiver ? 'Giving to' : 'Receiving from'} {other?.name}
+      {/* My Deals Section */}
+      <section style={{ marginBottom: '2.5rem' }}>
+        <h2 style={{ fontSize: '1.35rem', marginBottom: '1.25rem' }}>My Deals</h2>
+
+        {matchesLoading ? (
+          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+            Loading deals...
+          </div>
+        ) : matchesArray.length === 0 ? (
+          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+            No deals yet. Create listings or browse books to get matched!
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {matchesArray.map((match: any) => {
+              const isGiver = match.giverId === user?.id;
+              const role = isGiver ? 'Seller' : 'Buyer';
+              const listingTitle =
+                match.listing?.title ||
+                match.listing?.items?.map((i: any) => i.subject).join(', ') ||
+                'Book Set';
+
+              return (
+                <div key={match.id} className="card-premium" style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <span className="badge badge-primary">{role}</span>
+                        <StatusBadge status={match.status} styleMap={DEAL_STATUS_STYLES} />
                       </div>
-                      <div className="text-sm text-gray-500">
-                        Class {match.listing?.class} &middot; {match.listing?.board} &middot;{' '}
-                        {other?.city}
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.5rem' }}>
+                        {listingTitle}
+                      </h3>
+                      {match.agreedPrice != null && (
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--secondary)', marginTop: '0.25rem' }}>
+                          ₹{match.agreedPrice}
+                        </div>
+                      )}
+                      <div style={{ color: 'var(--muted)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
+                        {isGiver ? 'Giving to' : 'Receiving from'}{' '}
+                        {(isGiver ? match.receiver?.name : match.giver?.name) || 'Unknown'}
                       </div>
                     </div>
-                    <span
-                      className={`text-xs font-medium px-3 py-1 rounded-full ${
-                        match.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : match.status === 'ACCEPTED'
-                          ? 'bg-green-100 text-green-800'
-                          : match.status === 'COMPLETED'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {match.status}
-                    </span>
+
+                    {/* Action Buttons */}
+                    {match.status === 'PENDING' && (
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {isGiver ? (
+                          <>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px' }}
+                              onClick={() => acceptMutation.mutate(match.id)}
+                              disabled={acceptMutation.isPending}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              className="btn btn-outline"
+                              style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
+                              onClick={() => rejectMutation.mutate(match.id)}
+                              disabled={rejectMutation.isPending}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="btn btn-outline"
+                            style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
+                            onClick={() => rejectMutation.mutate(match.id)}
+                            disabled={rejectMutation.isPending}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

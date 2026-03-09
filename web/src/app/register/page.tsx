@@ -4,26 +4,23 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
+import api from '@/lib/api';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { verifiedEmail, register, isLoading } = useAuthStore();
+  const { register, isLoading } = useAuthStore();
 
   const [form, setForm] = useState({
     name: '',
+    email: '',
     phone: '',
     city: '',
-    board: 'CBSE' as string,
+    board: '',
+    school: '',
   });
   const [error, setError] = useState('');
-
-  // Redirect to login if no verified email
-  if (!verifiedEmail && typeof window !== 'undefined') {
-    router.replace('/login');
-    return null;
-  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -37,6 +34,10 @@ export default function RegisterPage() {
       setError('Name must be at least 2 characters');
       return;
     }
+    if (!form.email || !form.email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
     if (!form.phone || form.phone.length < 10) {
       setError('Phone must be at least 10 digits');
       return;
@@ -47,108 +48,228 @@ export default function RegisterPage() {
     }
 
     try {
-      await register({ ...form, email: verifiedEmail });
+      await register(form);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '0.8125rem',
+    fontWeight: 700,
+    color: 'var(--foreground)',
+    marginBottom: '0.5rem',
+    letterSpacing: '0.02em',
+    textTransform: 'uppercase',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-bold text-green-600">
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Background glow */}
+      <div
+        className="glow-primary"
+        style={{ top: '-200px', left: '50%', transform: 'translateX(-50%)', opacity: 0.3 }}
+      />
+
+      <div
+        className="container animate-fade-in"
+        style={{ maxWidth: '480px', padding: '2rem 1.5rem' }}
+      >
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: '2rem',
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              color: 'var(--primary)',
+              textDecoration: 'none',
+            }}
+          >
             BookSwap
           </Link>
-          <p className="text-gray-600 mt-2">Complete your profile</p>
+          <p style={{ color: 'var(--muted)', marginTop: '0.5rem', fontSize: '0.9375rem' }}>
+            Create your account
+          </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border p-8">
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 text-sm">
-            Registering as <span className="font-medium">{verifiedEmail}</span>
-          </div>
-
+        {/* Card */}
+        <div className="card-premium" style={{ padding: '2.5rem' }}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div
+              style={{
+                background: 'var(--accent-glow)',
+                color: 'var(--accent)',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '1.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+              }}
+            >
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                value={form.name}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                placeholder="Your name"
-                autoFocus
-              />
-            </div>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Name */}
+              <div>
+                <label htmlFor="name" style={labelStyle}>
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Your name"
+                  autoFocus
+                  style={inputStyle}
+                />
+              </div>
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                value={form.phone}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                placeholder="10-digit phone number"
-              />
-            </div>
+              {/* Email */}
+              <div>
+                <label htmlFor="email" style={labelStyle}>
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="you@example.com"
+                  style={inputStyle}
+                />
+              </div>
 
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-                City
-              </label>
-              <input
-                id="city"
-                name="city"
-                type="text"
-                value={form.city}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                placeholder="Your city"
-              />
-            </div>
+              {/* Phone */}
+              <div>
+                <label htmlFor="phone" style={labelStyle}>
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="10-digit phone number"
+                  style={inputStyle}
+                />
+              </div>
 
-            <div>
-              <label htmlFor="board" className="block text-sm font-medium text-gray-700 mb-1">
-                School Board
-              </label>
-              <select
-                id="board"
-                name="board"
-                value={form.board}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-              >
-                {BOARDS.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
+              {/* City */}
+              <div>
+                <label htmlFor="city" style={labelStyle}>
+                  City
+                </label>
+                <input
+                  id="city"
+                  name="city"
+                  type="text"
+                  value={form.city}
+                  onChange={handleChange}
+                  placeholder="Your city"
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Board */}
+              <div>
+                <label htmlFor="board" style={labelStyle}>
+                  School Board{' '}
+                  <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--muted-light)' }}>
+                    (optional)
+                  </span>
+                </label>
+                <select
+                  id="board"
+                  name="board"
+                  value={form.board}
+                  onChange={handleChange}
+                  style={inputStyle}
+                >
+                  <option value="">Select a board</option>
+                  {BOARDS.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* School */}
+              <div>
+                <label htmlFor="school" style={labelStyle}>
+                  School{' '}
+                  <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--muted-light)' }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="school"
+                  name="school"
+                  type="text"
+                  value={form.school}
+                  onChange={handleChange}
+                  placeholder="School name"
+                  style={inputStyle}
+                />
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                marginTop: '2rem',
+                opacity: isLoading ? 0.6 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+              }}
             >
               {isLoading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
+        </div>
+
+        {/* Footer links */}
+        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
+            Already have an account?{' '}
+            <Link
+              href="/login"
+              style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}
+            >
+              Login
+            </Link>
+          </p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--muted-light)', marginTop: '0.75rem' }}>
+            <Link href="/" style={{ color: 'var(--muted-light)', textDecoration: 'none' }}>
+              Back to home
+            </Link>
+          </p>
         </div>
       </div>
     </div>

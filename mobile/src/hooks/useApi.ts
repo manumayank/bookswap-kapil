@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Listing, BookRequest, Match, School, PaginatedResponse } from '../types';
+import { Listing, Deal, School, PaginatedResponse } from '../types';
 
 // Schools
 export function useSchools(query?: { name?: string; city?: string; board?: string }) {
@@ -19,6 +19,17 @@ export function useListings(filters?: Record<string, any>) {
     queryKey: ['listings', filters],
     queryFn: async () => {
       const { data } = await api.get('/listings', { params: filters });
+      return data as PaginatedResponse<Listing>;
+    },
+    enabled: filters !== undefined,
+  });
+}
+
+export function useRecentListings(limit: number = 4) {
+  return useQuery({
+    queryKey: ['listings', 'recent', limit],
+    queryFn: async () => {
+      const { data } = await api.get('/listings', { params: { limit, sortBy: 'newest' } });
       return data as PaginatedResponse<Listing>;
     },
   });
@@ -59,55 +70,34 @@ export function useCreateListing() {
   });
 }
 
-// Requests
-export function useMyRequests() {
+// Deals (matches)
+export function useMyDeals() {
   return useQuery({
-    queryKey: ['myRequests'],
-    queryFn: async () => {
-      const { data } = await api.get('/requests');
-      return data.data as BookRequest[];
-    },
-  });
-}
-
-export function useCreateRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (request: any) => {
-      const { data } = await api.post('/requests', request);
-      return data.data as BookRequest;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myRequests'] });
-    },
-  });
-}
-
-export function useFloatRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await api.post(`/requests/${id}/float`);
-      return data.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myRequests'] });
-    },
-  });
-}
-
-// Matches
-export function useMyMatches() {
-  return useQuery({
-    queryKey: ['myMatches'],
+    queryKey: ['myDeals'],
     queryFn: async () => {
       const { data } = await api.get('/matches');
-      return data.data as Match[];
+      return data.data as Deal[];
     },
   });
 }
 
-export function useAcceptMatch() {
+// Alias for backward compat
+export const useMyMatches = useMyDeals;
+
+export function useCreateDeal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { listingId: string; offeredPrice?: number }) => {
+      const { data } = await api.post('/matches', params);
+      return data.data as Deal;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myDeals'] });
+    },
+  });
+}
+
+export function useAcceptDeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -115,12 +105,15 @@ export function useAcceptMatch() {
       return data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['myDeals'] });
     },
   });
 }
 
-export function useRejectMatch() {
+// Backward compat alias
+export const useAcceptMatch = useAcceptDeal;
+
+export function useRejectDeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -128,12 +121,14 @@ export function useRejectMatch() {
       return data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['myDeals'] });
     },
   });
 }
 
-export function useCompleteMatch() {
+export const useRejectMatch = useRejectDeal;
+
+export function useCompleteDeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -141,9 +136,23 @@ export function useCompleteMatch() {
       return data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['myDeals'] });
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
-      queryClient.invalidateQueries({ queryKey: ['myRequests'] });
+    },
+  });
+}
+
+export const useCompleteMatch = useCompleteDeal;
+
+export function useCancelDeal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/matches/${id}/cancel`);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myDeals'] });
     },
   });
 }

@@ -30,7 +30,11 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = await AsyncStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
+        if (!refreshToken) {
+          // No refresh token, clear auth and reject
+          await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+          return Promise.reject(error);
+        }
 
         const { data } = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
@@ -43,6 +47,7 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch {
+        // Refresh failed, clear tokens
         await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
       }
     }

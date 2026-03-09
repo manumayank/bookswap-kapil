@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput, Button, HelperText } from 'react-native-paper';
+import { Text, TextInput, Button, HelperText, Surface } from 'react-native-paper';
 import { useAuthStore } from '../stores/authStore';
 
 export default function LoginScreen({ navigation }: any) {
@@ -47,16 +47,13 @@ export default function LoginScreen({ navigation }: any) {
     >
       <View style={styles.inner}>
         <Text variant="headlineLarge" style={styles.title}>
-          🪃 Bookerang
+          BookSwap
         </Text>
         <Text variant="bodyLarge" style={styles.subtitle}>
-          Books come back around
-        </Text>
-        <Text variant="bodyMedium" style={styles.tagline}>
-          Swap, buy & sell preloved books
+          Buy and sell school books with parents near you
         </Text>
 
-        <View style={styles.form}>
+        <Surface style={styles.surface} elevation={2}>
           <TextInput
             label="Email"
             value={email}
@@ -66,6 +63,7 @@ export default function LoginScreen({ navigation }: any) {
             autoCapitalize="none"
             style={styles.input}
             disabled={otpSent}
+            left={<TextInput.Icon icon="email" />}
           />
 
           {otpSent && (
@@ -78,6 +76,7 @@ export default function LoginScreen({ navigation }: any) {
                 keyboardType="number-pad"
                 maxLength={6}
                 style={styles.input}
+                left={<TextInput.Icon icon="lock" />}
               />
               <HelperText type="info">
                 Check your email for the OTP code
@@ -107,7 +106,7 @@ export default function LoginScreen({ navigation }: any) {
               Change Email
             </Button>
           )}
-        </View>
+        </Surface>
       </View>
     </KeyboardAvoidingView>
   );
@@ -116,7 +115,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#f5f5f5',
   },
   inner: {
     flex: 1,
@@ -126,21 +125,18 @@ const styles = StyleSheet.create({
   title: {
     textAlign: 'center',
     fontWeight: 'bold',
-    color: '#1E40AF',
+    color: '#4CAF50',
   },
   subtitle: {
     textAlign: 'center',
     marginTop: 8,
-    color: '#3B82F6',
-    fontWeight: '500',
-  },
-  tagline: {
-    textAlign: 'center',
-    marginTop: 4,
     color: '#666',
+    marginBottom: 32,
   },
-  form: {
-    marginTop: 40,
+  surface: {
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: '#fff',
   },
   input: {
     marginBottom: 12,
@@ -148,7 +144,7 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     paddingVertical: 6,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4CAF50',
   },
   linkButton: {
     marginTop: 8,

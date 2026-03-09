@@ -17,7 +17,7 @@ model User {
   address       String?
   schoolId      String?
   school        School?   @relation(fields: [schoolId], references: [id])
-  board         Board
+  board         Board?
   isVerified    Boolean   @default(false)
   isAdmin       Boolean   @default(false)
   createdAt     DateTime  @default(now())
@@ -26,8 +26,8 @@ model User {
   children      Child[]
   listings      Listing[]
   requests      Request[]
-  givenMatches  Match[]   @relation("Giver")
-  receivedMatches Match[] @relation("Receiver")
+  sellerDeals   Deal[]    @relation("Seller")
+  buyerDeals    Deal[]    @relation("Buyer")
   notifications Notification[]
 
   @@index([city, board])
@@ -66,33 +66,38 @@ model School {
   @@index([city, board])
 }
 
-// Book Listings
+// Book/Stationery Listings
 model Listing {
-  id                 String            @id @default(uuid())
-  userId             String
-  user               User              @relation(fields: [userId], references: [id])
-  listingType        ListingType
-  board              Board
-  class              Int
-  schoolId           String?
-  school             School?           @relation(fields: [schoolId], references: [id])
-  city               String
-  yearOfPurchase     Int?
-  condition          BookCondition
-  exchangePreference ExchangePreference[]
-  status             ListingStatus     @default(ACTIVE)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  title          String
+  description    String?
+  category       Category
+  board          Board?
+  class          Int?
+  subject        String?
+  schoolId       String?
+  school         School?       @relation(fields: [schoolId], references: [id])
+  city           String
+  yearOfPurchase Int?
+  condition      BookCondition
+  buyingPrice    Float?        // Original purchase price / MRP
+  sellingPrice   Float         // Asking price
+  status         ListingStatus @default(PENDING_APPROVAL)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  items              ListingItem[]
-  images             ListingImage[]
-  matches            Match[]
+  items          ListingItem[]
+  images         ListingImage[]
+  deals          Deal[]
 
-  @@index([board, class, city, status])
+  @@index([category, board, class, city, status])
   @@index([schoolId, status])
+  @@index([sellingPrice])
 }
 
-// Book Items (for individual books in a listing)
+// Book Items (for multi-book sets)
 model ListingItem {
   id         String         @id @default(uuid())
   listingId  String
@@ -118,59 +123,55 @@ model ListingImage {
   createdAt     DateTime     @default(now())
 }
 
-// Book Requests
+// Book Requests (unfulfilled book needs)
 model Request {
   id           String        @id @default(uuid())
   userId       String
   user         User          @relation(fields: [userId], references: [id])
   board        Board
   class        Int
-  subjects     String[]      // optional filter
+  subjects     String[]
   schoolId     String?
   school       School?       @relation(fields: [schoolId], references: [id])
   city         String
-  minCondition BookCondition?
+  maxPrice     Float?
   status       RequestStatus @default(OPEN)
-  isFloated    Boolean       @default(false) // waiting for future listings
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-
-  matches      Match[]
 
   @@index([board, class, city, status])
 }
 
-// Matches (when request matches listing)
-model Match {
-  id               String       @id @default(uuid())
-  listingId        String
-  listing          Listing      @relation(fields: [listingId], references: [id])
-  requestId        String
-  request          Request      @relation(fields: [requestId], references: [id])
-  giverId          String
-  giver            User         @relation("Giver", fields: [giverId], references: [id])
-  receiverId       String
-  receiver         User         @relation("Receiver", fields: [receiverId], references: [id])
-  status           MatchStatus  @default(PENDING)
-  exchangeMethod   ExchangePreference?
-  exchangeDate     DateTime?
-  exchangeLocation String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+// Deals (buyer requests to purchase a listing)
+model Deal {
+  id            String     @id @default(uuid())
+  listingId     String
+  listing       Listing    @relation(fields: [listingId], references: [id])
+  sellerId      String
+  seller        User       @relation("Seller", fields: [sellerId], references: [id])
+  buyerId       String
+  buyer         User       @relation("Buyer", fields: [buyerId], references: [id])
+  agreedPrice   Float
+  status        DealStatus @default(PENDING)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([sellerId, status])
+  @@index([buyerId, status])
 }
 
 // Notifications
 model Notification {
-  id        String           @id @default(uuid())
+  id        String              @id @default(uuid())
   userId    String
-  user      User             @relation(fields: [userId], references: [id])
+  user      User                @relation(fields: [userId], references: [id])
   type      NotificationType
   channel   NotificationChannel
   title     String?
   body      String?
   data      Json?
-  isRead    Boolean          @default(false)
-  sentAt    DateTime         @default(now())
+  isRead    Boolean             @default(false)
+  sentAt    DateTime            @default(now())
 }
 
 // OTP Storage
@@ -194,28 +195,24 @@ enum Board {
   IGCSE
 }
 
-enum ListingType {
-  SET
-  INDIVIDUAL
+enum Category {
+  BOOK
+  STATIONERY
 }
 
 enum BookCondition {
-  UNUSED
-  ALMOST_NEW
-  WATER_MARKS
-  UNDERLINED
-}
-
-enum ExchangePreference {
-  PICKUP
-  SCHOOL
-  PORTER
+  HARDLY_USED
+  WELL_MAINTAINED
+  MARKER_USED
+  STAINS
+  TORN_PAGES
 }
 
 enum ListingStatus {
+  PENDING_APPROVAL
   ACTIVE
-  RESERVED
-  EXCHANGED
+  SOLD
+  REJECTED
   CANCELLED
 }
 
@@ -226,11 +223,12 @@ enum RequestStatus {
   CANCELLED
 }
 
-enum MatchStatus {
+enum DealStatus {
   PENDING
   ACCEPTED
   REJECTED
   COMPLETED
+  CANCELLED
 }
 
 enum ImageType {
@@ -240,11 +238,13 @@ enum ImageType {
 }
 
 enum NotificationType {
-  MATCH_FOUND
-  REQUEST_RECEIVED
-  EXCHANGE_CONFIRMED
-  EXCHANGE_COMPLETED
-  FLOAT_MATCHED
+  LISTING_APPROVED
+  LISTING_REJECTED
+  NEW_MATCH_FOR_REQUEST
+  DEAL_REQUESTED
+  DEAL_ACCEPTED
+  DEAL_COMPLETED
+  DEAL_CANCELLED
 }
 
 enum NotificationChannel {

@@ -1,24 +1,40 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, StyleSheet, RefreshControl, ScrollView } from 'react-native';
-import { Text, Card, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, ActivityIndicator, Surface } from 'react-native-paper';
 import { useAuthStore } from '../stores/authStore';
-import { useMyListings, useMyRequests, useMyMatches } from '../hooks/useApi';
+import { useMyListings, useMyDeals, useRecentListings } from '../hooks/useApi';
+import { Listing } from '../types';
 
 export default function HomeScreen({ navigation }: any) {
-  const { user, fetchUser } = useAuthStore();
-  const { data: listings, isLoading: listingsLoading } = useMyListings();
-  const { data: requests, isLoading: requestsLoading } = useMyRequests();
-  const { data: matches, isLoading: matchesLoading, refetch } = useMyMatches();
+  const { user } = useAuthStore();
+  const { data: myListings, isLoading: listingsLoading } = useMyListings();
+  const { data: deals, isLoading: dealsLoading } = useMyDeals();
+  const { data: recentData, isLoading: recentLoading, refetch } = useRecentListings(4);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  const activeListings = myListings?.filter((l) => l.status === 'ACTIVE').length || 0;
+  const pendingDeals = deals?.filter((d) => d.status === 'PENDING' || d.status === 'ACCEPTED').length || 0;
 
-  const activeListings = listings?.filter((l) => l.status === 'ACTIVE').length || 0;
-  const openRequests = requests?.filter((r) => r.status === 'OPEN' || r.status === 'MATCHED').length || 0;
-  const pendingMatches = matches?.filter((m) => m.status === 'PENDING' || m.status === 'ACCEPTED').length || 0;
+  const recentListings = recentData?.data || [];
 
-  const isLoading = listingsLoading || requestsLoading || matchesLoading;
+  const formatPrice = (price: number) => {
+    return '\u20B9' + price.toFixed(0);
+  };
+
+  const renderRecentListing = (item: Listing) => (
+    <Card key={item.id} style={styles.listingCard}>
+      <Card.Content>
+        <Text variant="titleSmall" numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text variant="bodySmall" style={styles.meta}>
+          {item.condition.replace('_', ' ')} | {item.city}
+        </Text>
+        <Text variant="titleMedium" style={styles.price}>
+          {formatPrice(item.sellingPrice)}
+        </Text>
+      </Card.Content>
+    </Card>
+  );
 
   return (
     <ScrollView
@@ -26,37 +42,62 @@ export default function HomeScreen({ navigation }: any) {
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}
     >
       <Text variant="headlineMedium" style={styles.title}>
-        🪃 Bookerang
+        BookSwap
       </Text>
-      <Text style={styles.tagline}>Books come back around</Text>
       {user && (
         <Text variant="bodyLarge" style={styles.greeting}>
           Welcome, {user.name}!
         </Text>
       )}
 
-      <View style={styles.cardContainer}>
-        <Card style={styles.card} onPress={() => navigation.navigate('GiveBooks')}>
-          <Card.Content>
-            <Text variant="titleLarge">Give Books</Text>
-            <Text variant="bodyMedium" style={styles.cardDesc}>
-              List books you want to give away
+      {/* Quick Action Cards */}
+      <View style={styles.actionCards}>
+        <Card
+          style={[styles.actionCard, { backgroundColor: '#E8F5E9' }]}
+          onPress={() => navigation.navigate('Sell')}
+        >
+          <Card.Content style={styles.actionContent}>
+            <Text variant="titleMedium" style={{ color: '#2E7D32' }}>
+              Sell a Book
+            </Text>
+            <Text variant="bodySmall" style={{ color: '#4CAF50' }}>
+              List books you want to sell
             </Text>
           </Card.Content>
         </Card>
 
-        <Card style={styles.card} onPress={() => navigation.navigate('NeedBooks')}>
-          <Card.Content>
-            <Text variant="titleLarge">Need Books</Text>
-            <Text variant="bodyMedium" style={styles.cardDesc}>
-              Find books for your child
+        <Card
+          style={[styles.actionCard, { backgroundColor: '#E3F2FD' }]}
+          onPress={() => navigation.navigate('Browse')}
+        >
+          <Card.Content style={styles.actionContent}>
+            <Text variant="titleMedium" style={{ color: '#1565C0' }}>
+              Browse Books
+            </Text>
+            <Text variant="bodySmall" style={{ color: '#2196F3' }}>
+              Find books you need
+            </Text>
+          </Card.Content>
+        </Card>
+
+        <Card
+          style={[styles.actionCard, { backgroundColor: '#FFF3E0' }]}
+          onPress={() => navigation.navigate('Activity')}
+        >
+          <Card.Content style={styles.actionContent}>
+            <Text variant="titleMedium" style={{ color: '#E65100' }}>
+              My Deals
+            </Text>
+            <Text variant="bodySmall" style={{ color: '#FF9800' }}>
+              Track your transactions
             </Text>
           </Card.Content>
         </Card>
       </View>
 
-      <View style={styles.statsContainer}>
-        {isLoading ? (
+      {/* Stats */}
+      <Surface style={styles.statsContainer} elevation={1}>
+        {listingsLoading || dealsLoading ? (
           <ActivityIndicator />
         ) : (
           <>
@@ -68,33 +109,56 @@ export default function HomeScreen({ navigation }: any) {
             </View>
             <View style={styles.stat}>
               <Text variant="headlineSmall" style={styles.statNumber}>
-                {openRequests}
+                {pendingDeals}
               </Text>
-              <Text variant="bodySmall">Open Requests</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text variant="headlineSmall" style={styles.statNumber}>
-                {pendingMatches}
-              </Text>
-              <Text variant="bodySmall">Matches</Text>
+              <Text variant="bodySmall">Pending Deals</Text>
             </View>
           </>
         )}
-      </View>
+      </Surface>
 
-      {matches && matches.filter((m) => m.status === 'PENDING').length > 0 && (
+      {/* Pending deals notification */}
+      {deals && deals.filter((d) => d.status === 'PENDING').length > 0 && (
         <Card
-          style={[styles.card, { marginTop: 16, backgroundColor: '#DBEAFE' }]}
-          onPress={() => navigation.navigate('MyActivity')}
+          style={[styles.notifCard, { backgroundColor: '#E8F5E9' }]}
+          onPress={() => navigation.navigate('Activity')}
         >
           <Card.Content>
-            <Text variant="titleMedium">
-              You have {matches.filter((m) => m.status === 'PENDING').length} new match(es)!
+            <Text variant="titleSmall">
+              You have {deals.filter((d) => d.status === 'PENDING').length} pending deal(s)!
             </Text>
-            <Text variant="bodySmall">Tap to review and accept</Text>
+            <Text variant="bodySmall" style={{ color: '#666' }}>
+              Tap to review and respond
+            </Text>
           </Card.Content>
         </Card>
       )}
+
+      {/* Recently Listed */}
+      <Text variant="titleMedium" style={styles.sectionTitle}>
+        Recently Listed
+      </Text>
+      {recentLoading ? (
+        <ActivityIndicator style={{ marginTop: 16 }} />
+      ) : recentListings.length > 0 ? (
+        <View style={styles.recentGrid}>
+          {recentListings.map(renderRecentListing)}
+        </View>
+      ) : (
+        <Text style={styles.emptyText}>No listings yet</Text>
+      )}
+
+      {recentListings.length > 0 && (
+        <Button
+          mode="text"
+          onPress={() => navigation.navigate('Browse')}
+          style={{ marginTop: 4 }}
+        >
+          View All
+        </Button>
+      )}
+
+      <View style={{ height: 24 }} />
     </ScrollView>
   );
 }
@@ -103,35 +167,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#f5f5f5',
   },
   title: {
     textAlign: 'center',
     marginTop: 10,
     fontWeight: 'bold',
-    color: '#1E40AF',
-  },
-  tagline: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: '#3B82F6',
-    marginTop: 2,
+    color: '#4CAF50',
   },
   greeting: {
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 4,
     color: '#666',
   },
-  cardContainer: {
+  actionCards: {
     marginTop: 24,
     gap: 12,
   },
-  card: {
-    backgroundColor: '#fff',
+  actionCard: {
+    borderRadius: 12,
   },
-  cardDesc: {
-    color: '#666',
-    marginTop: 4,
+  actionContent: {
+    paddingVertical: 4,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -145,7 +202,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    color: '#3B82F6',
+    color: '#4CAF50',
     fontWeight: 'bold',
+  },
+  notifCard: {
+    marginTop: 16,
+    borderRadius: 12,
+  },
+  sectionTitle: {
+    fontWeight: 'bold',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  recentGrid: {
+    gap: 10,
+  },
+  listingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  meta: {
+    color: '#666',
+    marginTop: 2,
+  },
+  price: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 16,
   },
 });

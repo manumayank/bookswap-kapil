@@ -7,63 +7,67 @@ import {
   Button,
   SegmentedButtons,
   ActivityIndicator,
-  Divider,
 } from 'react-native-paper';
 import {
   useMyListings,
-  useMyRequests,
-  useMyMatches,
-  useAcceptMatch,
-  useRejectMatch,
-  useCompleteMatch,
+  useMyDeals,
+  useAcceptDeal,
+  useRejectDeal,
+  useCompleteDeal,
+  useCancelDeal,
 } from '../hooks/useApi';
 import { useAuthStore } from '../stores/authStore';
-import { Listing, BookRequest, Match } from '../types';
+import { Listing, Deal } from '../types';
 
-type Tab = 'listings' | 'requests' | 'matches';
+type Tab = 'listings' | 'deals';
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: '#3B82F6',
-  OPEN: '#2196F3',
-  MATCHED: '#FF9800',
   PENDING: '#FF9800',
-  ACCEPTED: '#3B82F6',
-  RESERVED: '#FF9800',
-  FULFILLED: '#3B82F6',
-  COMPLETED: '#3B82F6',
+  ACTIVE: '#4CAF50',
+  ACCEPTED: '#4CAF50',
+  SOLD: '#2196F3',
+  COMPLETED: '#4CAF50',
   CANCELLED: '#999',
   REJECTED: '#F44336',
-  EXCHANGED: '#3B82F6',
 };
 
 export default function MyActivityScreen() {
   const [tab, setTab] = useState<Tab>('listings');
   const { user } = useAuthStore();
   const { data: listings, isLoading: listingsLoading } = useMyListings();
-  const { data: requests, isLoading: requestsLoading } = useMyRequests();
-  const { data: matches, isLoading: matchesLoading } = useMyMatches();
-  const acceptMatch = useAcceptMatch();
-  const rejectMatch = useRejectMatch();
-  const completeMatch = useCompleteMatch();
+  const { data: deals, isLoading: dealsLoading } = useMyDeals();
+  const acceptDeal = useAcceptDeal();
+  const rejectDeal = useRejectDeal();
+  const completeDeal = useCompleteDeal();
+  const cancelDeal = useCancelDeal();
 
-  const handleAccept = (matchId: string) => {
-    Alert.alert('Accept Match', 'Are you sure you want to accept this match?', [
+  const formatPrice = (price: number) => '\u20B9' + price.toFixed(0);
+
+  const handleAccept = (dealId: string) => {
+    Alert.alert('Accept Deal', 'Are you sure you want to accept this deal?', [
       { text: 'Cancel' },
-      { text: 'Accept', onPress: () => acceptMatch.mutate(matchId) },
+      { text: 'Accept', onPress: () => acceptDeal.mutate(dealId) },
     ]);
   };
 
-  const handleReject = (matchId: string) => {
-    Alert.alert('Reject Match', 'Are you sure?', [
+  const handleReject = (dealId: string) => {
+    Alert.alert('Reject Deal', 'Are you sure?', [
       { text: 'Cancel' },
-      { text: 'Reject', style: 'destructive', onPress: () => rejectMatch.mutate(matchId) },
+      { text: 'Reject', style: 'destructive', onPress: () => rejectDeal.mutate(dealId) },
     ]);
   };
 
-  const handleComplete = (matchId: string) => {
-    Alert.alert('Complete Exchange', 'Confirm that the book exchange has been completed?', [
+  const handleComplete = (dealId: string) => {
+    Alert.alert('Complete Deal', 'Confirm that the transaction has been completed?', [
       { text: 'Cancel' },
-      { text: 'Complete', onPress: () => completeMatch.mutate(matchId) },
+      { text: 'Complete', onPress: () => completeDeal.mutate(dealId) },
+    ]);
+  };
+
+  const handleCancel = (dealId: string) => {
+    Alert.alert('Cancel Deal', 'Are you sure you want to cancel?', [
+      { text: 'No' },
+      { text: 'Yes, Cancel', style: 'destructive', onPress: () => cancelDeal.mutate(dealId) },
     ]);
   };
 
@@ -71,87 +75,67 @@ export default function MyActivityScreen() {
     <Card style={styles.card}>
       <Card.Content>
         <View style={styles.cardHeader}>
-          <Text variant="titleMedium">
-            Class {item.class} - {item.board}
+          <Text variant="titleMedium" numberOfLines={1} style={{ flex: 1 }}>
+            {item.title}
           </Text>
           <Chip
             compact
-            style={{ backgroundColor: STATUS_COLORS[item.status] + '20' }}
-            textStyle={{ color: STATUS_COLORS[item.status] }}
+            style={{ backgroundColor: (STATUS_COLORS[item.status] || '#999') + '20' }}
+            textStyle={{ color: STATUS_COLORS[item.status] || '#999' }}
           >
             {item.status}
           </Chip>
         </View>
         <Text variant="bodySmall" style={styles.meta}>
-          {item.listingType === 'SET' ? 'Full Set' : 'Individual'} | {item.condition.replace('_', ' ')}
+          {item.category} | {item.condition.replace('_', ' ')} | {item.city}
         </Text>
-        <Text variant="bodySmall" style={styles.meta}>
-          {item.items.length} book(s) | {item.city}
+        <Text variant="titleSmall" style={styles.price}>
+          {formatPrice(item.sellingPrice)}
         </Text>
       </Card.Content>
     </Card>
   );
 
-  const renderRequest = ({ item }: { item: BookRequest }) => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <View style={styles.cardHeader}>
-          <Text variant="titleMedium">
-            Class {item.class} - {item.board}
-          </Text>
-          <Chip
-            compact
-            style={{ backgroundColor: STATUS_COLORS[item.status] + '20' }}
-            textStyle={{ color: STATUS_COLORS[item.status] }}
-          >
-            {item.status}
-          </Chip>
-        </View>
-        <Text variant="bodySmall" style={styles.meta}>{item.city}</Text>
-        {item.isFloated && (
-          <Chip compact icon="bell" style={{ marginTop: 4, alignSelf: 'flex-start' }}>
-            Floated - waiting for matches
-          </Chip>
-        )}
-        {item.subjects.length > 0 && (
-          <Text variant="bodySmall" style={styles.meta}>
-            Subjects: {item.subjects.join(', ')}
-          </Text>
-        )}
-      </Card.Content>
-    </Card>
-  );
-
-  const renderMatch = ({ item }: { item: Match }) => {
-    const isGiver = item.giverId === user?.id;
-    const otherUser = isGiver ? item.receiver : item.giver;
+  const renderDeal = ({ item }: { item: Deal }) => {
+    const isSeller = item.sellerId === user?.id;
+    const otherUser = isSeller ? item.buyer : item.seller;
+    const role = isSeller ? 'Seller' : 'Buyer';
 
     return (
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.cardHeader}>
-            <Text variant="titleMedium">
-              {isGiver ? 'Giving to' : 'Receiving from'} {otherUser.name}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text variant="titleMedium" numberOfLines={1}>
+                {item.listing?.title || 'Listing'}
+              </Text>
+              <Text variant="bodySmall" style={styles.meta}>
+                {role} | {otherUser?.name || 'User'} ({otherUser?.city || ''})
+              </Text>
+            </View>
             <Chip
               compact
-              style={{ backgroundColor: STATUS_COLORS[item.status] + '20' }}
-              textStyle={{ color: STATUS_COLORS[item.status] }}
+              style={{ backgroundColor: (STATUS_COLORS[item.status] || '#999') + '20' }}
+              textStyle={{ color: STATUS_COLORS[item.status] || '#999' }}
             >
               {item.status}
             </Chip>
           </View>
-          <Text variant="bodySmall" style={styles.meta}>
-            Class {item.listing.items?.[0] ? `${item.listing.class}` : ''} | {otherUser.city}
-          </Text>
 
-          {item.status === 'PENDING' && (
+          {item.offeredPrice && (
+            <Text variant="bodySmall" style={styles.meta}>
+              Offered: {formatPrice(item.offeredPrice)}
+            </Text>
+          )}
+
+          {/* Actions based on status and role */}
+          {item.status === 'PENDING' && isSeller && (
             <View style={styles.actions}>
               <Button
                 mode="contained"
                 compact
                 onPress={() => handleAccept(item.id)}
-                style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
               >
                 Accept
               </Button>
@@ -166,15 +150,39 @@ export default function MyActivityScreen() {
             </View>
           )}
 
+          {item.status === 'PENDING' && !isSeller && (
+            <View style={styles.actions}>
+              <Text variant="bodySmall" style={{ color: '#FF9800', flex: 1 }}>
+                Waiting for seller to respond...
+              </Text>
+              <Button
+                mode="text"
+                compact
+                onPress={() => handleCancel(item.id)}
+                textColor="#F44336"
+              >
+                Cancel
+              </Button>
+            </View>
+          )}
+
           {item.status === 'ACCEPTED' && (
             <View style={styles.actions}>
               <Button
                 mode="contained"
                 compact
                 onPress={() => handleComplete(item.id)}
-                style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
               >
                 Mark Complete
+              </Button>
+              <Button
+                mode="text"
+                compact
+                onPress={() => handleCancel(item.id)}
+                textColor="#F44336"
+              >
+                Cancel
               </Button>
             </View>
           )}
@@ -183,7 +191,7 @@ export default function MyActivityScreen() {
     );
   };
 
-  const isLoading = tab === 'listings' ? listingsLoading : tab === 'requests' ? requestsLoading : matchesLoading;
+  const isLoading = tab === 'listings' ? listingsLoading : dealsLoading;
 
   return (
     <View style={styles.container}>
@@ -195,9 +203,8 @@ export default function MyActivityScreen() {
         value={tab}
         onValueChange={(v) => setTab(v as Tab)}
         buttons={[
-          { value: 'listings', label: 'Listings' },
-          { value: 'requests', label: 'Requests' },
-          { value: 'matches', label: 'Matches' },
+          { value: 'listings', label: 'My Listings' },
+          { value: 'deals', label: 'My Deals' },
         ]}
         style={styles.tabs}
       />
@@ -212,27 +219,17 @@ export default function MyActivityScreen() {
               renderItem={renderListing}
               keyExtractor={(item) => item.id}
               ListEmptyComponent={
-                <Text style={styles.empty}>No listings yet</Text>
+                <Text style={styles.empty}>No listings yet. Sell a book to get started!</Text>
               }
             />
           )}
-          {tab === 'requests' && (
+          {tab === 'deals' && (
             <FlatList
-              data={requests || []}
-              renderItem={renderRequest}
+              data={deals || []}
+              renderItem={renderDeal}
               keyExtractor={(item) => item.id}
               ListEmptyComponent={
-                <Text style={styles.empty}>No requests yet</Text>
-              }
-            />
-          )}
-          {tab === 'matches' && (
-            <FlatList
-              data={matches || []}
-              renderItem={renderMatch}
-              keyExtractor={(item) => item.id}
-              ListEmptyComponent={
-                <Text style={styles.empty}>No matches yet</Text>
+                <Text style={styles.empty}>No deals yet. Browse and buy books!</Text>
               }
             />
           )}
@@ -251,7 +248,7 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#3B82F6',
+    color: '#4CAF50',
   },
   tabs: {
     marginBottom: 16,
@@ -269,10 +266,16 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
+  price: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
   actions: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 12,
+    alignItems: 'center',
   },
   actionButton: {
     flex: 1,

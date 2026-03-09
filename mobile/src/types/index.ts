@@ -36,27 +36,22 @@ export interface Listing {
   id: string;
   userId: string;
   user: { id: string; name: string; city: string };
-  listingType: 'SET' | 'INDIVIDUAL';
-  board: Board;
-  class: number;
+  title: string;
+  description?: string;
+  category: Category;
+  board?: Board;
+  class?: number;
+  subject?: string;
   schoolId?: string;
   school?: School;
   city: string;
-  yearOfPurchase?: number;
+  buyingPrice?: number;
+  sellingPrice: number;
   condition: BookCondition;
-  exchangePreference: ExchangePreference[];
-  status: 'ACTIVE' | 'RESERVED' | 'EXCHANGED' | 'CANCELLED';
-  items: ListingItem[];
+  yearOfPurchase?: number;
+  status: 'PENDING' | 'ACTIVE' | 'SOLD' | 'CANCELLED';
   images: ListingImage[];
   createdAt: string;
-}
-
-export interface ListingItem {
-  id: string;
-  subject: string;
-  title?: string;
-  publisher?: string;
-  condition?: BookCondition;
 }
 
 export interface ListingImage {
@@ -64,6 +59,22 @@ export interface ListingImage {
   imageUrl: string;
   imageType?: string;
 }
+
+export interface Deal {
+  id: string;
+  listingId: string;
+  listing: Listing;
+  buyerId: string;
+  buyer: { id: string; name: string; city: string; phone: string };
+  sellerId: string;
+  seller: { id: string; name: string; city: string; phone: string };
+  offeredPrice?: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
+}
+
+// Keep old types for backward compat
+export type Match = Deal;
 
 export interface BookRequest {
   id: string;
@@ -77,29 +88,13 @@ export interface BookRequest {
   minCondition?: BookCondition;
   status: 'OPEN' | 'MATCHED' | 'FULFILLED' | 'CANCELLED';
   isFloated: boolean;
-  matches: Match[];
-  createdAt: string;
-}
-
-export interface Match {
-  id: string;
-  listingId: string;
-  listing: Listing;
-  requestId: string;
-  request: BookRequest;
-  giverId: string;
-  giver: { id: string; name: string; city: string; phone: string };
-  receiverId: string;
-  receiver: { id: string; name: string; city: string; phone: string };
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
-  exchangeMethod?: ExchangePreference;
-  exchangeDate?: string;
-  exchangeLocation?: string;
+  matches: Deal[];
   createdAt: string;
 }
 
 export type Board = 'CBSE' | 'ICSE' | 'STATE' | 'IB' | 'IGCSE';
-export type BookCondition = 'UNUSED' | 'ALMOST_NEW' | 'WATER_MARKS' | 'UNDERLINED';
+export type Category = 'BOOK' | 'STATIONERY';
+export type BookCondition = 'HARDLY_USED' | 'WELL_MAINTAINED' | 'MARKER_USED' | 'STAINS' | 'TORN_PAGES';
 export type ExchangePreference = 'PICKUP' | 'SCHOOL' | 'PORTER';
 
 export interface ApiResponse<T> {

@@ -1,106 +1,150 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
+import { Users, BookOpen, ClipboardList, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
 import api from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { user, isAuthenticated, hydrate } = useAuthStore();
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.isAdmin) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, user, router]);
+
   const { data: stats, isLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
       const { data } = await api.get('/admin/stats');
       return data.data;
     },
-  });
-
-  const { data: recentListingsData } = useQuery({
-    queryKey: ['admin-recent-listings'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/listings', { params: { limit: 5 } });
-      return data.data;
-    },
+    enabled: !!user?.isAdmin,
   });
 
   const statCards = [
-    { label: 'Total Users', value: stats?.users ?? '-', color: 'bg-blue-500' },
-    { label: 'Active Listings', value: stats?.listings ?? '-', color: 'bg-green-500' },
-    { label: 'Open Requests', value: stats?.requests ?? '-', color: 'bg-yellow-500' },
-    { label: 'Matches Made', value: stats?.matches ?? '-', color: 'bg-purple-500' },
-    { label: 'Schools', value: stats?.schools ?? '-', color: 'bg-pink-500' },
+    {
+      label: 'Total Users',
+      value: stats?.totalUsers ?? '-',
+      icon: Users,
+      color: 'text-[var(--primary)]',
+      bg: 'bg-[var(--primary)]/10',
+    },
+    {
+      label: 'Active Listings',
+      value: stats?.activeListings ?? '-',
+      icon: BookOpen,
+      color: 'text-[var(--secondary)]',
+      bg: 'bg-[var(--secondary)]/10',
+    },
+    {
+      label: 'Pending Listings',
+      value: stats?.pendingListings ?? '-',
+      icon: Clock,
+      color: 'text-amber-500',
+      bg: 'bg-amber-500/10',
+    },
+    {
+      label: 'Open Requests',
+      value: stats?.openRequests ?? '-',
+      icon: ClipboardList,
+      color: 'text-blue-500',
+      bg: 'bg-blue-500/10',
+    },
+    {
+      label: 'Deals',
+      value: stats?.deals ?? '-',
+      icon: ShoppingBag,
+      color: 'text-purple-500',
+      bg: 'bg-purple-500/10',
+    },
+    {
+      label: 'Completed Deals',
+      value: stats?.completedDeals ?? '-',
+      icon: CheckCircle,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-600/10',
+    },
   ];
 
-  const recentListings = recentListingsData || [];
+  if (!user?.isAdmin) return null;
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-
-      {/* Stats Grid */}
-      <div className="grid md:grid-cols-5 gap-6 mb-8">
-        {statCards.map((stat) => (
-          <div key={stat.label} className="bg-white rounded-lg shadow-sm p-6">
-            <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center text-white text-xl font-bold mb-4`}>
-              {isLoading ? '...' : stat.value}
-            </div>
-            <h3 className="text-gray-600 text-sm">{stat.label}</h3>
-          </div>
-        ))}
+    <div className="animate-fade-in">
+      <div className="mb-10">
+        <h1 className="text-3xl font-extrabold tracking-tight mb-2">Dashboard</h1>
+        <p className="text-[var(--muted)]">Overview of your BookSwap platform</p>
       </div>
 
-      {/* Extra stats */}
-      {stats && (
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="text-2xl font-bold text-green-600">{stats.completedMatches}</div>
-            <div className="text-gray-600 text-sm">Completed Exchanges</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="text-2xl font-bold text-blue-600">{stats.totalListings}</div>
-            <div className="text-gray-600 text-sm">Total Listings (all time)</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="text-2xl font-bold text-purple-600">{stats.totalRequests}</div>
-            <div className="text-gray-600 text-sm">Total Requests (all time)</div>
-          </div>
-        </div>
-      )}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        {statCards.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className="card-premium p-6">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-[var(--radius-md)] ${stat.bg} flex items-center justify-center`}>
+                  <Icon size={22} className={stat.color} />
+                </div>
+                <div>
+                  <div className="text-2xl font-black">
+                    {isLoading ? (
+                      <span className="inline-block w-8 h-6 bg-[var(--muted-extra-light)] rounded animate-pulse" />
+                    ) : (
+                      stat.value
+                    )}
+                  </div>
+                  <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                    {stat.label}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-      {/* Recent Listings */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-semibold mb-4">Recent Listings</h2>
-        {recentListings.length === 0 ? (
-          <div className="text-gray-500 text-center py-8">No listings yet</div>
-        ) : (
-          <table className="w-full">
-            <thead className="border-b">
-              <tr>
-                <th className="text-left pb-3 text-sm font-medium text-gray-500">User</th>
-                <th className="text-left pb-3 text-sm font-medium text-gray-500">Class</th>
-                <th className="text-left pb-3 text-sm font-medium text-gray-500">Board</th>
-                <th className="text-left pb-3 text-sm font-medium text-gray-500">City</th>
-                <th className="text-left pb-3 text-sm font-medium text-gray-500">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentListings.map((listing: any) => (
-                <tr key={listing.id} className="border-b last:border-0">
-                  <td className="py-3 text-sm">{listing.user?.name}</td>
-                  <td className="py-3 text-sm">Class {listing.class}</td>
-                  <td className="py-3 text-sm">{listing.board}</td>
-                  <td className="py-3 text-sm">{listing.city}</td>
-                  <td className="py-3">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      listing.status === 'ACTIVE'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {listing.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      {/* Quick Links */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link href="/admin/listings" className="card-premium p-8 group cursor-pointer">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-amber-500/10 flex items-center justify-center">
+              <Clock size={20} className="text-amber-500" />
+            </div>
+            <h2 className="text-lg font-extrabold group-hover:text-[var(--primary)] transition-colors">
+              Moderation Queue
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--muted)] ml-14">
+            Review and approve pending listings before they go live.
+            {stats?.pendingListings > 0 && (
+              <span className="ml-2 badge badge-primary">{stats.pendingListings} pending</span>
+            )}
+          </p>
+        </Link>
+
+        <Link href="/admin/users" className="card-premium p-8 group cursor-pointer">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--primary)]/10 flex items-center justify-center">
+              <Users size={20} className="text-[var(--primary)]" />
+            </div>
+            <h2 className="text-lg font-extrabold group-hover:text-[var(--primary)] transition-colors">
+              Manage Users
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--muted)] ml-14">
+            View registered users, their activity, and manage accounts.
+          </p>
+        </Link>
       </div>
     </div>
   );

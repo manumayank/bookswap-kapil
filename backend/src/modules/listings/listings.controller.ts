@@ -1,15 +1,10 @@
 import { Request, Response } from 'express';
 import { sendSuccess, sendPaginated, sendError } from '../../lib/response';
 import * as listingsService from './listings.service';
-import { autoMatchForListing } from '../matches/matches.service';
 
 export async function handleCreate(req: Request, res: Response) {
   try {
     const listing = await listingsService.createListing(req.user!.userId, req.body);
-
-    // Trigger auto-matching in background
-    autoMatchForListing(listing.id).catch(console.error);
-
     return sendSuccess(res, listing, 201);
   } catch (error: any) {
     return sendError(res, error.message);
@@ -29,7 +24,8 @@ export async function handleSearch(req: Request, res: Response) {
 
 export async function handleGetListing(req: Request, res: Response) {
   try {
-    const listing = await listingsService.getListing(req.params.id);
+    const requestingUserId = req.user?.userId;
+    const listing = await listingsService.getListing(req.params.id, requestingUserId);
     return sendSuccess(res, listing);
   } catch (error: any) {
     return sendError(res, error.message, 404);

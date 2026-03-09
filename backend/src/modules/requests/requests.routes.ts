@@ -12,6 +12,5 @@ router.post('/', validate(createRequestDto), requestsController.handleCreate);
 router.get('/', requestsController.handleGetMyRequests);
 router.put('/:id', validate(updateRequestDto), requestsController.handleUpdate);
 router.delete('/:id', requestsController.handleCancel);
-router.post('/:id/float', requestsController.handleFloat);
 
 export default router;

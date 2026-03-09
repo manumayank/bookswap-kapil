@@ -9,7 +9,7 @@ export const registerUserDto = z.object({
   city: z.string().min(2, 'City is required'),
   address: z.string().optional(),
   schoolId: z.string().uuid().optional(),
-  board: boardEnum,
+  board: boardEnum.optional(),
 });
 
 export const updateUserDto = z.object({

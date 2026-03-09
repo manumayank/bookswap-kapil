@@ -36,3 +36,38 @@ export async function handleGetListings(req: Request, res: Response) {
     return sendError(res, error.message, 500);
   }
 }
+
+export async function handleGetPendingListings(req: Request, res: Response) {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const { listings, total } = await adminService.getPendingListings(page, limit);
+    return sendPaginated(res, listings, total, page, limit);
+  } catch (error: any) {
+    return sendError(res, error.message, 500);
+  }
+}
+
+export async function handleApproveListing(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const listing = await adminService.approveListing(id);
+    return sendSuccess(res, listing);
+  } catch (error: any) {
+    const status = error.message.includes('not found') ? 404 : 400;
+    return sendError(res, error.message, status);
+  }
+}
+
+export async function handleRejectListing(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const listing = await adminService.rejectListing(id, reason);
+    return sendSuccess(res, listing);
+  } catch (error: any) {
+    const status = error.message.includes('not found') ? 404 : 400;
+    return sendError(res, error.message, status);
+  }
+}

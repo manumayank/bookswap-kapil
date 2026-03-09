@@ -56,34 +56,91 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Background glow */}
+      <div
+        className="glow-primary"
+        style={{ top: '-200px', left: '50%', transform: 'translateX(-50%)', opacity: 0.3 }}
+      />
+
+      <div className="container animate-fade-in" style={{ maxWidth: '440px', padding: '2rem 1.5rem' }}>
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-bold text-green-600">
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: '2rem',
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              color: 'var(--primary)',
+              textDecoration: 'none',
+            }}
+          >
             BookSwap
           </Link>
-          <p className="text-gray-600 mt-2">Sign in to your account</p>
+          <p style={{ color: 'var(--muted)', marginTop: '0.5rem', fontSize: '0.9375rem' }}>
+            Sign in to your account
+          </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-xl shadow-sm border p-8">
+        <div className="card-premium" style={{ padding: '2.5rem' }}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div
+              style={{
+                background: 'var(--accent-glow)',
+                color: 'var(--accent)',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '1.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+              }}
+            >
               {error}
             </div>
           )}
 
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div
+              style={{
+                background: 'var(--secondary-glow)',
+                color: 'var(--secondary)',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '1.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+              }}
+            >
               {success}
             </div>
           )}
 
           {!otpSent ? (
             <form onSubmit={handleSendOtp}>
-              <div className="mb-6">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label
+                  htmlFor="email"
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    color: 'var(--foreground)',
+                    marginBottom: '0.5rem',
+                    letterSpacing: '0.02em',
+                    textTransform: 'uppercase',
+                  }}
+                >
                   Email Address
                 </label>
                 <input
@@ -91,28 +148,48 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
                   placeholder="you@example.com"
                   autoFocus
+                  style={{ width: '100%' }}
                 />
               </div>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  opacity: isLoading ? 0.6 : 1,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                }}
               >
                 {isLoading ? 'Sending...' : 'Send OTP'}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp}>
-              <div className="mb-2">
-                <p className="text-sm text-gray-600">
-                  OTP sent to <span className="font-medium">{email}</span>
-                </p>
+              <div
+                style={{
+                  marginBottom: '1.25rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--muted)',
+                }}
+              >
+                OTP sent to <span style={{ fontWeight: 700, color: 'var(--foreground)' }}>{email}</span>
               </div>
-              <div className="mb-6">
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label
+                  htmlFor="otp"
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    color: 'var(--foreground)',
+                    marginBottom: '0.5rem',
+                    letterSpacing: '0.02em',
+                    textTransform: 'uppercase',
+                  }}
+                >
                   Enter 6-digit OTP
                 </label>
                 <input
@@ -122,15 +199,26 @@ export default function LoginPage() {
                   maxLength={6}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
                   placeholder="------"
                   autoFocus
+                  style={{
+                    width: '100%',
+                    textAlign: 'center',
+                    fontSize: '1.75rem',
+                    letterSpacing: '0.5em',
+                    fontFamily: 'monospace',
+                  }}
                 />
               </div>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  opacity: isLoading ? 0.6 : 1,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                }}
               >
                 {isLoading ? 'Verifying...' : 'Verify OTP'}
               </button>
@@ -142,7 +230,13 @@ export default function LoginPage() {
                   setError('');
                   setSuccess('');
                 }}
-                className="w-full mt-3 text-gray-600 py-2 text-sm hover:text-green-600"
+                className="btn btn-outline"
+                style={{
+                  width: '100%',
+                  marginTop: '0.75rem',
+                  height: '44px',
+                  fontSize: '0.875rem',
+                }}
               >
                 Change email address
               </button>
@@ -150,11 +244,23 @@ export default function LoginPage() {
           )}
         </div>
 
-        <p className="text-center mt-6 text-sm text-gray-500">
-          <Link href="/" className="text-green-600 hover:underline">
-            Back to home
-          </Link>
-        </p>
+        {/* Footer links */}
+        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
+            New here?{' '}
+            <Link
+              href="/register"
+              style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}
+            >
+              Register
+            </Link>
+          </p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--muted-light)', marginTop: '0.75rem' }}>
+            <Link href="/" style={{ color: 'var(--muted-light)', textDecoration: 'none' }}>
+              Back to home
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

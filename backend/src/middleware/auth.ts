@@ -10,6 +10,23 @@ declare global {
   }
 }
 
+/**
+ * Optional authentication: attaches user to request if a valid token is present,
+ * but does not reject the request if no token is provided.
+ */
+export function optionalAuthenticate(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      req.user = verifyToken(token);
+    } catch {
+      // Ignore invalid tokens for optional auth
+    }
+  }
+  next();
+}
+
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 

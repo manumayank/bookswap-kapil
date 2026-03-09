@@ -1,44 +1,41 @@
 import { z } from 'zod';
 
 const boardEnum = z.enum(['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE']);
-const conditionEnum = z.enum(['UNUSED', 'ALMOST_NEW', 'WATER_MARKS', 'UNDERLINED']);
-const exchangeEnum = z.enum(['PICKUP', 'SCHOOL', 'PORTER']);
+const categoryEnum = z.enum(['BOOK', 'STATIONERY']);
+const conditionEnum = z.enum([
+  'HARDLY_USED',
+  'WELL_MAINTAINED',
+  'MARKER_USED',
+  'STAINS',
+  'TORN_PAGES',
+]);
 
 export const createListingDto = z.object({
-  listingType: z.enum(['SET', 'INDIVIDUAL']),
-  board: boardEnum,
-  class: z.number().int().min(1).max(12),
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().max(2000).optional(),
+  category: categoryEnum,
+  board: boardEnum.optional(),
+  class: z.number().int().min(1).max(12).optional(),
+  subject: z.string().max(100).optional(),
   schoolId: z.string().uuid().optional(),
-  city: z.string().min(2),
-  yearOfPurchase: z.number().int().optional(),
-  // Accept both single condition or array (take first if array)
-  condition: z.union([
-    conditionEnum,
-    z.array(conditionEnum).min(1).transform(arr => arr[0])
-  ]),
-  exchangePreference: z.array(exchangeEnum).min(1, 'Select at least one exchange preference'),
-  items: z.array(
-    z.object({
-      subject: z.string().min(1),
-      title: z.string().optional(),
-      publisher: z.string().optional(),
-      condition: conditionEnum.optional(),
-    })
-  ).min(1, 'At least one book item is required'),
+  city: z.string().min(2).max(100),
+  buyingPrice: z.number().positive().optional(),
+  sellingPrice: z.number().positive('Selling price is required'),
+  condition: conditionEnum,
+  yearOfPurchase: z.number().int().min(2000).max(2030).optional(),
 });
 
-export const updateListingDto = z.object({
-  condition: conditionEnum.optional(),
-  exchangePreference: z.array(exchangeEnum).optional(),
-  yearOfPurchase: z.number().int().optional(),
-});
+export const updateListingDto = createListingDto.partial();
 
 export const searchListingsDto = z.object({
+  search: z.string().optional(),
+  category: categoryEnum.optional(),
   board: boardEnum.optional(),
   class: z.coerce.number().int().min(1).max(12).optional(),
   city: z.string().optional(),
-  schoolId: z.string().uuid().optional(),
-  condition: conditionEnum.optional(),
+  minPrice: z.coerce.number().min(0).optional(),
+  maxPrice: z.coerce.number().min(0).optional(),
+  sortBy: z.enum(['price_asc', 'price_desc', 'newest']).default('newest'),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });

@@ -1,241 +1,166 @@
 import prisma from '../../lib/prisma';
-import { BookCondition, Prisma } from '@prisma/client';
-import { ScheduleMatchDto } from './matches.dto';
 
-const matchInclude = {
+/** Select fields for user, conditionally including phone */
+const userPublicSelect = { id: true, name: true, city: true };
+const userWithPhoneSelect = { ...userPublicSelect, phone: true };
+
+const dealInclude = {
   listing: {
     include: {
       items: true,
       images: true,
-      user: { select: { id: true, name: true, city: true, phone: true } },
       school: true,
     },
   },
-  request: {
-    include: {
-      user: { select: { id: true, name: true, city: true, phone: true } },
-      school: true,
-    },
-  },
-  giver: { select: { id: true, name: true, city: true, phone: true } },
-  receiver: { select: { id: true, name: true, city: true, phone: true } },
+  seller: { select: userPublicSelect },
+  buyer: { select: userPublicSelect },
 };
 
-const CONDITION_ORDER: BookCondition[] = ['UNUSED', 'ALMOST_NEW', 'WATER_MARKS', 'UNDERLINED'];
+const dealIncludeWithPhone = {
+  listing: {
+    include: {
+      items: true,
+      images: true,
+      school: true,
+    },
+  },
+  seller: { select: userWithPhoneSelect },
+  buyer: { select: userWithPhoneSelect },
+};
 
-function meetsCondition(listingCondition: BookCondition, minCondition?: BookCondition | null): boolean {
-  if (!minCondition) return true;
-  return CONDITION_ORDER.indexOf(listingCondition) <= CONDITION_ORDER.indexOf(minCondition);
+/**
+ * Create a new deal (buyer initiates).
+ * Validates listing is ACTIVE and buyer is not the seller.
+ */
+export async function createDeal(buyerId: string, listingId: string, offeredPrice?: number) {
+  const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+  if (!listing) throw new Error('Listing not found');
+  if (listing.status !== 'ACTIVE') throw new Error('Listing is not active');
+  if (listing.userId === buyerId) throw new Error('You cannot buy your own listing');
+
+  const agreedPrice = offeredPrice ?? listing.sellingPrice;
+
+  const deal = await prisma.deal.create({
+    data: {
+      listingId,
+      sellerId: listing.userId,
+      buyerId,
+      agreedPrice,
+    },
+    include: dealInclude,
+  });
+
+  return deal;
 }
 
 /**
- * Auto-match: find matching listings for a request.
- * Priority: 1) Same school+class+board, 2) Same city+class+board, 3) Same city+class
+ * Seller accepts a pending deal.
+ * Returns deal with phone numbers so both parties can contact each other.
  */
-export async function autoMatchForRequest(requestId: string) {
-  const request = await prisma.request.findUnique({
-    where: { id: requestId },
-    include: { user: true },
-  });
-  if (!request) return [];
+export async function acceptDeal(sellerId: string, dealId: string) {
+  const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+  if (!deal) throw new Error('Deal not found');
+  if (deal.sellerId !== sellerId) throw new Error('Only the seller can accept this deal');
+  if (deal.status !== 'PENDING') throw new Error('Deal is not in pending status');
 
-  // Find active listings that match
-  const baseWhere: Prisma.ListingWhereInput = {
-    status: 'ACTIVE',
-    class: request.class,
-    userId: { not: request.userId }, // Don't match own listings
-  };
-
-  // Priority 1: Same school + class + board
-  const tier1 = request.schoolId
-    ? await prisma.listing.findMany({
-        where: { ...baseWhere, schoolId: request.schoolId, board: request.board },
-        include: { user: true },
-      })
-    : [];
-
-  // Priority 2: Same city + class + board
-  const tier2 = await prisma.listing.findMany({
-    where: { ...baseWhere, city: { equals: request.city, mode: 'insensitive' }, board: request.board },
-    include: { user: true },
-  });
-
-  // Priority 3: Same city + class (any board)
-  const tier3 = await prisma.listing.findMany({
-    where: { ...baseWhere, city: { equals: request.city, mode: 'insensitive' } },
-    include: { user: true },
-  });
-
-  // Deduplicate and filter by condition
-  const seen = new Set<string>();
-  const allListings = [...tier1, ...tier2, ...tier3].filter((listing) => {
-    if (seen.has(listing.id)) return false;
-    seen.add(listing.id);
-    return meetsCondition(listing.condition, request.minCondition);
-  });
-
-  // Create matches
-  const matches = [];
-  for (const listing of allListings) {
-    // Check if match already exists
-    const existing = await prisma.match.findFirst({
-      where: { listingId: listing.id, requestId: request.id },
-    });
-    if (existing) continue;
-
-    const match = await prisma.match.create({
-      data: {
-        listingId: listing.id,
-        requestId: request.id,
-        giverId: listing.userId,
-        receiverId: request.userId,
-      },
-      include: matchInclude,
-    });
-    matches.push(match);
-  }
-
-  // Update request status if matches found
-  if (matches.length > 0) {
-    await prisma.request.update({
-      where: { id: requestId },
-      data: { status: 'MATCHED' },
-    });
-  }
-
-  return matches;
-}
-
-/** Auto-match: find matching requests for a new listing */
-export async function autoMatchForListing(listingId: string) {
-  const listing = await prisma.listing.findUnique({
-    where: { id: listingId },
-    include: { user: true },
-  });
-  if (!listing) return [];
-
-  const baseWhere: Prisma.RequestWhereInput = {
-    status: { in: ['OPEN', 'MATCHED'] },
-    class: listing.class,
-    userId: { not: listing.userId },
-  };
-
-  // Also match floated requests
-  const requests = await prisma.request.findMany({
-    where: {
-      ...baseWhere,
-      OR: [
-        { city: { equals: listing.city, mode: 'insensitive' } },
-        { schoolId: listing.schoolId ?? undefined },
-      ],
-    },
-  });
-
-  const matches = [];
-  for (const request of requests) {
-    if (!meetsCondition(listing.condition, request.minCondition)) continue;
-
-    const existing = await prisma.match.findFirst({
-      where: { listingId: listing.id, requestId: request.id },
-    });
-    if (existing) continue;
-
-    const match = await prisma.match.create({
-      data: {
-        listingId: listing.id,
-        requestId: request.id,
-        giverId: listing.userId,
-        receiverId: request.userId,
-      },
-      include: matchInclude,
-    });
-    matches.push(match);
-
-    // Update request status
-    await prisma.request.update({
-      where: { id: request.id },
-      data: { status: 'MATCHED' },
-    });
-  }
-
-  return matches;
-}
-
-export async function getMyMatches(userId: string) {
-  return prisma.match.findMany({
-    where: {
-      OR: [{ giverId: userId }, { receiverId: userId }],
-    },
-    include: matchInclude,
-    orderBy: { createdAt: 'desc' },
-  });
-}
-
-export async function acceptMatch(userId: string, matchId: string) {
-  const match = await prisma.match.findFirst({
-    where: { id: matchId, OR: [{ giverId: userId }, { receiverId: userId }] },
-  });
-  if (!match) throw new Error('Match not found');
-
-  return prisma.match.update({
-    where: { id: matchId },
+  const updated = await prisma.deal.update({
+    where: { id: dealId },
     data: { status: 'ACCEPTED' },
-    include: matchInclude,
-  });
-}
-
-export async function rejectMatch(userId: string, matchId: string) {
-  const match = await prisma.match.findFirst({
-    where: { id: matchId, OR: [{ giverId: userId }, { receiverId: userId }] },
-  });
-  if (!match) throw new Error('Match not found');
-
-  return prisma.match.update({
-    where: { id: matchId },
-    data: { status: 'REJECTED' },
-    include: matchInclude,
-  });
-}
-
-export async function scheduleExchange(userId: string, matchId: string, data: ScheduleMatchDto) {
-  const match = await prisma.match.findFirst({
-    where: { id: matchId, status: 'ACCEPTED', OR: [{ giverId: userId }, { receiverId: userId }] },
-  });
-  if (!match) throw new Error('Match not found or not accepted');
-
-  return prisma.match.update({
-    where: { id: matchId },
-    data: {
-      exchangeMethod: data.exchangeMethod,
-      exchangeDate: data.exchangeDate ? new Date(data.exchangeDate) : undefined,
-      exchangeLocation: data.exchangeLocation,
-    },
-    include: matchInclude,
-  });
-}
-
-export async function completeMatch(userId: string, matchId: string) {
-  const match = await prisma.match.findFirst({
-    where: { id: matchId, status: 'ACCEPTED', OR: [{ giverId: userId }, { receiverId: userId }] },
-  });
-  if (!match) throw new Error('Match not found or not accepted');
-
-  // Update match status
-  const updated = await prisma.match.update({
-    where: { id: matchId },
-    data: { status: 'COMPLETED' },
-    include: matchInclude,
-  });
-
-  // Update listing and request statuses
-  await prisma.listing.update({
-    where: { id: match.listingId },
-    data: { status: 'EXCHANGED' },
-  });
-  await prisma.request.update({
-    where: { id: match.requestId },
-    data: { status: 'FULFILLED' },
+    include: dealIncludeWithPhone,
   });
 
   return updated;
+}
+
+/** Seller rejects a pending deal. */
+export async function rejectDeal(sellerId: string, dealId: string) {
+  const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+  if (!deal) throw new Error('Deal not found');
+  if (deal.sellerId !== sellerId) throw new Error('Only the seller can reject this deal');
+  if (deal.status !== 'PENDING') throw new Error('Deal is not in pending status');
+
+  return prisma.deal.update({
+    where: { id: dealId },
+    data: { status: 'REJECTED' },
+    include: dealInclude,
+  });
+}
+
+/**
+ * Either party marks an accepted deal as complete.
+ * Also sets the listing status to SOLD.
+ */
+export async function completeDeal(userId: string, dealId: string) {
+  const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+  if (!deal) throw new Error('Deal not found');
+  if (deal.sellerId !== userId && deal.buyerId !== userId) {
+    throw new Error('You are not part of this deal');
+  }
+  if (deal.status !== 'ACCEPTED') throw new Error('Deal must be accepted before completing');
+
+  const updated = await prisma.deal.update({
+    where: { id: dealId },
+    data: { status: 'COMPLETED' },
+    include: dealIncludeWithPhone,
+  });
+
+  // Mark listing as sold
+  await prisma.listing.update({
+    where: { id: deal.listingId },
+    data: { status: 'SOLD' },
+  });
+
+  return updated;
+}
+
+/** Either party can cancel a pending deal. */
+export async function cancelDeal(userId: string, dealId: string) {
+  const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+  if (!deal) throw new Error('Deal not found');
+  if (deal.sellerId !== userId && deal.buyerId !== userId) {
+    throw new Error('You are not part of this deal');
+  }
+  if (deal.status !== 'PENDING') throw new Error('Only pending deals can be cancelled');
+
+  return prisma.deal.update({
+    where: { id: dealId },
+    data: { status: 'CANCELLED' },
+    include: dealInclude,
+  });
+}
+
+/**
+ * Get all deals where user is buyer or seller.
+ * Phone numbers are only included for ACCEPTED or COMPLETED deals.
+ */
+export async function getMyDeals(userId: string) {
+  const deals = await prisma.deal.findMany({
+    where: {
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    include: {
+      listing: {
+        include: {
+          items: true,
+          images: true,
+          school: true,
+        },
+      },
+      seller: { select: userWithPhoneSelect },
+      buyer: { select: userWithPhoneSelect },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Strip phone numbers from deals that are not ACCEPTED or COMPLETED
+  return deals.map((deal) => {
+    if (deal.status === 'ACCEPTED' || deal.status === 'COMPLETED') {
+      return deal;
+    }
+    return {
+      ...deal,
+      seller: { id: deal.seller.id, name: deal.seller.name, city: deal.seller.city },
+      buyer: { id: deal.buyer.id, name: deal.buyer.name, city: deal.buyer.city },
+    };
+  });
 }

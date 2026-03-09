@@ -8,6 +8,7 @@ import {
   IconButton,
   Divider,
   List,
+  Avatar,
 } from 'react-native-paper';
 import { useAuthStore } from '../stores/authStore';
 import api from '../services/api';
@@ -95,11 +96,27 @@ export default function ProfileScreen({ navigation }: any) {
     );
   }
 
+  const initials = user.name
+    ? user.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : '?';
+
   return (
     <ScrollView style={styles.container}>
-      <Text variant="titleLarge" style={styles.heading}>
-        Profile
-      </Text>
+      {/* Avatar and basic info */}
+      <View style={styles.avatarSection}>
+        <Avatar.Text size={72} label={initials} style={{ backgroundColor: '#4CAF50' }} />
+        <Text variant="titleLarge" style={styles.userName}>
+          {user.name}
+        </Text>
+        <Text variant="bodyMedium" style={styles.userEmail}>
+          {user.email}
+        </Text>
+      </View>
 
       {/* Profile Info */}
       <Card style={styles.card}>
@@ -142,14 +159,30 @@ export default function ProfileScreen({ navigation }: any) {
             </>
           ) : (
             <>
-              <Text variant="titleMedium">{user.name}</Text>
-              <Text variant="bodyMedium" style={styles.info}>{user.email}</Text>
-              <Text variant="bodyMedium" style={styles.info}>{user.phone}</Text>
-              <Text variant="bodyMedium" style={styles.info}>{user.city} | {user.board}</Text>
+              <List.Item
+                title="Phone"
+                description={user.phone || 'Not set'}
+                left={(props) => <List.Icon {...props} icon="phone" />}
+              />
+              <List.Item
+                title="City"
+                description={user.city || 'Not set'}
+                left={(props) => <List.Icon {...props} icon="map-marker" />}
+              />
+              <List.Item
+                title="Board"
+                description={user.board || 'Not set'}
+                left={(props) => <List.Icon {...props} icon="school" />}
+              />
               <Button
                 mode="outlined"
-                onPress={() => setEditing(true)}
-                style={{ marginTop: 12 }}
+                onPress={() => {
+                  setName(user.name || '');
+                  setPhone(user.phone || '');
+                  setCity(user.city || '');
+                  setEditing(true);
+                }}
+                style={{ marginTop: 8 }}
                 compact
               >
                 Edit Profile
@@ -232,6 +265,7 @@ export default function ProfileScreen({ navigation }: any) {
         onPress={handleLogout}
         style={styles.logoutButton}
         textColor="#F44336"
+        icon="logout"
       >
         Logout
       </Button>
@@ -247,10 +281,18 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f5f5f5',
   },
-  heading: {
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  userName: {
     fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#3B82F6',
+    marginTop: 12,
+  },
+  userEmail: {
+    color: '#666',
+    marginTop: 2,
   },
   card: {
     marginBottom: 12,
@@ -270,7 +312,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4CAF50',
   },
   sectionHeader: {
     flexDirection: 'row',
