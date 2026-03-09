@@ -98,17 +98,18 @@ export async function completeDeal(userId: string, dealId: string) {
   }
   if (deal.status !== 'ACCEPTED') throw new Error('Deal must be accepted before completing');
 
-  const updated = await prisma.deal.update({
-    where: { id: dealId },
-    data: { status: 'COMPLETED' },
-    include: dealIncludeWithPhone,
-  });
-
-  // Mark listing as sold
-  await prisma.listing.update({
-    where: { id: deal.listingId },
-    data: { status: 'SOLD' },
-  });
+  // Update both in transaction so the response includes fresh listing status
+  const [, updated] = await prisma.$transaction([
+    prisma.listing.update({
+      where: { id: deal.listingId },
+      data: { status: 'SOLD' },
+    }),
+    prisma.deal.update({
+      where: { id: dealId },
+      data: { status: 'COMPLETED' },
+      include: dealIncludeWithPhone,
+    }),
+  ]);
 
   return updated;
 }
