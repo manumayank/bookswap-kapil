@@ -26,7 +26,8 @@ export default function Navbar() {
 
         <div className="hidden lg:flex items-center gap-10">
           <Link href="/" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Home</Link>
-          <Link href="/browse" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Marketplace</Link>
+          <Link href="/browse" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Browse</Link>
+          <Link href="/need" className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary transition-colors">I Need</Link>
           <Link href="/sell" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Sell</Link>
         </div>
 
@@ -83,7 +84,8 @@ export default function Navbar() {
         <div className="lg:hidden glass border-t border-card-border animate-slide-down">
           <div className="container flex flex-col gap-1 py-4 px-6">
             <Link href="/" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Home</Link>
-            <Link href="/browse" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Marketplace</Link>
+            <Link href="/browse" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Browse</Link>
+            <Link href="/need" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-primary hover:text-primary py-3 transition-colors">I Need</Link>
             <Link href="/sell" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Sell</Link>
             {isAuthenticated && (
               <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Dashboard</Link>

@@ -20,5 +20,16 @@ export const updateRequestDto = z.object({
   maxPrice: z.number().positive().optional().nullable(),
 });
 
+// For finding matches without creating a request
+export const findMatchesDto = z.object({
+  board: boardEnum.optional(),
+  class: z.number().int().min(1).max(12).optional(),
+  subjects: z.array(z.string()).optional().default([]),
+  schoolId: z.string().uuid().optional(),
+  city: z.string().min(2),
+  maxPrice: z.number().positive().optional(),
+});
+
 export type CreateRequestDto = z.infer<typeof createRequestDto>;
 export type UpdateRequestDto = z.infer<typeof updateRequestDto>;
+export type FindMatchesDto = z.infer<typeof findMatchesDto>;

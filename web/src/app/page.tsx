@@ -141,6 +141,22 @@ export default function HomePage() {
               Join thousands of parents and students in your neighborhood to buy and sell textbooks, stationery, and more. Save money, save trees.
             </p>
 
+            {/* Quick Actions */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Link
+                href="/need"
+                className="btn btn-primary h-16 px-10 text-base font-black shadow-2xl"
+              >
+                <span className="mr-2">&#128218;</span> I Need Books
+              </Link>
+              <Link
+                href="/sell"
+                className="btn btn-outline h-16 px-10 text-base font-black"
+              >
+                <span className="mr-2">&#128200;</span> I Have Books to Sell
+              </Link>
+            </div>
+
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="card-premium p-3 flex flex-col md:flex-row gap-3 max-w-3xl mx-auto shadow-2xl bg-white/50 backdrop-blur-xl">
               <div className="flex-1 flex items-center px-6 gap-4 bg-muted-extra-light rounded-2xl transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20">

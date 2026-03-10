@@ -11,12 +11,34 @@ export async function handleCreate(req: Request, res: Response) {
   }
 }
 
+export async function handleFindMatches(req: Request, res: Response) {
+  try {
+    const listings = await requestsService.findMatchesForCriteria(req.body);
+    return sendSuccess(res, { 
+      listings, 
+      count: listings.length,
+      hasMatches: listings.length > 0 
+    });
+  } catch (error: any) {
+    return sendError(res, error.message, 500);
+  }
+}
+
 export async function handleGetMyRequests(req: Request, res: Response) {
   try {
     const requests = await requestsService.getMyRequests(req.user!.userId);
     return sendSuccess(res, requests);
   } catch (error: any) {
     return sendError(res, error.message, 500);
+  }
+}
+
+export async function handleGetMatches(req: Request, res: Response) {
+  try {
+    const result = await requestsService.getMatchesForRequest(req.user!.userId, req.params.id);
+    return sendSuccess(res, result);
+  } catch (error: any) {
+    return sendError(res, error.message);
   }
 }
 
