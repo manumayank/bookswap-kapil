@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
+
+interface School {
+  id: string;
+  name: string;
+  city: string;
+  board: string;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,12 +25,76 @@ export default function RegisterPage() {
     phone: '',
     city: '',
     board: '',
-    school: '',
+    schoolId: '',
   });
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [schools, setSchools] = useState<School[]>([]);
+  const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
+  const [selectedSchoolName, setSelectedSchoolName] = useState('');
   const [error, setError] = useState('');
+  const [searchingSchools, setSearchingSchools] = useState(false);
+
+  // Search schools when user types
+  const searchSchools = useCallback(async (query: string, city: string, board: string) => {
+    if (query.length < 2) {
+      setSchools([]);
+      return;
+    }
+    setSearchingSchools(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('name', query);
+      params.append('limit', '10');
+      if (city) params.append('city', city);
+      if (board) params.append('board', board);
+      
+      const { data } = await api.get(`/schools?${params.toString()}`);
+      setSchools(data.data?.schools || []);
+    } catch (err) {
+      console.error('Failed to search schools:', err);
+      setSchools([]);
+    } finally {
+      setSearchingSchools(false);
+    }
+  }, []);
+
+  // Debounce school search
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (schoolSearch && !selectedSchoolName) {
+        searchSchools(schoolSearch, form.city, form.board);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [schoolSearch, form.city, form.board, selectedSchoolName, searchSchools]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    
+    // Clear school selection if city or board changes
+    if (name === 'city' || name === 'board') {
+      setForm(prev => ({ ...prev, schoolId: '' }));
+      setSchoolSearch('');
+      setSelectedSchoolName('');
+      setSchools([]);
+    }
+  };
+
+  const handleSchoolSelect = (school: School) => {
+    setForm({ ...form, schoolId: school.id });
+    setSchoolSearch(school.name);
+    setSelectedSchoolName(school.name);
+    setShowSchoolDropdown(false);
+    setSchools([]);
+  };
+
+  const handleSchoolInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSchoolSearch(value);
+    setSelectedSchoolName('');
+    setForm({ ...form, schoolId: '' });
+    setShowSchoolDropdown(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -132,7 +203,7 @@ export default function RegisterPage() {
               {/* Name */}
               <div>
                 <label htmlFor="name" style={labelStyle}>
-                  Full Name
+                  Full Name *
                 </label>
                 <input
                   id="name"
@@ -142,6 +213,7 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   placeholder="Your name"
                   autoFocus
+                  required
                   style={inputStyle}
                 />
               </div>
@@ -149,7 +221,7 @@ export default function RegisterPage() {
               {/* Email */}
               <div>
                 <label htmlFor="email" style={labelStyle}>
-                  Email Address
+                  Email Address *
                 </label>
                 <input
                   id="email"
@@ -158,6 +230,7 @@ export default function RegisterPage() {
                   value={form.email}
                   onChange={handleChange}
                   placeholder="you@example.com"
+                  required
                   style={inputStyle}
                 />
               </div>
@@ -165,7 +238,7 @@ export default function RegisterPage() {
               {/* Phone */}
               <div>
                 <label htmlFor="phone" style={labelStyle}>
-                  Phone Number
+                  Phone Number *
                 </label>
                 <input
                   id="phone"
@@ -174,6 +247,7 @@ export default function RegisterPage() {
                   value={form.phone}
                   onChange={handleChange}
                   placeholder="10-digit phone number"
+                  required
                   style={inputStyle}
                 />
               </div>
@@ -181,7 +255,7 @@ export default function RegisterPage() {
               {/* City */}
               <div>
                 <label htmlFor="city" style={labelStyle}>
-                  City
+                  City *
                 </label>
                 <input
                   id="city"
@@ -190,6 +264,7 @@ export default function RegisterPage() {
                   value={form.city}
                   onChange={handleChange}
                   placeholder="Your city"
+                  required
                   style={inputStyle}
                 />
               </div>
@@ -218,8 +293,8 @@ export default function RegisterPage() {
                 </select>
               </div>
 
-              {/* School */}
-              <div>
+              {/* School Search */}
+              <div style={{ position: 'relative' }}>
                 <label htmlFor="school" style={labelStyle}>
                   School{' '}
                   <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--muted-light)' }}>
@@ -228,13 +303,96 @@ export default function RegisterPage() {
                 </label>
                 <input
                   id="school"
-                  name="school"
                   type="text"
-                  value={form.school}
-                  onChange={handleChange}
-                  placeholder="School name"
-                  style={inputStyle}
+                  value={schoolSearch}
+                  onChange={handleSchoolInputChange}
+                  onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
+                  placeholder={form.city ? "Search for your school..." : "Enter city first to search schools"}
+                  disabled={!form.city}
+                  style={{
+                    ...inputStyle,
+                    opacity: !form.city ? 0.6 : 1,
+                  }}
                 />
+                {searchingSchools && (
+                  <div style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '38px',
+                    fontSize: '0.75rem',
+                    color: 'var(--muted)'
+                  }}>
+                    Searching...
+                  </div>
+                )}
+                {showSchoolDropdown && schools.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      marginTop: '4px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 10,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    {schools.map((school) => (
+                      <button
+                        key={school.id}
+                        type="button"
+                        onClick={() => handleSchoolSelect(school)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: '1px solid var(--border)',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          color: 'var(--foreground)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--muted-lightest)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div style={{ fontWeight: 600 }}>{school.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '2px' }}>
+                          {school.city} • {school.board}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showSchoolDropdown && schoolSearch.length >= 2 && schools.length === 0 && !searchingSchools && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      marginTop: '4px',
+                      padding: '12px 16px',
+                      zIndex: 10,
+                      fontSize: '0.875rem',
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    No schools found. You can continue without selecting a school.
+                  </div>
+                )}
               </div>
             </div>
 
