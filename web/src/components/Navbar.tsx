@@ -29,6 +29,7 @@ export default function Navbar() {
           <Link href="/browse" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Browse</Link>
           <Link href="/need" className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary transition-colors">I Need</Link>
           <Link href="/sell" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Sell</Link>
+          <Link href="/papers" className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors">Papers</Link>
         </div>
 
         <div className="flex items-center gap-4">
@@ -87,6 +88,7 @@ export default function Navbar() {
             <Link href="/browse" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Browse</Link>
             <Link href="/need" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-primary hover:text-primary py-3 transition-colors">I Need</Link>
             <Link href="/sell" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Sell</Link>
+            <Link href="/papers" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Papers</Link>
             {isAuthenticated && (
               <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Dashboard</Link>
             )}
