@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -8,6 +8,13 @@ import { useAuthStore } from '@/stores/authStore';
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
 const TYPES = ['Annual Exam', 'Half Yearly', 'Unit Test', 'Pre-Board', 'Olympiad', 'Quiz'] as const;
+
+interface School {
+  id: string;
+  name: string;
+  city: string;
+  board: string;
+}
 
 interface Paper {
   id: string;
@@ -17,6 +24,8 @@ interface Paper {
   class: number;
   year: number;
   type: string;
+  schoolId?: string;
+  school?: { name: string };
   fileUrl: string;
   downloadCount: number;
   uploadedBy: { name: string };
@@ -34,7 +43,14 @@ export default function PapersPage() {
     subject: '',
     year: '',
     type: '',
+    schoolId: '',
   });
+
+  // School search for filters
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [schools, setSchools] = useState<School[]>([]);
+  const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
+  const [selectedSchoolName, setSelectedSchoolName] = useState('');
 
   // Upload form state
   const [uploadForm, setUploadForm] = useState({
@@ -44,7 +60,12 @@ export default function PapersPage() {
     class: '',
     year: new Date().getFullYear().toString(),
     type: '',
+    schoolId: '',
   });
+  const [uploadSchoolSearch, setUploadSchoolSearch] = useState('');
+  const [uploadSchools, setUploadSchools] = useState<School[]>([]);
+  const [showUploadSchoolDropdown, setShowUploadSchoolDropdown] = useState(false);
+  const [selectedUploadSchoolName, setSelectedUploadSchoolName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -63,6 +84,7 @@ export default function PapersPage() {
       if (filters.subject) params.append('subject', filters.subject);
       if (filters.year) params.append('year', filters.year);
       if (filters.type) params.append('type', filters.type);
+      if (filters.schoolId) params.append('schoolId', filters.schoolId);
 
       const { data } = await api.get(`/papers?${params.toString()}`);
       setPapers(data.data?.papers || []);
@@ -77,10 +99,61 @@ export default function PapersPage() {
     fetchPapers();
   }, [filters]);
 
+  // Search schools for filter
+  const searchSchools = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSchools([]);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/schools?name=${encodeURIComponent(query)}&limit=10`);
+      setSchools(data.data?.schools || []);
+    } catch (err) {
+      console.error('Failed to search schools:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (schoolSearch && !selectedSchoolName) {
+        searchSchools(schoolSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [schoolSearch, selectedSchoolName, searchSchools]);
+
+  // Search schools for upload
+  const searchUploadSchools = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setUploadSchools([]);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/schools?name=${encodeURIComponent(query)}&limit=10`);
+      setUploadSchools(data.data?.schools || []);
+    } catch (err) {
+      console.error('Failed to search schools:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (uploadSchoolSearch && !selectedUploadSchoolName) {
+        searchUploadSchools(uploadSchoolSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [uploadSchoolSearch, selectedUploadSchoolName, searchUploadSchools]);
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !isAuthenticated) {
       setUploadStatus({ type: 'error', message: 'Please select a file and login first' });
+      return;
+    }
+
+    if (!uploadForm.title.trim()) {
+      setUploadStatus({ type: 'error', message: 'Title is required' });
       return;
     }
 
@@ -95,6 +168,9 @@ export default function PapersPage() {
     formData.append('class', uploadForm.class);
     formData.append('year', uploadForm.year);
     formData.append('type', uploadForm.type);
+    if (uploadForm.schoolId) {
+      formData.append('schoolId', uploadForm.schoolId);
+    }
 
     try {
       await api.post('/papers', formData, {
@@ -108,7 +184,10 @@ export default function PapersPage() {
         class: '',
         year: new Date().getFullYear().toString(),
         type: '',
+        schoolId: '',
       });
+      setUploadSchoolSearch('');
+      setSelectedUploadSchoolName('');
       setSelectedFile(null);
       setActiveTab('browse');
       fetchPapers();
@@ -124,9 +203,7 @@ export default function PapersPage() {
 
   const handleDownload = async (paper: Paper) => {
     try {
-      // Increment download count
       await api.post(`/papers/${paper.id}/download`);
-      // Open file in new tab
       window.open(paper.fileUrl, '_blank');
     } catch (err) {
       console.error('Download failed:', err);
@@ -191,7 +268,7 @@ export default function PapersPage() {
           <div>
             {/* Filters */}
             <div className="card-premium" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <div>
                   <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Board</label>
                   <select
@@ -248,6 +325,64 @@ export default function PapersPage() {
                     {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                {/* School Filter */}
+                <div style={{ position: 'relative' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>School</label>
+                  <input
+                    type="text"
+                    value={schoolSearch}
+                    onChange={(e) => {
+                      setSchoolSearch(e.target.value);
+                      setSelectedSchoolName('');
+                      setFilters({ ...filters, schoolId: '' });
+                      setShowSchoolDropdown(true);
+                    }}
+                    onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
+                    placeholder="Search school..."
+                    style={{ width: '100%', marginTop: '0.5rem' }}
+                  />
+                  {showSchoolDropdown && schools.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      marginTop: '4px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 10,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    }}>
+                      {schools.map((school) => (
+                        <button
+                          key={school.id}
+                          type="button"
+                          onClick={() => {
+                            setFilters({ ...filters, schoolId: school.id });
+                            setSelectedSchoolName(school.name);
+                            setSchoolSearch(school.name);
+                            setShowSchoolDropdown(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '12px 16px',
+                            background: 'transparent',
+                            border: 'none',
+                            borderBottom: '1px solid var(--border)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{ fontWeight: 600 }}>{school.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{school.city} • {school.board}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -292,6 +427,11 @@ export default function PapersPage() {
                           <span style={{ padding: '4px 12px', background: 'var(--secondary-glow)', color: 'var(--secondary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
                             {paper.type}
                           </span>
+                          {paper.school && (
+                            <span style={{ padding: '4px 12px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                              {paper.school.name}
+                            </span>
+                          )}
                         </div>
                         <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>
                           Uploaded by {paper.uploadedBy.name} • {paper.downloadCount} downloads
@@ -373,17 +513,22 @@ export default function PapersPage() {
                     </label>
                   </div>
 
-                  {/* Title */}
+                  {/* Title - Required */}
                   <div>
-                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>Title *</label>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Paper Title * <span style={{ color: 'var(--accent)' }}>(Required)</span>
+                    </label>
                     <input
                       type="text"
                       value={uploadForm.title}
                       onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                      placeholder="e.g. CBSE Class 10 Maths Annual Exam 2024"
+                      placeholder="e.g. DPS Gurgaon Class 10 Maths Annual Exam 2024"
                       required
                       style={{ width: '100%', marginTop: '0.5rem' }}
                     />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0.25rem 0 0 0' }}>
+                      Include school name, class, subject, and exam type for better searchability
+                    </p>
                   </div>
 
                   {/* Subject */}
@@ -427,6 +572,67 @@ export default function PapersPage() {
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  {/* School - Optional */}
+                  <div style={{ position: 'relative' }}>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      School <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={uploadSchoolSearch}
+                      onChange={(e) => {
+                        setUploadSchoolSearch(e.target.value);
+                        setSelectedUploadSchoolName('');
+                        setUploadForm({ ...uploadForm, schoolId: '' });
+                        setShowUploadSchoolDropdown(true);
+                      }}
+                      onFocus={() => uploadSchoolSearch.length >= 2 && setShowUploadSchoolDropdown(true)}
+                      placeholder="Search for your school..."
+                      style={{ width: '100%', marginTop: '0.5rem' }}
+                    />
+                    {showUploadSchoolDropdown && uploadSchools.length > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        marginTop: '4px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 10,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      }}>
+                        {uploadSchools.map((school) => (
+                          <button
+                            key={school.id}
+                            type="button"
+                            onClick={() => {
+                              setUploadForm({ ...uploadForm, schoolId: school.id });
+                              setSelectedUploadSchoolName(school.name);
+                              setUploadSchoolSearch(school.name);
+                              setShowUploadSchoolDropdown(false);
+                            }}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '12px 16px',
+                              background: 'transparent',
+                              border: 'none',
+                              borderBottom: '1px solid var(--border)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <div style={{ fontWeight: 600 }}>{school.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{school.city} • {school.board}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Year & Type */}
