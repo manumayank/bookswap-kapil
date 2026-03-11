@@ -426,7 +426,7 @@ export default function SellPage() {
                     ))}
                   </div>
                 )}
-                {showSchoolDropdown && schoolSearch.length >= 2 && schools.length === 0 && !searchingSchools && (
+                {showSchoolDropdown && schoolSearch.length >= 2 && schools.length === 0 && (
                   <div className="absolute top-full left-0 right-0 bg-white border border-card-border rounded-2xl mt-2 p-6 z-10 shadow-xl">
                     <div className="text-center">
                       <p className="text-muted mb-4">No schools found matching "{schoolSearch}"</p>
