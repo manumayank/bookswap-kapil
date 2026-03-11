@@ -8,7 +8,7 @@ export const registerUserDto = z.object({
   phone: z.string().min(10, 'Phone must be at least 10 digits'),
   city: z.string().min(2, 'City is required'),
   address: z.string().optional(),
-  schoolId: z.string().uuid().optional(),
+  schoolId: z.string().uuid().optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
   board: boardEnum.optional(),
 });
 
