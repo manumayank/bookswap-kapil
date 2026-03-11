@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const boardEnum = z.enum(['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE']);
-const typeEnum = z.enum(['Annual Exam', 'Half Yearly', 'Unit Test', 'Pre-Board', 'Olympiad', 'Quiz']);
+const typeEnum = z.enum(['ANNUAL_EXAM', 'HALF_YEARLY', 'UNIT_TEST', 'PRE_BOARD', 'OLYMPIAD', 'QUIZ']);
 
 export const createPaperDto = z.object({
   title: z.string().min(1, 'Title is required'),

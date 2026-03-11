@@ -7,7 +7,14 @@ import { useAuthStore } from '@/stores/authStore';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
-const TYPES = ['Annual Exam', 'Half Yearly', 'Unit Test', 'Pre-Board', 'Olympiad', 'Quiz'] as const;
+const TYPES = [
+  { label: 'Annual Exam', value: 'ANNUAL_EXAM' },
+  { label: 'Half Yearly', value: 'HALF_YEARLY' },
+  { label: 'Unit Test', value: 'UNIT_TEST' },
+  { label: 'Pre-Board', value: 'PRE_BOARD' },
+  { label: 'Olympiad', value: 'OLYMPIAD' },
+  { label: 'Quiz', value: 'QUIZ' },
+] as const;
 
 interface School {
   id: string;
@@ -322,7 +329,7 @@ export default function PapersPage() {
                     style={{ width: '100%', marginTop: '0.5rem' }}
                   >
                     <option value="">All Types</option>
-                    {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 {/* School Filter */}
@@ -425,7 +432,7 @@ export default function PapersPage() {
                             {paper.year}
                           </span>
                           <span style={{ padding: '4px 12px', background: 'var(--secondary-glow)', color: 'var(--secondary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                            {paper.type}
+                            {TYPES.find(t => t.value === paper.type)?.label || paper.type}
                           </span>
                           {paper.school && (
                             <span style={{ padding: '4px 12px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
@@ -657,7 +664,7 @@ export default function PapersPage() {
                         style={{ width: '100%', marginTop: '0.5rem' }}
                       >
                         <option value="">Select</option>
-                        {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
                   </div>
