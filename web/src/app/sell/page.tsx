@@ -403,7 +403,7 @@ export default function SellPage() {
                     setShowSchoolDropdown(true);
                   }}
                   onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
-                  placeholder="Search for your school..."
+                  placeholder="Type your school name..."
                   className="w-full font-bold py-5 px-6 rounded-2xl"
                 />
                 {showSchoolDropdown && schools.length > 0 && (
@@ -424,6 +424,32 @@ export default function SellPage() {
                         <div className="text-xs text-muted">{school.city} • {school.board}</div>
                       </button>
                     ))}
+                  </div>
+                )}
+                {showSchoolDropdown && schoolSearch.length >= 2 && schools.length === 0 && !searchingSchools && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-card-border rounded-2xl mt-2 p-6 z-10 shadow-xl">
+                    <div className="text-center">
+                      <p className="text-muted mb-4">No schools found matching "{schoolSearch}"</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSchoolName(schoolSearch);
+                          setShowSchoolDropdown(false);
+                        }}
+                        className="btn btn-primary"
+                      >
+                        + Add "{schoolSearch}" as New School
+                      </button>
+                      <p className="text-xs text-muted mt-2">This school will be added to our database</p>
+                    </div>
+                  </div>
+                )}
+                {selectedSchoolName && (
+                  <div className="mt-3 p-3 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center gap-2">
+                    <span className="text-secondary">✓</span>
+                    <span className="text-sm font-medium">
+                      {selectedSchoolId ? 'Selected:' : 'Adding new school:'} {selectedSchoolName}
+                    </span>
                   </div>
                 )}
               </div>
