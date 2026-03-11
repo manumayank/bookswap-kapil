@@ -14,6 +14,7 @@ import listingRoutes from './modules/listings/listings.routes';
 import requestRoutes from './modules/requests/requests.routes';
 import matchRoutes from './modules/matches/matches.routes';
 import dealsRoutes from './modules/deals/deals.routes';
+import papersRoutes from './modules/papers/papers.routes';
 import adminRoutes from './modules/admin/admin.routes';
 
 const app = express();
@@ -54,6 +55,7 @@ app.use('/api/listings', listingRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/deals', dealsRoutes);
+app.use('/api/papers', papersRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Error handler

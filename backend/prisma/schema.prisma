@@ -29,6 +29,7 @@ model User {
   sellerDeals   Deal[]    @relation("Seller")
   buyerDeals    Deal[]    @relation("Buyer")
   notifications Notification[]
+  papers        Paper[]
 
   @@index([city, board])
 }
@@ -62,6 +63,7 @@ model School {
   children   Child[]
   listings   Listing[]
   requests   Request[]
+  papers     Paper[]
 
   @@index([city, board])
 }
@@ -162,6 +164,29 @@ model Deal {
   @@index([buyerId, status])
 }
 
+// Papers (Question Papers)
+model Paper {
+  id           String     @id @default(uuid())
+  title        String
+  subject      String
+  board        Board
+  class        Int
+  year         Int
+  type         PaperType
+  schoolId     String?
+  school       School?    @relation(fields: [schoolId], references: [id])
+  fileUrl      String
+  downloadCount Int       @default(0)
+  uploadedById String
+  uploadedBy   User       @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([board, class])
+  @@index([subject])
+  @@index([year])
+}
+
 // Notifications
 model Notification {
   id        String              @id @default(uuid())
@@ -222,6 +247,15 @@ enum PickupLocation {
   SCHOOL_GATE
   HOME
   PUBLIC
+}
+
+enum PaperType {
+  ANNUAL_EXAM
+  HALF_YEARLY
+  UNIT_TEST
+  PRE_BOARD
+  OLYMPIAD
+  QUIZ
 }
 
 enum RequestStatus {
