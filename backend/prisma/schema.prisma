@@ -80,6 +80,8 @@ model Listing {
   schoolId       String?
   school         School?       @relation(fields: [schoolId], references: [id])
   city           String
+  sector         String?       // Sector/Colony/Area for pickup
+  pickupLocation PickupLocation? // Preferred pickup location
   yearOfPurchase Int?
   condition      BookCondition
   buyingPrice    Float?        // Original purchase price / MRP
@@ -214,6 +216,12 @@ enum ListingStatus {
   SOLD
   REJECTED
   CANCELLED
+}
+
+enum PickupLocation {
+  SCHOOL_GATE
+  HOME
+  PUBLIC
 }
 
 enum RequestStatus {

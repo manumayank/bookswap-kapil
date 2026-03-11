@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { CreateListingDto, UpdateListingDto, SearchListingsDto } from './listings.dto';
+import { findOrCreateSchool } from '../schools/schools.service';
 
 /** Include for owner views (full details) */
 const listingIncludeOwner = {
@@ -20,15 +21,45 @@ const listingIncludePublic = {
 
 /**
  * Create a new listing. Status defaults to PENDING_APPROVAL.
+ * Auto-creates school if schoolName is provided but schoolId is not.
  * After creation, triggers request matching in the background.
  */
 export async function createListing(userId: string, data: CreateListingDto) {
+  let schoolId = data.schoolId;
+
+  // Auto-create school if schoolName is provided but schoolId is not
+  if (!schoolId && data.schoolName && data.board) {
+    const school = await findOrCreateSchool(
+      data.schoolName,
+      data.city,
+      data.board
+    );
+    if (school) {
+      schoolId = school.id;
+    }
+  }
+
+  const listingData = {
+    title: data.title,
+    description: data.description,
+    category: data.category,
+    board: data.board,
+    class: data.class,
+    subject: data.subject,
+    schoolId: schoolId,
+    city: data.city,
+    sector: data.sector,
+    pickupLocation: data.pickupLocation,
+    buyingPrice: data.buyingPrice,
+    sellingPrice: data.sellingPrice,
+    condition: data.condition,
+    yearOfPurchase: data.yearOfPurchase,
+    userId,
+    status: 'PENDING_APPROVAL' as const,
+  };
+
   const listing = await prisma.listing.create({
-    data: {
-      ...data,
-      userId,
-      status: 'PENDING_APPROVAL',
-    },
+    data: listingData,
     include: listingIncludeOwner,
   });
 

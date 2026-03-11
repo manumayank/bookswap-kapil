@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import { generateToken, generateRefreshToken } from '../../lib/jwt';
 import { RegisterUserDto, UpdateUserDto, AddChildDto, UpdateChildDto } from './users.dto';
+import { findOrCreateSchool } from '../schools/schools.service';
 
 export async function registerUser(data: RegisterUserDto) {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
@@ -13,8 +14,33 @@ export async function registerUser(data: RegisterUserDto) {
     throw new Error('User with this phone already exists');
   }
 
+  let schoolId = data.schoolId;
+
+  // Auto-create school if schoolName is provided but schoolId is not
+  if (!schoolId && data.schoolName && data.board && data.city) {
+    const school = await findOrCreateSchool(
+      data.schoolName,
+      data.city,
+      data.board
+    );
+    if (school) {
+      schoolId = school.id;
+    }
+  }
+
+  const userData = {
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    city: data.city,
+    address: data.address,
+    schoolId: schoolId,
+    board: data.board,
+    isVerified: true,
+  };
+
   const user = await prisma.user.create({
-    data: { ...data, isVerified: true },
+    data: userData,
     include: { children: true, school: true },
   });
 

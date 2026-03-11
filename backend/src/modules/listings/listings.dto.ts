@@ -18,7 +18,10 @@ export const createListingDto = z.object({
   class: z.number().int().min(1).max(12).optional(),
   subject: z.string().max(100).optional(),
   schoolId: z.string().uuid().optional(),
+  schoolName: z.string().optional(), // For auto-creating schools
   city: z.string().min(2).max(100),
+  sector: z.string().max(200).optional(),
+  pickupLocation: z.enum(['SCHOOL_GATE', 'HOME', 'PUBLIC']).optional(),
   buyingPrice: z.number().positive().optional(),
   sellingPrice: z.number().positive('Selling price is required'),
   condition: conditionEnum,

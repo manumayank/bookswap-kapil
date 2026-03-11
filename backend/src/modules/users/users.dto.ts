@@ -9,6 +9,7 @@ export const registerUserDto = z.object({
   city: z.string().min(2, 'City is required'),
   address: z.string().optional(),
   schoolId: z.string().uuid().optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
+  schoolName: z.string().optional(), // For auto-creating schools
   board: boardEnum.optional(),
 });
 

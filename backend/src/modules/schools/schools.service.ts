@@ -30,3 +30,43 @@ export async function suggestSchool(data: SuggestSchoolDto) {
     data: { ...data, isVerified: false },
   });
 }
+
+/**
+ * Find or create a school by name, city, and board
+ * This allows crowd-sourcing the school database
+ */
+export async function findOrCreateSchool(
+  name: string,
+  city: string,
+  board: string
+) {
+  if (!name || !city || !board) {
+    return null;
+  }
+
+  // Try to find existing school (case insensitive)
+  const existingSchool = await prisma.school.findFirst({
+    where: {
+      name: { equals: name, mode: 'insensitive' },
+      city: { equals: city, mode: 'insensitive' },
+      board: board as any,
+    },
+  });
+
+  if (existingSchool) {
+    return existingSchool;
+  }
+
+  // Create new school if not found
+  const newSchool = await prisma.school.create({
+    data: {
+      name: name.trim(),
+      city: city.trim(),
+      board: board as any,
+      isVerified: false, // Mark as unverified since it was auto-created
+    },
+  });
+
+  console.log(`Auto-created new school: ${newSchool.name} (${newSchool.city})`);
+  return newSchool;
+}

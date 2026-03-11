@@ -104,6 +104,12 @@ export default function SellPage() {
     e.preventDefault();
     if (!isAuthenticated) return;
 
+    // Validate school name is provided
+    if (!schoolSearch.trim()) {
+      setStatus({ type: 'error', message: 'Please enter a school name' });
+      return;
+    }
+
     setIsSubmitting(true);
     setStatus(null);
 
@@ -111,8 +117,8 @@ export default function SellPage() {
     const formData = new FormData(form);
 
     try {
-      // First create the listing
-      const payload = {
+      // Build payload - use schoolId if selected from dropdown, otherwise pass schoolName for auto-creation
+      const payload: any = {
         title: formData.get('title') as string,
         description: formData.get('description') as string,
         category: formData.get('category') as string,
@@ -123,10 +129,17 @@ export default function SellPage() {
         city: formData.get('city') as string,
         sector: formData.get('sector') as string,
         pickupLocation: formData.get('pickupLocation') as string,
-        schoolId: selectedSchoolId || undefined,
         buyingPrice: Number(formData.get('buyingPrice')) || 0,
         sellingPrice: Number(formData.get('sellingPrice')) || 0,
       };
+
+      // If school selected from dropdown, use schoolId
+      // Otherwise, pass schoolName for auto-creation
+      if (selectedSchoolId) {
+        payload.schoolId = selectedSchoolId;
+      } else if (schoolSearch.trim()) {
+        payload.schoolName = schoolSearch.trim();
+      }
 
       const { data } = await api.post('/listings', payload);
       
@@ -378,7 +391,7 @@ export default function SellPage() {
               {/* School Search */}
               <div className="relative">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                  School (Optional)
+                  School *
                 </label>
                 <input
                   type="text"
