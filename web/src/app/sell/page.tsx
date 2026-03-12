@@ -488,16 +488,19 @@ export default function SellPage() {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {PICKUP_OPTIONS.map((option) => (
-                    <label key={option.value} className="cursor-pointer">
+                    <label key={option.value} className="cursor-pointer relative">
                       <input
                         type="radio"
                         name="pickupLocation"
                         value={option.value}
                         required
-                        className="peer hidden"
+                        className="sr-only peer"
                       />
-                      <div className="p-6 rounded-2xl border-2 border-card-border text-center peer-checked:border-primary peer-checked:bg-primary/5 transition-all hover:border-primary/50">
-                        <div className="font-bold text-sm">{option.label}</div>
+                      <div className="p-6 rounded-2xl border-2 border-card-border text-center peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary transition-all hover:border-primary/50 hover:bg-muted-extra-light/30">
+                        <div className="font-bold text-sm peer-checked:font-black">{option.label}</div>
+                        <div className="absolute top-2 right-2 opacity-0 peer-checked:opacity-100 text-primary">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
                       </div>
                     </label>
                   ))}
