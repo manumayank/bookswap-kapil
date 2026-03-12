@@ -7,8 +7,8 @@ export const createPaperDto = z.object({
   title: z.string().min(1, 'Title is required'),
   subject: z.string().min(1, 'Subject is required'),
   board: boardEnum,
-  class: z.number().int().min(1).max(12),
-  year: z.number().int().min(2010).max(2030),
+  class: z.coerce.number().int().min(1).max(12),
+  year: z.coerce.number().int().min(2010).max(2030),
   type: typeEnum,
   schoolId: z.string().uuid().optional(),
 });
