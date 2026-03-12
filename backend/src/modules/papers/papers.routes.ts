@@ -44,7 +44,7 @@ router.post(
   papersController.handleCreate
 );
 
-// Increment download count (authenticated)
-router.post('/:id/download', authenticate, papersController.handleDownload);
+// Increment download count (public - no auth required for downloading)
+router.post('/:id/download', papersController.handleDownload);
 
 export default router;
