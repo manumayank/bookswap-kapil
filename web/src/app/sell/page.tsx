@@ -488,20 +488,48 @@ export default function SellPage() {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {PICKUP_OPTIONS.map((option) => (
-                    <label key={option.value} className="cursor-pointer relative">
+                    <label key={option.value} style={{ cursor: 'pointer', position: 'relative' }}>
                       <input
                         type="radio"
                         name="pickupLocation"
                         value={option.value}
                         required
-                        className="sr-only peer"
+                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
                       />
-                      <div className="p-6 rounded-2xl border-2 border-card-border text-center peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary transition-all hover:border-primary/50 hover:bg-muted-extra-light/30">
-                        <div className="font-bold text-sm peer-checked:font-black">{option.label}</div>
-                        <div className="absolute top-2 right-2 opacity-0 peer-checked:opacity-100 text-primary">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </div>
+                      <div 
+                        className="pickup-option"
+                        style={{
+                          padding: '24px',
+                          borderRadius: '16px',
+                          border: '2px solid var(--card-border)',
+                          textAlign: 'center',
+                          transition: 'all 0.2s',
+                          backgroundColor: 'var(--card)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--primary)';
+                          e.currentTarget.style.backgroundColor = 'var(--muted-extra-light)';
+                        }}
+                        onMouseLeave={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                          if (!input?.checked) {
+                            e.currentTarget.style.borderColor = 'var(--card-border)';
+                            e.currentTarget.style.backgroundColor = 'var(--card)';
+                          }
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{option.label}</div>
                       </div>
+                      <style>{`
+                        input[name="pickupLocation"]:checked + div {
+                          border-color: var(--primary) !important;
+                          background-color: rgba(var(--primary-rgb), 0.1) !important;
+                          color: var(--primary) !important;
+                        }
+                        input[name="pickupLocation"]:checked + div div {
+                          font-weight: 900 !important;
+                        }
+                      `}</style>
                     </label>
                   ))}
                 </div>
