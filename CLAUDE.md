@@ -64,15 +64,16 @@ docker-compose up -d  # Start PostgreSQL (port 5432) and Redis (port 6379)
   - `{name}.controller.ts` — Request handlers (thin, delegates to service)
   - `{name}.service.ts` — Business logic and Prisma queries
   - `{name}.dto.ts` — Zod schemas for request validation
-- **Modules:** auth, users, schools, listings, requests, admin
+- **Modules:** auth, users, schools, listings, requests, matches, deals, papers, admin
 - **Middleware:** `src/middleware/auth.ts` (JWT Bearer), `adminAuth.ts` (JWT + isAdmin DB check), `validate.ts` (Zod), `upload.ts` (multer), `rateLimiter.ts`
 - **Shared libs:** `src/lib/prisma.ts` (client singleton), `response.ts` (sendSuccess/sendError/sendPaginated helpers), `jwt.ts`, `email.ts`
 
 ### Database — PostgreSQL + Prisma
 - Schema at `backend/prisma/schema.prisma`
-- Key models: User, Child, School, Listing, ListingItem, ListingImage, Request, Notification, Otp
-- Listing must include: `buyingPrice`, `sellingPrice`, `status` (PENDING_APPROVAL → ACTIVE → SOLD/CANCELLED)
-- Key enums: Board, BookCondition, ListingType, ListingStatus, RequestStatus
+- Key models: User, Child, School, Listing, ListingItem, ListingImage, Request, Deal, Paper, Notification, Otp
+- Listing workflow: `PENDING_APPROVAL` → `ACTIVE` → `SOLD`/`CANCELLED`/`REJECTED`
+- Deal workflow: `PENDING` → `ACCEPTED` → `COMPLETED` (or `REJECTED`/`CANCELLED`). Seller identity revealed only after deal accepted.
+- Key enums: Board (CBSE/ICSE/STATE/IB/IGCSE), BookCondition, Category (BOOK/STATIONERY), ListingStatus, DealStatus, RequestStatus, NotificationType, PickupLocation
 - UUIDs as primary keys throughout
 - Use Prisma enums for all status/type/condition fields — no free-form strings
 
@@ -109,6 +110,12 @@ docker-compose up -d  # Start PostgreSQL (port 5432) and Redis (port 6379)
 - Validation via Zod schemas in `.dto.ts` files, applied with `validate` middleware
 - **Seller identity (phone, address) is NOT included in listing API responses** — only revealed after a deal is accepted
 
+## Deployment
+
+- Backend and web both have multi-stage Dockerfiles (Node 20 Alpine)
+- Backend runs on port 3000, web on port 3001 in production
+- Web Dockerfile has an entrypoint script for runtime API URL injection
+
 ## Environment
 
-Backend requires `.env` (copy from `.env.example`): DATABASE_URL, JWT_SECRET, SMTP credentials. Web uses `NEXT_PUBLIC_API_URL` to point at the backend.
+Backend requires `.env` (copy from `.env.example`): DATABASE_URL, JWT_SECRET, SMTP credentials, Gupshup API key (WhatsApp). Web uses `NEXT_PUBLIC_API_URL` to point at the backend. Mobile API base URL is configured in `mobile/src/services/api.ts`.

@@ -60,6 +60,53 @@ export async function handleApproveListing(req: Request, res: Response) {
   }
 }
 
+// ── Requests ──────────────────────────────────────────────
+
+export async function handleGetRequests(req: Request, res: Response) {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const search = req.query.search as string | undefined;
+
+    const { requests, total } = await adminService.getRequests(page, limit, search);
+    return sendPaginated(res, requests, total, page, limit);
+  } catch (error: any) {
+    return sendError(res, error.message, 500);
+  }
+}
+
+// ── Schools ───────────────────────────────────────────────
+
+export async function handleGetSchools(req: Request, res: Response) {
+  try {
+    const search = req.query.search as string | undefined;
+    const schools = await adminService.getSchools(search);
+    return sendSuccess(res, schools);
+  } catch (error: any) {
+    return sendError(res, error.message, 500);
+  }
+}
+
+export async function handleCreateSchool(req: Request, res: Response) {
+  try {
+    const school = await adminService.createSchool(req.body);
+    return sendSuccess(res, school, 201);
+  } catch (error: any) {
+    return sendError(res, error.message, 400);
+  }
+}
+
+export async function handleUpdateSchool(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const school = await adminService.updateSchool(id, req.body);
+    return sendSuccess(res, school);
+  } catch (error: any) {
+    const status = error.message.includes('not found') ? 404 : 400;
+    return sendError(res, error.message, status);
+  }
+}
+
 export async function handleRejectListing(req: Request, res: Response) {
   try {
     const { id } = req.params;

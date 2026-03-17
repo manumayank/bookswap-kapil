@@ -55,6 +55,18 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     include: dealInclude,
   });
 
+  // Notify the seller that someone is interested in their listing
+  await prisma.notification.create({
+    data: {
+      userId: listing.userId,
+      type: 'DEAL_REQUESTED',
+      channel: 'PUSH',
+      title: 'New Interest!',
+      body: `Someone is interested in your listing "${listing.title}". Check your dashboard to respond.`,
+      data: { dealId: deal.id, listingId: listing.id },
+    },
+  });
+
   return deal;
 }
 
@@ -108,19 +120,40 @@ export async function respondToDeal(
     throw new Error('Deal has already been responded to');
   }
 
+  // Use transaction to prevent race condition where two deals get accepted simultaneously
+  if (data.status === 'ACCEPTED') {
+    const [, updatedDeal] = await prisma.$transaction([
+      prisma.listing.update({
+        where: { id: deal.listingId },
+        data: { status: 'SOLD' },
+      }),
+      prisma.deal.update({
+        where: { id: dealId },
+        data: { status: 'ACCEPTED' },
+        include: dealInclude,
+      }),
+    ]);
+
+    // Notify the buyer that their deal was accepted
+    await prisma.notification.create({
+      data: {
+        userId: deal.buyerId,
+        type: 'DEAL_ACCEPTED',
+        channel: 'PUSH',
+        title: 'Deal Accepted!',
+        body: `Your request for "${deal.listing.title}" has been accepted. Check your dashboard for seller contact details.`,
+        data: { dealId: deal.id, listingId: deal.listingId },
+      },
+    });
+
+    return updatedDeal;
+  }
+
   const updatedDeal = await prisma.deal.update({
     where: { id: dealId },
     data: { status: data.status },
     include: dealInclude,
   });
-
-  // If accepted, mark listing as reserved/sold to prevent other deals
-  if (data.status === 'ACCEPTED') {
-    await prisma.listing.update({
-      where: { id: deal.listingId },
-      data: { status: 'SOLD' },
-    });
-  }
 
   return updatedDeal;
 }
@@ -145,19 +178,53 @@ export async function completeDeal(
     throw new Error('Deal must be accepted before completing');
   }
 
+  if (data.status === 'CANCELLED') {
+    const [, updatedDeal] = await prisma.$transaction([
+      prisma.listing.update({
+        where: { id: deal.listingId },
+        data: { status: 'ACTIVE' },
+      }),
+      prisma.deal.update({
+        where: { id: dealId },
+        data: { status: 'CANCELLED' },
+        include: dealInclude,
+      }),
+    ]);
+
+    // Notify the other party
+    const otherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
+    await prisma.notification.create({
+      data: {
+        userId: otherUserId,
+        type: 'DEAL_CANCELLED',
+        channel: 'PUSH',
+        title: 'Deal Cancelled',
+        body: `A deal has been cancelled. The listing is now available again.`,
+        data: { dealId: deal.id, listingId: deal.listingId },
+      },
+    });
+
+    return updatedDeal;
+  }
+
   const updatedDeal = await prisma.deal.update({
     where: { id: dealId },
-    data: { status: data.status },
+    data: { status: 'COMPLETED' },
     include: dealInclude,
   });
 
-  // If cancelled, make listing active again
-  if (data.status === 'CANCELLED') {
-    await prisma.listing.update({
-      where: { id: deal.listingId },
-      data: { status: 'ACTIVE' },
-    });
-  }
+  // Notify the other party about completion
+  const otherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
+  await prisma.notification.create({
+    data: {
+      userId: otherUserId,
+      type: 'DEAL_COMPLETED',
+      channel: 'PUSH',
+      title: 'Deal Completed!',
+      body: `Your deal has been marked as completed. Thank you for using BookSwap!`,
+      data: { dealId: deal.id, listingId: deal.listingId },
+    },
+  });
 
   return updatedDeal;
 }
@@ -178,16 +245,29 @@ export async function cancelDeal(userId: string, dealId: string) {
     throw new Error('Deal is already finalized');
   }
 
-  const updatedDeal = await prisma.deal.update({
-    where: { id: dealId },
-    data: { status: 'CANCELLED' },
-    include: dealInclude,
-  });
+  const [, updatedDeal] = await prisma.$transaction([
+    prisma.listing.update({
+      where: { id: deal.listingId },
+      data: { status: 'ACTIVE' },
+    }),
+    prisma.deal.update({
+      where: { id: dealId },
+      data: { status: 'CANCELLED' },
+      include: dealInclude,
+    }),
+  ]);
 
-  // Make listing active again
-  await prisma.listing.update({
-    where: { id: deal.listingId },
-    data: { status: 'ACTIVE' },
+  // Notify the other party
+  const otherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
+  await prisma.notification.create({
+    data: {
+      userId: otherUserId,
+      type: 'DEAL_CANCELLED',
+      channel: 'PUSH',
+      title: 'Deal Cancelled',
+      body: `A deal has been cancelled. The listing is now available again.`,
+      data: { dealId: deal.id, listingId: deal.listingId },
+    },
   });
 
   return updatedDeal;

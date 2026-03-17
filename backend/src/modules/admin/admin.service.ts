@@ -170,6 +170,93 @@ export async function approveListing(listingId: string) {
   return updatedListing;
 }
 
+// ── Requests ──────────────────────────────────────────────
+
+export async function getRequests(page = 1, limit = 50, search?: string) {
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+  if (search) {
+    where.OR = [
+      { city: { contains: search, mode: 'insensitive' } },
+      { board: { equals: search.toUpperCase() } },
+      { user: { name: { contains: search, mode: 'insensitive' } } },
+      { user: { email: { contains: search, mode: 'insensitive' } } },
+    ];
+  }
+
+  const [requests, total] = await Promise.all([
+    prisma.request.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        user: { select: { id: true, name: true, email: true, city: true } },
+        school: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.request.count({ where }),
+  ]);
+
+  return { requests, total, page, limit };
+}
+
+// ── Schools (Admin CRUD) ──────────────────────────────────
+
+export async function getSchools(search?: string) {
+  const where: any = {};
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { city: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  const schools = await prisma.school.findMany({
+    where,
+    include: {
+      _count: { select: { users: true, listings: true } },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  return schools;
+}
+
+export async function createSchool(data: {
+  name: string;
+  city: string;
+  board: string;
+  address?: string;
+}) {
+  return prisma.school.create({
+    data: {
+      name: data.name.trim(),
+      city: data.city.trim(),
+      board: data.board as any,
+      address: data.address?.trim() || null,
+      isVerified: true, // Admin-created schools are verified
+    },
+  });
+}
+
+export async function updateSchool(
+  id: string,
+  data: { name?: string; city?: string; board?: string; address?: string }
+) {
+  const school = await prisma.school.findUnique({ where: { id } });
+  if (!school) throw new Error('School not found');
+
+  const updateData: any = {};
+  if (data.name !== undefined) updateData.name = data.name.trim();
+  if (data.city !== undefined) updateData.city = data.city.trim();
+  if (data.board !== undefined) updateData.board = data.board as any;
+  if (data.address !== undefined) updateData.address = data.address.trim() || null;
+
+  return prisma.school.update({ where: { id }, data: updateData });
+}
+
 export async function rejectListing(listingId: string, reason?: string) {
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },

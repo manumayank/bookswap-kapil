@@ -35,6 +35,7 @@ export default function SellPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   
   // School search
@@ -76,20 +77,14 @@ export default function SellPage() {
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const formData = new FormData();
-    Array.from(files).forEach(file => {
-      formData.append('images', file);
-    });
-
     try {
-      // Upload to a temporary endpoint first, then attach to listing
-      // For now, we'll use FileReader to preview
-      const newImages: string[] = [];
       Array.from(files).forEach(file => {
+        // Store the actual file for later upload
+        setImageFiles(prev => [...prev, file].slice(0, 4));
+        // Generate preview
         const reader = new FileReader();
         reader.onloadend = () => {
           if (reader.result) {
-            newImages.push(reader.result as string);
             setUploadedImages(prev => [...prev, reader.result as string].slice(0, 4));
           }
         };
@@ -142,11 +137,28 @@ export default function SellPage() {
       }
 
       const { data } = await api.post('/listings', payload);
-      
+
       if (data.success) {
+        // Upload images to the newly created listing
+        if (imageFiles.length > 0 && data.data?.id) {
+          const imageFormData = new FormData();
+          imageFiles.forEach(file => {
+            imageFormData.append('images', file);
+          });
+          try {
+            await api.post(`/listings/${data.data.id}/images`, imageFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          } catch (imgErr) {
+            console.error('Image upload failed:', imgErr);
+            // Listing still created, just images failed
+          }
+        }
+
         setStatus({ type: 'success', message: 'Listing submitted for review!' });
         form.reset();
         setUploadedImages([]);
+        setImageFiles([]);
         setSelectedSchoolId('');
         setSelectedSchoolName('');
         setSchoolSearch('');

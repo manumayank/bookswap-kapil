@@ -14,8 +14,10 @@ router.post(
   authController.handleSendOtp
 );
 
+// Rate limit OTP verification: 10 attempts per 15 minutes to prevent brute force
 router.post(
   '/verify-otp',
+  rateLimit(15 * 60 * 1000, 10),
   validate(verifyOtpDto),
   authController.handleVerifyOtp
 );

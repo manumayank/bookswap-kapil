@@ -15,6 +15,7 @@ import requestRoutes from './modules/requests/requests.routes';
 import matchRoutes from './modules/matches/matches.routes';
 import dealsRoutes from './modules/deals/deals.routes';
 import papersRoutes from './modules/papers/papers.routes';
+import notificationRoutes from './modules/notifications/notifications.routes';
 import adminRoutes from './modules/admin/admin.routes';
 
 const app = express();
@@ -30,8 +31,18 @@ app.use(helmet({
     },
   },
 }));
+const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:3001', 'http://localhost:3000'];
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -56,6 +67,7 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/deals', dealsRoutes);
 app.use('/api/papers', papersRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Error handler

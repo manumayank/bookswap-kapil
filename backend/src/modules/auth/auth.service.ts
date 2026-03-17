@@ -2,9 +2,9 @@ import prisma from '../../lib/prisma';
 import { sendOtpEmail } from '../../lib/email';
 import { generateToken, generateRefreshToken, verifyToken } from '../../lib/jwt';
 
-// DEV MODE: Use fixed OTP for testing when SMTP not configured
-// Enabled when: no SMTP_USER, or SMTP_USER doesn't contain @, or DEV_OTP_MODE is set
-const DEV_MODE = !process.env.SMTP_USER?.includes('@') || process.env.DEV_OTP_MODE === 'true';
+// DEV MODE: Only enabled when explicitly opted in via DEV_OTP_MODE=true
+// In production, if SMTP is misconfigured, OTP sending will fail loudly instead of falling back to a hardcoded OTP
+const DEV_MODE = process.env.DEV_OTP_MODE === 'true';
 const DEV_OTP = '123456';
 
 function generateOtp(): string {

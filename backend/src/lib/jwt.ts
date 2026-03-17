@@ -1,6 +1,9 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'bookswap-dev-secret';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Refusing to start with insecure defaults.');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export interface JwtPayload {
   userId: string;

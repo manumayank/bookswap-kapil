@@ -33,7 +33,10 @@ const dealIncludeWithPhone = {
  * Validates listing is ACTIVE and buyer is not the seller.
  */
 export async function createDeal(buyerId: string, listingId: string, offeredPrice?: number) {
-  const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    select: { id: true, status: true, userId: true, sellingPrice: true, title: true },
+  });
   if (!listing) throw new Error('Listing not found');
   if (listing.status !== 'ACTIVE') throw new Error('Listing is not active');
   if (listing.userId === buyerId) throw new Error('You cannot buy your own listing');
@@ -50,6 +53,18 @@ export async function createDeal(buyerId: string, listingId: string, offeredPric
     include: dealInclude,
   });
 
+  // Notify the seller
+  await prisma.notification.create({
+    data: {
+      userId: listing.userId,
+      type: 'DEAL_REQUESTED',
+      channel: 'PUSH',
+      title: 'New Interest!',
+      body: `Someone is interested in your listing "${listing.title}". Check your dashboard to respond.`,
+      data: { dealId: deal.id, listingId },
+    },
+  });
+
   return deal;
 }
 
@@ -58,15 +73,37 @@ export async function createDeal(buyerId: string, listingId: string, offeredPric
  * Returns deal with phone numbers so both parties can contact each other.
  */
 export async function acceptDeal(sellerId: string, dealId: string) {
-  const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+  const deal = await prisma.deal.findUnique({
+    where: { id: dealId },
+    include: { listing: { select: { title: true } } },
+  });
   if (!deal) throw new Error('Deal not found');
   if (deal.sellerId !== sellerId) throw new Error('Only the seller can accept this deal');
   if (deal.status !== 'PENDING') throw new Error('Deal is not in pending status');
 
-  const updated = await prisma.deal.update({
-    where: { id: dealId },
-    data: { status: 'ACCEPTED' },
-    include: dealIncludeWithPhone,
+  // Use transaction to prevent race condition
+  const [, updated] = await prisma.$transaction([
+    prisma.listing.update({
+      where: { id: deal.listingId },
+      data: { status: 'SOLD' },
+    }),
+    prisma.deal.update({
+      where: { id: dealId },
+      data: { status: 'ACCEPTED' },
+      include: dealIncludeWithPhone,
+    }),
+  ]);
+
+  // Notify the buyer
+  await prisma.notification.create({
+    data: {
+      userId: deal.buyerId,
+      type: 'DEAL_ACCEPTED',
+      channel: 'PUSH',
+      title: 'Deal Accepted!',
+      body: `Your request for "${deal.listing.title}" has been accepted. Check your dashboard for seller contact details.`,
+      data: { dealId: deal.id, listingId: deal.listingId },
+    },
   });
 
   return updated;
