@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'BookSwap - School Book Exchange',
+  title: 'Sybrary - School Book Exchange',
   description: 'Exchange school textbooks with parents near you',
 };
 

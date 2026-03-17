@@ -17,10 +17,10 @@ export default function Navbar() {
       <div className="container flex h-20 items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
-            B
+            S
           </div>
           <span className="text-xl font-black tracking-tight text-foreground">
-            Book<span className="text-primary italic">Swap</span>
+            Sybrary
           </span>
         </Link>
 

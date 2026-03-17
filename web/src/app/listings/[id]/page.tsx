@@ -363,7 +363,7 @@ export default function ListingDetailPage() {
       <div className="mt-32 p-12 rounded-[48px] bg-foreground text-center relative overflow-hidden">
         <div className="relative z-10">
           <h3 className="text-white font-black text-2xl mb-4 tracking-tight">
-            Stay Safe with BookSwap
+            Stay Safe with Sybrary
           </h3>
           <p className="text-white/50 text-base font-medium max-w-2xl mx-auto leading-relaxed">
             We recommend meeting in public, well-lit areas for exchanges. Never share your OTP or

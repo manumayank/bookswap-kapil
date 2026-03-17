@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="p-4 border-b border-gray-800">
           <Link href="/admin/dashboard" className="text-xl font-bold">
-            📚 BookSwap Admin
+            📚 Sybrary Admin
           </Link>
         </div>
         

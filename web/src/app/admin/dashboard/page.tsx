@@ -82,7 +82,7 @@ export default function AdminDashboard() {
     <div className="animate-fade-in">
       <div className="mb-10">
         <h1 className="text-3xl font-extrabold tracking-tight mb-2">Dashboard</h1>
-        <p className="text-[var(--muted)]">Overview of your BookSwap platform</p>
+        <p className="text-[var(--muted)]">Overview of your Sybrary platform</p>
       </div>
 
       {/* Stats Grid */}

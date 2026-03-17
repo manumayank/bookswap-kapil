@@ -85,7 +85,7 @@ export default function LoginPage() {
               textDecoration: 'none',
             }}
           >
-            BookSwap
+            Sybrary
           </Link>
           <p style={{ color: 'var(--muted)', marginTop: '0.5rem', fontSize: '0.9375rem' }}>
             Sign in to your account

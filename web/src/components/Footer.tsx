@@ -7,8 +7,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-6">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold">B</div>
-              <span className="text-xl font-bold tracking-tight">BookSwap</span>
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold">S</div>
+              <span className="text-xl font-bold tracking-tight">Sybrary</span>
             </Link>
             <p className="text-muted text-sm leading-relaxed">
               Making education accessible and sustainable for parents through effortless local book exchanges.
@@ -50,7 +50,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-card-border flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-muted-light text-xs">&copy; 2026 BookSwap. Built for parents, by parents.</p>
+          <p className="text-muted-light text-xs">&copy; 2026 Sybrary. Built for parents, by parents.</p>
           <div className="flex gap-6 text-xs text-muted-light">
             <Link href="/safety" className="hover:text-primary transition-colors">Safety Guidelines</Link>
             <Link href="/sitemap" className="hover:text-primary transition-colors">Sitemap</Link>
