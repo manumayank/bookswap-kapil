@@ -244,7 +244,7 @@ export default function BrowsePage() {
                       condition={listing.condition}
                       category={listing.category}
                       city={listing.city}
-                      imageUrl={listing.images?.[0]?.imageUrl ? `http://148.230.67.164${listing.images[0].imageUrl}` : undefined}
+                      imageUrl={listing.images?.[0]?.imageUrl ? `${listing.images[0].imageUrl}` : undefined}
                     />
                   </div>
                 ))}

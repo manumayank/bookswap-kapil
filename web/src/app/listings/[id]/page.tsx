@@ -147,7 +147,7 @@ export default function ListingDetailPage() {
           <div className="aspect-[4/3] rounded-[48px] bg-muted-extra-light border border-card-border overflow-hidden relative shadow-2xl">
             {listing.images && listing.images.length > 0 ? (
               <img 
-                src={`http://148.230.67.164${listing.images[selectedImage]?.imageUrl || listing.images[0]?.imageUrl}`}
+                src={`${listing.images[selectedImage]?.imageUrl || listing.images[0]?.imageUrl}`}
                 alt={listing.title}
                 className="w-full h-full object-cover"
               />
@@ -188,7 +188,7 @@ export default function ListingDetailPage() {
                     selectedImage === i ? 'border-primary' : 'border-card-border'
                   }`}
                 >
-                  <img src={`http://148.230.67.164${img.imageUrl}`} alt="" className="w-full h-full object-cover" />
+                  <img src={`${img.imageUrl}`} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
