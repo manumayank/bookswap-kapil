@@ -1,4 +1,5 @@
 import prisma from '../../lib/prisma';
+import { sendWhatsAppNotification } from '../../lib/whatsapp';
 import { checkRequestMatches } from '../requests/requests.service';
 
 export async function getStats() {
@@ -144,6 +145,20 @@ export async function approveListing(listingId: string) {
     },
   });
 
+  // WhatsApp notification to seller
+  const seller = await prisma.user.findUnique({ where: { id: listing.userId }, select: { phone: true } });
+  if (seller) {
+    sendWhatsAppNotification({
+      userId: listing.userId,
+      phone: seller.phone,
+      type: 'LISTING_APPROVED',
+      title: 'Listing Approved',
+      body: `Your listing "${listing.title}" has been approved.`,
+      data: { listingId: listing.id },
+      templateArgs: [listing.title],
+    }).catch(() => {});
+  }
+
   // Find matching requests and notify those requesters
   const matchedRequests = listing.board && listing.class
     ? await checkRequestMatches({
@@ -165,6 +180,20 @@ export async function approveListing(listingId: string) {
         data: { listingId: listing.id, requestId: request.id },
       },
     });
+
+    // WhatsApp notification to requester
+    const requester = await prisma.user.findUnique({ where: { id: request.userId }, select: { phone: true } });
+    if (requester) {
+      sendWhatsAppNotification({
+        userId: request.userId,
+        phone: requester.phone,
+        type: 'NEW_MATCH_FOR_REQUEST',
+        title: 'New Book Available',
+        body: `A book matching your request is now available: "${listing.title}"`,
+        data: { listingId: listing.id, requestId: request.id },
+        templateArgs: [listing.title],
+      }).catch(() => {});
+    }
   }
 
   return updatedListing;
@@ -294,6 +323,22 @@ export async function rejectListing(listingId: string, reason?: string) {
       data: { listingId: listing.id, reason: reason || null },
     },
   });
+
+  // WhatsApp notification to seller
+  const rejectedSeller = await prisma.user.findUnique({ where: { id: listing.userId }, select: { phone: true } });
+  if (rejectedSeller) {
+    sendWhatsAppNotification({
+      userId: listing.userId,
+      phone: rejectedSeller.phone,
+      type: 'LISTING_REJECTED',
+      title: 'Listing Rejected',
+      body: reason
+        ? `Your listing "${listing.title}" was rejected: ${reason}`
+        : `Your listing "${listing.title}" was rejected.`,
+      data: { listingId: listing.id, reason: reason || null },
+      templateArgs: [listing.title, reason],
+    }).catch(() => {});
+  }
 
   return updatedListing;
 }

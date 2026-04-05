@@ -1,4 +1,5 @@
 import prisma from '../../lib/prisma';
+import { sendWhatsAppNotification } from '../../lib/whatsapp';
 import { CreateDealDto, RespondToDealDto, CompleteDealDto } from './deals.dto';
 
 const dealInclude = {
@@ -66,6 +67,17 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
       data: { dealId: deal.id, listingId: listing.id },
     },
   });
+
+  // WhatsApp notification to seller (fire-and-forget)
+  sendWhatsAppNotification({
+    userId: listing.userId,
+    phone: listing.user.phone,
+    type: 'DEAL_REQUESTED',
+    title: 'New Interest!',
+    body: `Someone is interested in your listing "${listing.title}".`,
+    data: { dealId: deal.id, listingId: listing.id },
+    templateArgs: [listing.title],
+  }).catch(() => {});
 
   return deal;
 }
@@ -146,6 +158,20 @@ export async function respondToDeal(
       },
     });
 
+    // WhatsApp notification to buyer
+    const buyer = await prisma.user.findUnique({ where: { id: deal.buyerId }, select: { phone: true } });
+    if (buyer) {
+      sendWhatsAppNotification({
+        userId: deal.buyerId,
+        phone: buyer.phone,
+        type: 'DEAL_ACCEPTED',
+        title: 'Deal Accepted!',
+        body: `Your request for "${deal.listing.title}" has been accepted.`,
+        data: { dealId: deal.id, listingId: deal.listingId },
+        templateArgs: [deal.listing.title],
+      }).catch(() => {});
+    }
+
     return updatedDeal;
   }
 
@@ -204,6 +230,20 @@ export async function completeDeal(
       },
     });
 
+    // WhatsApp notification
+    const otherUser = await prisma.user.findUnique({ where: { id: otherUserId }, select: { phone: true } });
+    if (otherUser) {
+      sendWhatsAppNotification({
+        userId: otherUserId,
+        phone: otherUser.phone,
+        type: 'DEAL_CANCELLED',
+        title: 'Deal Cancelled',
+        body: 'A deal has been cancelled.',
+        data: { dealId: deal.id, listingId: deal.listingId },
+        templateArgs: [],
+      }).catch(() => {});
+    }
+
     return updatedDeal;
   }
 
@@ -214,10 +254,10 @@ export async function completeDeal(
   });
 
   // Notify the other party about completion
-  const otherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
+  const completionOtherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
   await prisma.notification.create({
     data: {
-      userId: otherUserId,
+      userId: completionOtherUserId,
       type: 'DEAL_COMPLETED',
       channel: 'PUSH',
       title: 'Deal Completed!',
@@ -225,6 +265,20 @@ export async function completeDeal(
       data: { dealId: deal.id, listingId: deal.listingId },
     },
   });
+
+  // WhatsApp notification
+  const completionOtherUser = await prisma.user.findUnique({ where: { id: completionOtherUserId }, select: { phone: true } });
+  if (completionOtherUser) {
+    sendWhatsAppNotification({
+      userId: completionOtherUserId,
+      phone: completionOtherUser.phone,
+      type: 'DEAL_COMPLETED',
+      title: 'Deal Completed!',
+      body: 'Your deal has been marked as completed.',
+      data: { dealId: deal.id, listingId: deal.listingId },
+      templateArgs: [],
+    }).catch(() => {});
+  }
 
   return updatedDeal;
 }
@@ -269,6 +323,20 @@ export async function cancelDeal(userId: string, dealId: string) {
       data: { dealId: deal.id, listingId: deal.listingId },
     },
   });
+
+  // WhatsApp notification
+  const cancelOtherUser = await prisma.user.findUnique({ where: { id: otherUserId }, select: { phone: true } });
+  if (cancelOtherUser) {
+    sendWhatsAppNotification({
+      userId: otherUserId,
+      phone: cancelOtherUser.phone,
+      type: 'DEAL_CANCELLED',
+      title: 'Deal Cancelled',
+      body: 'A deal has been cancelled.',
+      data: { dealId: deal.id, listingId: deal.listingId },
+      templateArgs: [],
+    }).catch(() => {});
+  }
 
   return updatedDeal;
 }

@@ -17,6 +17,7 @@ import dealsRoutes from './modules/deals/deals.routes';
 import papersRoutes from './modules/papers/papers.routes';
 import notificationRoutes from './modules/notifications/notifications.routes';
 import adminRoutes from './modules/admin/admin.routes';
+import webhookRoutes from './modules/webhooks/whatsapp.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,6 +70,7 @@ app.use('/api/deals', dealsRoutes);
 app.use('/api/papers', papersRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
