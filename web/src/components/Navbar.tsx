@@ -49,7 +49,7 @@ export default function Navbar() {
                     My Dashboard
                   </Link>
                   {user.isAdmin && (
-                    <Link href="/admin" className="block px-3 py-2 text-xs font-semibold rounded-lg hover:bg-muted-extra-light transition-colors">
+                    <Link href="/admin/dashboard" className="block px-3 py-2 text-xs font-semibold rounded-lg hover:bg-muted-extra-light transition-colors">
                       Admin Panel
                     </Link>
                   )}
