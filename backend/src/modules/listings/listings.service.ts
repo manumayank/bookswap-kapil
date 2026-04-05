@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { CreateListingDto, UpdateListingDto, SearchListingsDto } from './listings.dto';
 import { findOrCreateSchool } from '../schools/schools.service';
+import { sendWhatsAppNotification } from '../../lib/whatsapp';
 
 /** Include for owner views (full details) */
 const listingIncludeOwner = {
@@ -260,14 +261,34 @@ async function checkRequestMatches(listingId: string) {
     where.maxPrice = { gte: listing.sellingPrice };
   }
 
-  const matchingRequests = await prisma.request.findMany({ where });
+  const matchingRequests = await prisma.request.findMany({
+    where,
+    include: { user: { select: { phone: true } } },
+  });
 
-  // TODO: Send notifications to request owners about the new matching listing
-  // For now, just log the count
-  if (matchingRequests.length > 0) {
-    console.log(
-      `Found ${matchingRequests.length} matching request(s) for listing ${listingId}`
-    );
+  for (const request of matchingRequests) {
+    await prisma.notification.create({
+      data: {
+        userId: request.userId,
+        type: 'NEW_MATCH_FOR_REQUEST',
+        channel: 'PUSH',
+        title: 'New Book Available',
+        body: `A book matching your request is now available: "${listing.title}"`,
+        data: { listingId: listing.id, requestId: request.id },
+      },
+    });
+
+    if (request.user?.phone) {
+      sendWhatsAppNotification({
+        userId: request.userId,
+        phone: request.user.phone,
+        type: 'NEW_MATCH_FOR_REQUEST',
+        title: 'New Book Available',
+        body: `A book matching your request is now available: "${listing.title}"`,
+        data: { listingId: listing.id, requestId: request.id },
+        templateArgs: [listing.title],
+      }).catch(() => {});
+    }
   }
 
   return matchingRequests;
