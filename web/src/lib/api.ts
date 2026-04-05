@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://148.230.67.164/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://148.230.67.164/api',
 });
 
 // Add auth token to requests
