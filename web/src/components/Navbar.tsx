@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout, hydrate } = useAuthStore();
@@ -36,6 +37,7 @@ export default function Navbar() {
           {isAuthenticated && user ? (
             <>
               <Link href="/dashboard" className="text-xs font-bold px-4 py-2 hover:text-primary transition-colors">Dashboard</Link>
+              <NotificationBell />
               <div className="relative group">
                 <button className="w-10 h-10 rounded-xl bg-primary/10 border border-card-border flex items-center justify-center text-sm font-black text-primary transition-colors hover:bg-primary hover:text-white">
                   {user.name?.charAt(0)?.toUpperCase() || 'U'}
