@@ -64,6 +64,18 @@ export async function createListing(userId: string, data: CreateListingDto) {
     include: listingIncludeOwner,
   });
 
+  // Acknowledge the seller's submission with an in-app notification
+  await prisma.notification.create({
+    data: {
+      userId,
+      type: 'LISTING_SUBMITTED',
+      channel: 'PUSH',
+      title: 'Listing Submitted',
+      body: `Thanks for listing "${listing.title}". It's awaiting admin approval — we'll notify you once it's approved.`,
+      data: { listingId: listing.id },
+    },
+  });
+
   // Trigger request matching in background (non-blocking)
   checkRequestMatches(listing.id).catch(console.error);
 
