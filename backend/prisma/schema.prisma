@@ -280,6 +280,7 @@ enum ImageType {
 }
 
 enum NotificationType {
+  LISTING_SUBMITTED
   LISTING_APPROVED
   LISTING_REJECTED
   NEW_MATCH_FOR_REQUEST
