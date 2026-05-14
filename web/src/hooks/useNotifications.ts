@@ -29,9 +29,16 @@ export function useNotifications(params: { page?: number; limit?: number; enable
     queryKey: [...KEY, page, limit],
     queryFn: async () => {
       const res = await api.get('/notifications', { params: { page, limit } });
-      // Backend wraps responses as { success, data, pagination }
-      const payload = res.data?.data ?? res.data;
-      return payload as NotificationListResponse;
+      // Backend response shape: { success, data: Notification[], unreadCount, pagination }
+      const body = res.data ?? {};
+      const pagination = body.pagination ?? {};
+      return {
+        notifications: Array.isArray(body.data) ? body.data : [],
+        total: pagination.total ?? 0,
+        unreadCount: body.unreadCount ?? 0,
+        page: pagination.page ?? page,
+        limit: pagination.limit ?? limit,
+      } as NotificationListResponse;
     },
     enabled,
     refetchInterval: 60_000,
