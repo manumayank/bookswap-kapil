@@ -38,6 +38,16 @@ coverage/
 # Uploads
 uploads/
 
+# Production secrets — never commit
+nginx/ssl/
+*.pem
+*.bak
+*.bak.*
+backups/
+
+# Design references / non-deploy
+Antigravity13/
+
 # Mobile specific
 *.jks
 *.p8
