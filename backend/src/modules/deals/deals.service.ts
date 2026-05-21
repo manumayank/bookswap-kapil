@@ -155,19 +155,27 @@ export async function respondToDeal(
     throw new Error('Deal has already been responded to');
   }
 
-  // Use transaction to prevent race condition where two deals get accepted simultaneously
+  // Use a conditional transaction to prevent the race where two pending deals
+  // for the same listing both get accepted: the listing must still be ACTIVE
+  // AND this deal must still be PENDING, otherwise abort.
   if (data.status === 'ACCEPTED') {
-    const [, updatedDeal] = await prisma.$transaction([
-      prisma.listing.update({
-        where: { id: deal.listingId },
+    const updatedDeal = await prisma.$transaction(async (tx) => {
+      const listingUpd = await tx.listing.updateMany({
+        where: { id: deal.listingId, status: 'ACTIVE' },
         data: { status: 'SOLD' },
-      }),
-      prisma.deal.update({
-        where: { id: dealId },
+      });
+      if (listingUpd.count === 0) {
+        throw new Error('Listing is no longer available');
+      }
+      const dealUpd = await tx.deal.updateMany({
+        where: { id: dealId, status: 'PENDING' },
         data: { status: 'ACCEPTED' },
-        include: dealInclude,
-      }),
-    ]);
+      });
+      if (dealUpd.count === 0) {
+        throw new Error('Deal has already been responded to');
+      }
+      return tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: dealInclude });
+    });
 
     // Notify the buyer that their deal was accepted
     await prisma.notification.create({
@@ -322,17 +330,26 @@ export async function cancelDeal(userId: string, dealId: string) {
     throw new Error('Deal is already finalized');
   }
 
-  const [, updatedDeal] = await prisma.$transaction([
-    prisma.listing.update({
-      where: { id: deal.listingId },
-      data: { status: 'ACTIVE' },
-    }),
-    prisma.deal.update({
-      where: { id: dealId },
+  // Only return the listing to ACTIVE if this deal was the one that took it
+  // out of ACTIVE (i.e. this deal was ACCEPTED → listing was SOLD by us).
+  // For PENDING deals the listing was never moved, so we must not flip it
+  // — it might be SOLD by some other accepted deal in a concurrent flow.
+  const updatedDeal = await prisma.$transaction(async (tx) => {
+    if (deal.status === 'ACCEPTED') {
+      await tx.listing.updateMany({
+        where: { id: deal.listingId, status: 'SOLD' },
+        data: { status: 'ACTIVE' },
+      });
+    }
+    const cancelled = await tx.deal.updateMany({
+      where: { id: dealId, status: deal.status },
       data: { status: 'CANCELLED' },
-      include: dealInclude,
-    }),
-  ]);
+    });
+    if (cancelled.count === 0) {
+      throw new Error('Deal state changed; please retry');
+    }
+    return tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: dealInclude });
+  });
 
   // Notify the other party
   const otherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
