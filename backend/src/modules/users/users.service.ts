@@ -3,7 +3,26 @@ import { generateToken, generateRefreshToken } from '../../lib/jwt';
 import { RegisterUserDto, UpdateUserDto, AddChildDto, UpdateChildDto } from './users.dto';
 import { findOrCreateSchool } from '../schools/schools.service';
 
+// Registration must be preceded by OTP verification within this window.
+// verifyOtp marks the Otp row isUsed=true; we look for a recent used OTP
+// for the requested email before letting registration through.
+const REGISTRATION_OTP_WINDOW_MS = 30 * 60 * 1000;
+
 export async function registerUser(data: RegisterUserDto) {
+  // Gate registration behind a recently-verified OTP for this email so
+  // an attacker cannot register an account with someone else's address.
+  const verifiedOtp = await prisma.otp.findFirst({
+    where: {
+      email: data.email,
+      isUsed: true,
+      createdAt: { gt: new Date(Date.now() - REGISTRATION_OTP_WINDOW_MS) },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!verifiedOtp) {
+    throw new Error('Please verify your email with an OTP before registering');
+  }
+
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) {
     throw new Error('User with this email already exists');
