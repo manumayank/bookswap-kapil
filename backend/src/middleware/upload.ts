@@ -19,8 +19,12 @@ function fileFilter(
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowed.includes(file.mimetype)) {
+  // MIME header is client-controlled, so we also enforce the extension that
+  // ends up on disk (it's what the static server hands back to browsers).
+  const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+  const allowedExt = ['.jpg', '.jpeg', '.png', '.webp'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedMime.includes(file.mimetype) && allowedExt.includes(ext)) {
     cb(null, true);
   } else {
     cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
