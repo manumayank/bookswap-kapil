@@ -13,6 +13,26 @@ const dealInclude = {
   seller: { select: { id: true, name: true, phone: true, email: true, city: true } },
 };
 
+/**
+ * Identity is only revealed after the deal is accepted. For any other status
+ * (PENDING / REJECTED / CANCELLED / etc.) strip phone and email out of the
+ * party records and the listing owner before sending the deal to a client.
+ */
+function redactContacts<T extends { status: string; buyer?: any; seller?: any; listing?: any }>(deal: T): T {
+  if (deal.status === 'ACCEPTED' || deal.status === 'COMPLETED') {
+    return deal;
+  }
+  const scrub = (u: any) => (u ? { id: u.id, name: u.name, city: u.city } : u);
+  return {
+    ...deal,
+    buyer: scrub(deal.buyer),
+    seller: scrub(deal.seller),
+    listing: deal.listing
+      ? { ...deal.listing, user: scrub(deal.listing.user) }
+      : deal.listing,
+  };
+}
+
 export async function createDeal(buyerId: string, data: CreateDealDto) {
   // Check if listing exists and is active
   const listing = await prisma.listing.findUnique({
@@ -45,7 +65,7 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     throw new Error('You already have an active deal for this listing');
   }
 
-  const deal = await prisma.deal.create({
+  const created = await prisma.deal.create({
     data: {
       listingId: data.listingId,
       sellerId: listing.userId,
@@ -55,6 +75,7 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     },
     include: dealInclude,
   });
+  const deal = redactContacts(created);
 
   // Notify the seller that someone is interested in their listing
   await prisma.notification.create({
@@ -83,19 +104,21 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
 }
 
 export async function getMyDealsAsBuyer(userId: string) {
-  return prisma.deal.findMany({
+  const deals = await prisma.deal.findMany({
     where: { buyerId: userId },
     include: dealInclude,
     orderBy: { createdAt: 'desc' },
   });
+  return deals.map(redactContacts);
 }
 
 export async function getMyDealsAsSeller(userId: string) {
-  return prisma.deal.findMany({
+  const deals = await prisma.deal.findMany({
     where: { sellerId: userId },
     include: dealInclude,
     orderBy: { createdAt: 'desc' },
   });
+  return deals.map(redactContacts);
 }
 
 export async function getDealById(userId: string, dealId: string) {
@@ -111,7 +134,7 @@ export async function getDealById(userId: string, dealId: string) {
     throw new Error('Deal not found');
   }
 
-  return deal;
+  return redactContacts(deal);
 }
 
 export async function respondToDeal(
@@ -172,7 +195,7 @@ export async function respondToDeal(
       }).catch(() => {});
     }
 
-    return updatedDeal;
+    return redactContacts(updatedDeal);
   }
 
   const updatedDeal = await prisma.deal.update({
@@ -181,7 +204,7 @@ export async function respondToDeal(
     include: dealInclude,
   });
 
-  return updatedDeal;
+  return redactContacts(updatedDeal);
 }
 
 export async function completeDeal(
@@ -244,7 +267,7 @@ export async function completeDeal(
       }).catch(() => {});
     }
 
-    return updatedDeal;
+    return redactContacts(updatedDeal);
   }
 
   const updatedDeal = await prisma.deal.update({
@@ -280,7 +303,7 @@ export async function completeDeal(
     }).catch(() => {});
   }
 
-  return updatedDeal;
+  return redactContacts(updatedDeal);
 }
 
 export async function cancelDeal(userId: string, dealId: string) {
@@ -338,5 +361,5 @@ export async function cancelDeal(userId: string, dealId: string) {
     }).catch(() => {});
   }
 
-  return updatedDeal;
+  return redactContacts(updatedDeal);
 }
