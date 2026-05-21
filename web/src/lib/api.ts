@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+// NEXT_PUBLIC_API_URL is required — there is no safe fallback. A hardcoded
+// production URL would silently send dev / preview / test traffic at the
+// live API. Fail loudly at startup instead.
+if (!process.env.NEXT_PUBLIC_API_URL) {
+  throw new Error('NEXT_PUBLIC_API_URL is not set');
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://sybrary.com/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
 
 // Add auth token to requests
