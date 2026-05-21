@@ -46,3 +46,16 @@ uploads/
 *.mobileprovision
 *.orig.*
 web-build/
+
+# Next.js build cache
+.next/
+*.tsbuildinfo
+
+# Editor / agent workspace
+.claude/
+.playwright-mcp/
+
+# Local scratch / scan output
+.codex-bug-scan-*.md
+*.png
+
