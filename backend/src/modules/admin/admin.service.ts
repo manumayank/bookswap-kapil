@@ -3,7 +3,7 @@ import { sendWhatsAppNotification } from '../../lib/whatsapp';
 import { checkRequestMatches } from '../requests/requests.service';
 
 export async function getStats() {
-  const [users, activeListings, openRequests, deals, schools] = await Promise.all([
+  const [totalUsers, activeListings, openRequests, deals, schools] = await Promise.all([
     prisma.user.count(),
     prisma.listing.count({ where: { status: 'ACTIVE' } }),
     prisma.request.count({ where: { status: { in: ['OPEN', 'MATCHED'] } } }),
@@ -19,7 +19,7 @@ export async function getStats() {
   ]);
 
   return {
-    users,
+    totalUsers,
     activeListings,
     openRequests,
     deals,
