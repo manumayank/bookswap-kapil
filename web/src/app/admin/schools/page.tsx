@@ -163,7 +163,7 @@ export default function AdminSchoolsPage() {
                 <option value="">Select board</option>
                 <option value="CBSE">CBSE</option>
                 <option value="ICSE">ICSE</option>
-                <option value="State">State Board</option>
+                <option value="STATE">State Board</option>
                 <option value="IB">IB</option>
                 <option value="IGCSE">IGCSE</option>
               </select>
