@@ -161,9 +161,15 @@ export async function getListing(id: string, requestingUserId?: string) {
 
   if (!listing) throw new Error('Listing not found');
 
-  // If requester is the owner, return full details
+  // If requester is the owner, return full details (any status)
   if (requestingUserId && listing.userId === requestingUserId) {
     return listing;
+  }
+
+  // Non-owners only see ACTIVE listings. Pending / rejected / sold / cancelled
+  // listings must not leak to anyone but the seller.
+  if (listing.status !== 'ACTIVE') {
+    throw new Error('Listing not found');
   }
 
   // For non-owners, strip sensitive seller info

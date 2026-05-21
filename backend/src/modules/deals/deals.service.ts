@@ -44,7 +44,7 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     throw new Error('Listing not found');
   }
 
-  if (listing.status !== 'ACTIVE' && listing.status !== 'PENDING_APPROVAL') {
+  if (listing.status !== 'ACTIVE') {
     throw new Error('This listing is no longer available');
   }
 
