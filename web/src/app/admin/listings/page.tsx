@@ -21,10 +21,15 @@ export default function AdminListingsPage() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.isAdmin) {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('accessToken')) {
+      router.replace('/login');
+      return;
+    }
+    if (user && !user.isAdmin) {
       router.replace('/login');
     }
-  }, [isAuthenticated, user, router]);
+  }, [user, router]);
 
   // Fetch pending listings
   const {
