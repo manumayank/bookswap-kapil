@@ -16,11 +16,19 @@ export default function AdminDashboard() {
     hydrate();
   }, [hydrate]);
 
+  // Wait for Zustand to finish hydrating from localStorage before deciding to
+  // redirect. Without this guard the effect fires on the initial render (when
+  // user is null) and bounces every legitimate admin to /login.
   useEffect(() => {
-    if (!isAuthenticated || !user?.isAdmin) {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('accessToken')) {
+      router.replace('/login');
+      return;
+    }
+    if (user && !user.isAdmin) {
       router.replace('/login');
     }
-  }, [isAuthenticated, user, router]);
+  }, [user, router]);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['admin-stats'],
