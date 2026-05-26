@@ -3,15 +3,19 @@ import prisma from '../../lib/prisma';
 export async function getNotifications(userId: string, page = 1, limit = 20) {
   const skip = (page - 1) * limit;
 
+  // Only surface in-app PUSH notifications. WHATSAPP rows are delivery
+  // logs created by sendWhatsAppNotification and must not appear in the feed.
+  const where = { userId, channel: 'PUSH' as const };
+
   const [notifications, total, unreadCount] = await Promise.all([
     prisma.notification.findMany({
-      where: { userId },
+      where,
       skip,
       take: limit,
       orderBy: { sentAt: 'desc' },
     }),
-    prisma.notification.count({ where: { userId } }),
-    prisma.notification.count({ where: { userId, isRead: false } }),
+    prisma.notification.count({ where }),
+    prisma.notification.count({ where: { ...where, isRead: false } }),
   ]);
 
   return { notifications, total, unreadCount, page, limit };

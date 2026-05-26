@@ -30,10 +30,15 @@ export default function AdminSchoolsPage() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.isAdmin) {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('accessToken')) {
+      router.replace('/login');
+      return;
+    }
+    if (user && !user.isAdmin) {
       router.replace('/login');
     }
-  }, [isAuthenticated, user, router]);
+  }, [user, router]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-schools', search],
@@ -163,7 +168,7 @@ export default function AdminSchoolsPage() {
                 <option value="">Select board</option>
                 <option value="CBSE">CBSE</option>
                 <option value="ICSE">ICSE</option>
-                <option value="State">State Board</option>
+                <option value="STATE">State Board</option>
                 <option value="IB">IB</option>
                 <option value="IGCSE">IGCSE</option>
               </select>

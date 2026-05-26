@@ -30,6 +30,7 @@ model User {
   buyerDeals    Deal[]    @relation("Buyer")
   notifications Notification[]
   papers        Paper[]
+  grievances    Grievance[]
 
   @@index([city, board])
 }
@@ -149,6 +150,7 @@ model Request {
 // Deals (buyer requests to purchase a listing)
 model Deal {
   id            String     @id @default(uuid())
+  code          String?    @unique
   listingId     String
   listing       Listing    @relation(fields: [listingId], references: [id])
   sellerId      String
@@ -259,6 +261,8 @@ enum PaperType {
 }
 
 enum RequestStatus {
+  PENDING_APPROVAL
+  REJECTED
   OPEN
   MATCHED
   FULFILLED
@@ -280,8 +284,12 @@ enum ImageType {
 }
 
 enum NotificationType {
+  LISTING_SUBMITTED
   LISTING_APPROVED
   LISTING_REJECTED
+  REQUEST_SUBMITTED
+  REQUEST_APPROVED
+  REQUEST_REJECTED
   NEW_MATCH_FOR_REQUEST
   DEAL_REQUESTED
   DEAL_ACCEPTED
@@ -293,4 +301,30 @@ enum NotificationChannel {
   PUSH
   WHATSAPP
   EMAIL
+}
+
+model Counter {
+  name  String @id
+  value Int    @default(0)
+}
+
+model Grievance {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  transactionCode String?
+  subject         String
+  description     String
+  status          GrievanceStatus @default(OPEN)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+enum GrievanceStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
 }

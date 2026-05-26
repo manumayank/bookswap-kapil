@@ -76,7 +76,7 @@ export default function DashboardPage() {
   const { data: requests } = useQuery({
     queryKey: ['myRequests'],
     queryFn: async () => {
-      const { data } = await api.get('/requests');
+      const { data } = await api.get('/requests/my');
       return data.data;
     },
     retry: false,
@@ -224,7 +224,7 @@ export default function DashboardPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {matchesArray.map((match: any) => {
-              const isGiver = match.giverId === user?.id;
+              const isGiver = match.sellerId === user?.id;
               const role = isGiver ? 'Seller' : 'Buyer';
               const listingTitle =
                 match.listing?.title ||
@@ -242,14 +242,17 @@ export default function DashboardPage() {
                       <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.5rem' }}>
                         {listingTitle}
                       </h3>
+                      <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                        Transaction: <code>{match.code || '—'}</code>
+                      </p>
                       {match.agreedPrice != null && (
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--secondary)', marginTop: '0.25rem' }}>
                           ₹{match.agreedPrice}
                         </div>
                       )}
                       <div style={{ color: 'var(--muted)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                        {isGiver ? 'Giving to' : 'Receiving from'}{' '}
-                        {(isGiver ? match.receiver?.name : match.giver?.name) || 'Unknown'}
+                        {isGiver ? 'Selling to' : 'Buying from'}{' '}
+                        {(isGiver ? match.buyer?.name : match.seller?.name) || 'Unknown'}
                       </div>
                     </div>
 

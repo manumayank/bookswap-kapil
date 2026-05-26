@@ -1,5 +1,7 @@
 import prisma from '../../lib/prisma';
 import { sendWhatsAppNotification } from '../../lib/whatsapp';
+import { nextDealCode } from '../../lib/transactionCode';
+import { sendEventEmail } from '../../lib/email';
 import { CreateDealDto, RespondToDealDto, CompleteDealDto } from './deals.dto';
 
 const dealInclude = {
@@ -13,18 +15,38 @@ const dealInclude = {
   seller: { select: { id: true, name: true, phone: true, email: true, city: true } },
 };
 
+/**
+ * Identity is only revealed after the deal is accepted. For any other status
+ * (PENDING / REJECTED / CANCELLED / etc.) strip phone and email out of the
+ * party records and the listing owner before sending the deal to a client.
+ */
+function redactContacts<T extends { status: string; buyer?: any; seller?: any; listing?: any }>(deal: T): T {
+  if (deal.status === 'ACCEPTED' || deal.status === 'COMPLETED') {
+    return deal;
+  }
+  const scrub = (u: any) => (u ? { id: u.id, name: u.name, city: u.city } : u);
+  return {
+    ...deal,
+    buyer: scrub(deal.buyer),
+    seller: scrub(deal.seller),
+    listing: deal.listing
+      ? { ...deal.listing, user: scrub(deal.listing.user) }
+      : deal.listing,
+  };
+}
+
 export async function createDeal(buyerId: string, data: CreateDealDto) {
   // Check if listing exists and is active
   const listing = await prisma.listing.findUnique({
     where: { id: data.listingId },
-    include: { user: true },
+    include: { user: true, images: true },
   });
 
   if (!listing) {
     throw new Error('Listing not found');
   }
 
-  if (listing.status !== 'ACTIVE' && listing.status !== 'PENDING_APPROVAL') {
+  if (listing.status !== 'ACTIVE') {
     throw new Error('This listing is no longer available');
   }
 
@@ -45,8 +67,9 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     throw new Error('You already have an active deal for this listing');
   }
 
-  const deal = await prisma.deal.create({
+  const created = await prisma.deal.create({
     data: {
+      code: await nextDealCode(),
       listingId: data.listingId,
       sellerId: listing.userId,
       buyerId,
@@ -55,6 +78,7 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     },
     include: dealInclude,
   });
+  const deal = redactContacts(created);
 
   // Notify the seller that someone is interested in their listing
   await prisma.notification.create({
@@ -79,23 +103,38 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     templateArgs: [listing.title],
   }).catch(() => {});
 
+  const firstImage = listing.images?.[0]?.imageUrl;
+  if (listing.user?.email) {
+    sendEventEmail({
+      to: listing.user.email,
+      type: 'DEAL_REQUESTED',
+      vars: {
+        code: created.code,
+        title: listing.title,
+        imageUrl: firstImage,
+      },
+    }).catch(console.error);
+  }
+
   return deal;
 }
 
 export async function getMyDealsAsBuyer(userId: string) {
-  return prisma.deal.findMany({
+  const deals = await prisma.deal.findMany({
     where: { buyerId: userId },
     include: dealInclude,
     orderBy: { createdAt: 'desc' },
   });
+  return deals.map(redactContacts);
 }
 
 export async function getMyDealsAsSeller(userId: string) {
-  return prisma.deal.findMany({
+  const deals = await prisma.deal.findMany({
     where: { sellerId: userId },
     include: dealInclude,
     orderBy: { createdAt: 'desc' },
   });
+  return deals.map(redactContacts);
 }
 
 export async function getDealById(userId: string, dealId: string) {
@@ -111,7 +150,7 @@ export async function getDealById(userId: string, dealId: string) {
     throw new Error('Deal not found');
   }
 
-  return deal;
+  return redactContacts(deal);
 }
 
 export async function respondToDeal(
@@ -132,19 +171,27 @@ export async function respondToDeal(
     throw new Error('Deal has already been responded to');
   }
 
-  // Use transaction to prevent race condition where two deals get accepted simultaneously
+  // Use a conditional transaction to prevent the race where two pending deals
+  // for the same listing both get accepted: the listing must still be ACTIVE
+  // AND this deal must still be PENDING, otherwise abort.
   if (data.status === 'ACCEPTED') {
-    const [, updatedDeal] = await prisma.$transaction([
-      prisma.listing.update({
-        where: { id: deal.listingId },
+    const updatedDeal = await prisma.$transaction(async (tx) => {
+      const listingUpd = await tx.listing.updateMany({
+        where: { id: deal.listingId, status: 'ACTIVE' },
         data: { status: 'SOLD' },
-      }),
-      prisma.deal.update({
-        where: { id: dealId },
+      });
+      if (listingUpd.count === 0) {
+        throw new Error('Listing is no longer available');
+      }
+      const dealUpd = await tx.deal.updateMany({
+        where: { id: dealId, status: 'PENDING' },
         data: { status: 'ACCEPTED' },
-        include: dealInclude,
-      }),
-    ]);
+      });
+      if (dealUpd.count === 0) {
+        throw new Error('Deal has already been responded to');
+      }
+      return tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: dealInclude });
+    });
 
     // Notify the buyer that their deal was accepted
     await prisma.notification.create({
@@ -172,7 +219,31 @@ export async function respondToDeal(
       }).catch(() => {});
     }
 
-    return updatedDeal;
+    const acceptedFull = await prisma.deal.findUniqueOrThrow({
+      where: { id: dealId },
+      include: {
+        listing: { include: { images: true } },
+        seller: { select: { name: true, phone: true, address: true } },
+        buyer: { select: { email: true } },
+      },
+    });
+    if (acceptedFull.buyer?.email) {
+      sendEventEmail({
+        to: acceptedFull.buyer.email,
+        type: 'DEAL_ACCEPTED',
+        vars: {
+          code: acceptedFull.code,
+          title: acceptedFull.listing.title,
+          sellerName: acceptedFull.seller.name,
+          sellerPhone: acceptedFull.seller.phone,
+          sellerAddress: acceptedFull.seller.address,
+          pickupLocation: acceptedFull.listing.pickupLocation,
+          imageUrl: acceptedFull.listing.images?.[0]?.imageUrl,
+        },
+      }).catch(console.error);
+    }
+
+    return redactContacts(updatedDeal);
   }
 
   const updatedDeal = await prisma.deal.update({
@@ -181,7 +252,7 @@ export async function respondToDeal(
     include: dealInclude,
   });
 
-  return updatedDeal;
+  return redactContacts(updatedDeal);
 }
 
 export async function completeDeal(
@@ -194,6 +265,7 @@ export async function completeDeal(
       id: dealId,
       OR: [{ buyerId: userId }, { sellerId: userId }],
     },
+    include: { listing: { select: { title: true } } },
   });
 
   if (!deal) {
@@ -244,7 +316,19 @@ export async function completeDeal(
       }).catch(() => {});
     }
 
-    return updatedDeal;
+    const cancelledOther = await prisma.user.findUnique({
+      where: { id: otherUserId },
+      select: { email: true },
+    });
+    if (cancelledOther?.email) {
+      sendEventEmail({
+        to: cancelledOther.email,
+        type: 'DEAL_CANCELLED',
+        vars: { code: deal.code, title: deal.listing.title },
+      }).catch(console.error);
+    }
+
+    return redactContacts(updatedDeal);
   }
 
   const updatedDeal = await prisma.deal.update({
@@ -280,7 +364,19 @@ export async function completeDeal(
     }).catch(() => {});
   }
 
-  return updatedDeal;
+  const completedOther = await prisma.user.findUnique({
+    where: { id: completionOtherUserId },
+    select: { email: true },
+  });
+  if (completedOther?.email) {
+    sendEventEmail({
+      to: completedOther.email,
+      type: 'DEAL_COMPLETED',
+      vars: { code: deal.code, title: deal.listing.title },
+    }).catch(console.error);
+  }
+
+  return redactContacts(updatedDeal);
 }
 
 export async function cancelDeal(userId: string, dealId: string) {
@@ -289,6 +385,7 @@ export async function cancelDeal(userId: string, dealId: string) {
       id: dealId,
       OR: [{ buyerId: userId }, { sellerId: userId }],
     },
+    include: { listing: { select: { title: true } } },
   });
 
   if (!deal) {
@@ -299,17 +396,26 @@ export async function cancelDeal(userId: string, dealId: string) {
     throw new Error('Deal is already finalized');
   }
 
-  const [, updatedDeal] = await prisma.$transaction([
-    prisma.listing.update({
-      where: { id: deal.listingId },
-      data: { status: 'ACTIVE' },
-    }),
-    prisma.deal.update({
-      where: { id: dealId },
+  // Only return the listing to ACTIVE if this deal was the one that took it
+  // out of ACTIVE (i.e. this deal was ACCEPTED → listing was SOLD by us).
+  // For PENDING deals the listing was never moved, so we must not flip it
+  // — it might be SOLD by some other accepted deal in a concurrent flow.
+  const updatedDeal = await prisma.$transaction(async (tx) => {
+    if (deal.status === 'ACCEPTED') {
+      await tx.listing.updateMany({
+        where: { id: deal.listingId, status: 'SOLD' },
+        data: { status: 'ACTIVE' },
+      });
+    }
+    const cancelled = await tx.deal.updateMany({
+      where: { id: dealId, status: deal.status },
       data: { status: 'CANCELLED' },
-      include: dealInclude,
-    }),
-  ]);
+    });
+    if (cancelled.count === 0) {
+      throw new Error('Deal state changed; please retry');
+    }
+    return tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: dealInclude });
+  });
 
   // Notify the other party
   const otherUserId = userId === deal.buyerId ? deal.sellerId : deal.buyerId;
@@ -338,5 +444,17 @@ export async function cancelDeal(userId: string, dealId: string) {
     }).catch(() => {});
   }
 
-  return updatedDeal;
+  const cancelOther = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: { email: true },
+  });
+  if (cancelOther?.email) {
+    sendEventEmail({
+      to: cancelOther.email,
+      type: 'DEAL_CANCELLED',
+      vars: { code: deal.code, title: deal.listing.title },
+    }).catch(console.error);
+  }
+
+  return redactContacts(updatedDeal);
 }
