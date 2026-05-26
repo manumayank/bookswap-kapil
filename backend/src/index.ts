@@ -17,6 +17,7 @@ import dealsRoutes from './modules/deals/deals.routes';
 import papersRoutes from './modules/papers/papers.routes';
 import notificationRoutes from './modules/notifications/notifications.routes';
 import adminRoutes from './modules/admin/admin.routes';
+import grievancesRoutes from './modules/grievances/grievances.routes';
 import webhookRoutes from './modules/webhooks/whatsapp.routes';
 
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/deals', dealsRoutes);
 app.use('/api/papers', papersRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/grievances', grievancesRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 // Error handler
