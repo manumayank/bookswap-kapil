@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma';
 import { sendWhatsAppNotification } from '../../lib/whatsapp';
+import { nextDealCode } from '../../lib/transactionCode';
 import { CreateDealDto, RespondToDealDto, CompleteDealDto } from './deals.dto';
 
 const dealInclude = {
@@ -67,6 +68,7 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
 
   const created = await prisma.deal.create({
     data: {
+      code: await nextDealCode(),
       listingId: data.listingId,
       sellerId: listing.userId,
       buyerId,
