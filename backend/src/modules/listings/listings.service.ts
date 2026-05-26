@@ -3,12 +3,13 @@ import { Prisma } from '@prisma/client';
 import { CreateListingDto, UpdateListingDto, SearchListingsDto } from './listings.dto';
 import { findOrCreateSchool } from '../schools/schools.service';
 import { sendWhatsAppNotification } from '../../lib/whatsapp';
+import { sendEventEmail, getAdminEmails } from '../../lib/email';
 
 /** Include for owner views (full details) */
 const listingIncludeOwner = {
   images: true,
   items: true,
-  user: { select: { id: true, name: true, city: true, phone: true, address: true } },
+  user: { select: { id: true, name: true, city: true, phone: true, address: true, email: true } },
   school: true,
 };
 
@@ -75,6 +76,30 @@ export async function createListing(userId: string, data: CreateListingDto) {
       data: { listingId: listing.id },
     },
   });
+
+  // Email the seller a confirmation, and notify admins of the new listing
+  const sellerEmail = listing.user?.email;
+  const firstImage = listing.images?.[0]?.imageUrl;
+  if (sellerEmail) {
+    sendEventEmail({
+      to: sellerEmail,
+      type: 'LISTING_SUBMITTED_SELLER',
+      vars: { title: listing.title, imageUrl: firstImage },
+    }).catch(console.error);
+  }
+  sendEventEmail({
+    to: getAdminEmails(),
+    type: 'LISTING_SUBMITTED_ADMIN',
+    vars: {
+      sellerName: listing.user?.name,
+      title: listing.title,
+      board: listing.board,
+      class: listing.class,
+      city: listing.city,
+      sellingPrice: listing.sellingPrice,
+      imageUrl: firstImage,
+    },
+  }).catch(console.error);
 
   // Trigger request matching in background (non-blocking)
   checkRequestMatches(listing.id).catch(console.error);
