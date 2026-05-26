@@ -62,6 +62,13 @@ export default function AdminDashboard() {
       bg: 'bg-amber-500/10',
     },
     {
+      label: 'Pending Requests',
+      value: stats?.pendingRequests ?? '-',
+      icon: ClipboardList,
+      color: 'text-amber-500',
+      bg: 'bg-amber-500/10',
+    },
+    {
       label: 'Open Requests',
       value: stats?.openRequests ?? '-',
       icon: ClipboardList,

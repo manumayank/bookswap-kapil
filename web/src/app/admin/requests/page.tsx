@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -37,6 +37,17 @@ export default function AdminRequestsPage() {
       return data;
     },
     enabled: !!user?.isAdmin,
+  });
+
+  const queryClient = useQueryClient();
+  const approve = useMutation({
+    mutationFn: async (id: string) => api.put(`/admin/requests/${id}/approve`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-requests'] }),
+  });
+  const reject = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) =>
+      api.put(`/admin/requests/${id}/reject`, { reason }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-requests'] }),
   });
 
   const requests = data?.data || [];
@@ -81,12 +92,13 @@ export default function AdminRequestsPage() {
                 <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">City</th>
                 <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Status</th>
                 <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Created</th>
+                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-[var(--muted)]">
+                  <td colSpan={7} className="text-center py-12 text-[var(--muted)]">
                     {search ? 'No requests match your search' : 'No requests yet'}
                   </td>
                 </tr>
@@ -108,6 +120,7 @@ export default function AdminRequestsPage() {
                         req.status === 'OPEN' ? 'bg-emerald-500/10 text-emerald-600' :
                         req.status === 'MATCHED' ? 'bg-blue-500/10 text-blue-600' :
                         req.status === 'FLOATED' ? 'bg-amber-500/10 text-amber-600' :
+                        req.status === 'PENDING_APPROVAL' ? 'bg-orange-500/10 text-orange-600' :
                         'bg-gray-500/10 text-gray-500'
                       }`}>
                         {req.status}
@@ -115,6 +128,31 @@ export default function AdminRequestsPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-[var(--muted)]">
                       {new Date(req.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      {req.status === 'PENDING_APPROVAL' && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ height: '32px', fontSize: '0.75rem', padding: '0 12px' }}
+                            onClick={() => approve.mutate(req.id)}
+                            disabled={approve.isPending}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="btn btn-outline"
+                            style={{ height: '32px', fontSize: '0.75rem', padding: '0 12px', color: 'var(--accent)' }}
+                            onClick={() => {
+                              const reason = window.prompt('Reason for rejecting this request (optional):') || undefined;
+                              reject.mutate({ id: req.id, reason });
+                            }}
+                            disabled={reject.isPending}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
