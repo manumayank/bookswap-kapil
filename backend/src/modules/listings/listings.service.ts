@@ -284,6 +284,7 @@ export async function addImages(listingId: string, userId: string, files: Expres
 async function checkRequestMatches(listingId: string) {
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
+    include: { images: true },
   });
   if (!listing || listing.status !== 'PENDING_APPROVAL') return;
 
@@ -331,6 +332,22 @@ async function checkRequestMatches(listingId: string) {
         data: { listingId: listing.id, requestId: request.id },
         templateArgs: [listing.title],
       }).catch(() => {});
+    }
+
+    const requesterUser = await prisma.user.findUnique({
+      where: { id: request.userId },
+      select: { email: true },
+    });
+    if (requesterUser?.email) {
+      sendEventEmail({
+        to: requesterUser.email,
+        type: 'NEW_MATCH_FOR_REQUEST',
+        vars: {
+          title: listing.title,
+          listingId: listing.id,
+          imageUrl: listing.images?.[0]?.imageUrl,
+        },
+      }).catch(console.error);
     }
   }
 

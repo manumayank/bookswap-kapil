@@ -214,6 +214,21 @@ export async function approveListing(listingId: string) {
         templateArgs: [listing.title],
       }).catch(() => {});
     }
+
+    const reqUser = await prisma.user.findUnique({
+      where: { id: request.userId },
+      select: { email: true },
+    });
+    if (reqUser?.email) {
+      sendEventEmail({
+        to: reqUser.email,
+        type: 'NEW_MATCH_FOR_REQUEST',
+        vars: {
+          title: listing.title,
+          listingId: listing.id,
+        },
+      }).catch(console.error);
+    }
   }
 
   return updatedListing;
