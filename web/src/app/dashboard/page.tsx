@@ -242,6 +242,9 @@ export default function DashboardPage() {
                       <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.5rem' }}>
                         {listingTitle}
                       </h3>
+                      <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                        Transaction: <code>{match.code || '—'}</code>
+                      </p>
                       {match.agreedPrice != null && (
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--secondary)', marginTop: '0.25rem' }}>
                           ₹{match.agreedPrice}
