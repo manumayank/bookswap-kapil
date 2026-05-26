@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import { sendWhatsAppNotification } from '../../lib/whatsapp';
 import { nextDealCode } from '../../lib/transactionCode';
+import { sendEventEmail } from '../../lib/email';
 import { CreateDealDto, RespondToDealDto, CompleteDealDto } from './deals.dto';
 
 const dealInclude = {
@@ -38,7 +39,7 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
   // Check if listing exists and is active
   const listing = await prisma.listing.findUnique({
     where: { id: data.listingId },
-    include: { user: true },
+    include: { user: true, images: true },
   });
 
   if (!listing) {
@@ -101,6 +102,19 @@ export async function createDeal(buyerId: string, data: CreateDealDto) {
     data: { dealId: deal.id, listingId: listing.id },
     templateArgs: [listing.title],
   }).catch(() => {});
+
+  const firstImage = listing.images?.[0]?.imageUrl;
+  if (listing.user?.email) {
+    sendEventEmail({
+      to: listing.user.email,
+      type: 'DEAL_REQUESTED',
+      vars: {
+        code: created.code,
+        title: listing.title,
+        imageUrl: firstImage,
+      },
+    }).catch(console.error);
+  }
 
   return deal;
 }
@@ -205,6 +219,30 @@ export async function respondToDeal(
       }).catch(() => {});
     }
 
+    const acceptedFull = await prisma.deal.findUniqueOrThrow({
+      where: { id: dealId },
+      include: {
+        listing: { include: { images: true } },
+        seller: { select: { name: true, phone: true, address: true } },
+        buyer: { select: { email: true } },
+      },
+    });
+    if (acceptedFull.buyer?.email) {
+      sendEventEmail({
+        to: acceptedFull.buyer.email,
+        type: 'DEAL_ACCEPTED',
+        vars: {
+          code: acceptedFull.code,
+          title: acceptedFull.listing.title,
+          sellerName: acceptedFull.seller.name,
+          sellerPhone: acceptedFull.seller.phone,
+          sellerAddress: acceptedFull.seller.address,
+          pickupLocation: acceptedFull.listing.pickupLocation,
+          imageUrl: acceptedFull.listing.images?.[0]?.imageUrl,
+        },
+      }).catch(console.error);
+    }
+
     return redactContacts(updatedDeal);
   }
 
@@ -227,6 +265,7 @@ export async function completeDeal(
       id: dealId,
       OR: [{ buyerId: userId }, { sellerId: userId }],
     },
+    include: { listing: { select: { title: true } } },
   });
 
   if (!deal) {
@@ -277,6 +316,18 @@ export async function completeDeal(
       }).catch(() => {});
     }
 
+    const cancelledOther = await prisma.user.findUnique({
+      where: { id: otherUserId },
+      select: { email: true },
+    });
+    if (cancelledOther?.email) {
+      sendEventEmail({
+        to: cancelledOther.email,
+        type: 'DEAL_CANCELLED',
+        vars: { code: deal.code, title: deal.listing.title },
+      }).catch(console.error);
+    }
+
     return redactContacts(updatedDeal);
   }
 
@@ -313,6 +364,18 @@ export async function completeDeal(
     }).catch(() => {});
   }
 
+  const completedOther = await prisma.user.findUnique({
+    where: { id: completionOtherUserId },
+    select: { email: true },
+  });
+  if (completedOther?.email) {
+    sendEventEmail({
+      to: completedOther.email,
+      type: 'DEAL_COMPLETED',
+      vars: { code: deal.code, title: deal.listing.title },
+    }).catch(console.error);
+  }
+
   return redactContacts(updatedDeal);
 }
 
@@ -322,6 +385,7 @@ export async function cancelDeal(userId: string, dealId: string) {
       id: dealId,
       OR: [{ buyerId: userId }, { sellerId: userId }],
     },
+    include: { listing: { select: { title: true } } },
   });
 
   if (!deal) {
@@ -378,6 +442,18 @@ export async function cancelDeal(userId: string, dealId: string) {
       data: { dealId: deal.id, listingId: deal.listingId },
       templateArgs: [],
     }).catch(() => {});
+  }
+
+  const cancelOther = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: { email: true },
+  });
+  if (cancelOther?.email) {
+    sendEventEmail({
+      to: cancelOther.email,
+      type: 'DEAL_CANCELLED',
+      vars: { code: deal.code, title: deal.listing.title },
+    }).catch(console.error);
   }
 
   return redactContacts(updatedDeal);
