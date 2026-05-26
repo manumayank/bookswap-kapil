@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  School, 
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  School,
   ClipboardList,
   Settings,
-  LogOut
+  LogOut,
+  AlertTriangle
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { href: '/admin/listings', label: 'Listings', icon: BookOpen },
   { href: '/admin/requests', label: 'Requests', icon: ClipboardList },
   { href: '/admin/schools', label: 'Schools', icon: School },
+  { href: '/admin/grievances', label: 'Grievances', icon: AlertTriangle },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
