@@ -162,6 +162,23 @@ export async function approveListing(listingId: string) {
     }).catch(() => {});
   }
 
+  // Fetch one image url for the email
+  const firstImage = await prisma.listingImage.findFirst({
+    where: { listingId: listing.id },
+    select: { imageUrl: true },
+  });
+  if (updatedListing.user.email) {
+    sendEventEmail({
+      to: updatedListing.user.email,
+      type: 'LISTING_APPROVED',
+      vars: {
+        title: listing.title,
+        listingId: listing.id,
+        imageUrl: firstImage?.imageUrl,
+      },
+    }).catch(console.error);
+  }
+
   // Find matching requests and notify those requesters
   const matchedRequests = listing.board && listing.class
     ? await checkRequestMatches({
@@ -341,6 +358,22 @@ export async function rejectListing(listingId: string, reason?: string) {
       data: { listingId: listing.id, reason: reason || null },
       templateArgs: [listing.title, reason],
     }).catch(() => {});
+  }
+
+  const firstImage2 = await prisma.listingImage.findFirst({
+    where: { listingId: listing.id },
+    select: { imageUrl: true },
+  });
+  if (updatedListing.user.email) {
+    sendEventEmail({
+      to: updatedListing.user.email,
+      type: 'LISTING_REJECTED',
+      vars: {
+        title: listing.title,
+        reason: reason || null,
+        imageUrl: firstImage2?.imageUrl,
+      },
+    }).catch(console.error);
   }
 
   return updatedListing;
