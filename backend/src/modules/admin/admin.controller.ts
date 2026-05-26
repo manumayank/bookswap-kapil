@@ -118,3 +118,33 @@ export async function handleRejectListing(req: Request, res: Response) {
     return sendError(res, error.message, status);
   }
 }
+
+export async function handleGetPendingRequests(req: Request, res: Response) {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const result = await adminService.getPendingRequests(page, limit);
+    return sendPaginated(res, result.requests, result.total, result.page, result.limit);
+  } catch (error: any) {
+    return sendError(res, error.message, 500);
+  }
+}
+
+export async function handleApproveRequest(req: Request, res: Response) {
+  try {
+    const updated = await adminService.approveRequest(req.params.id);
+    return sendSuccess(res, updated);
+  } catch (error: any) {
+    return sendError(res, error.message, 400);
+  }
+}
+
+export async function handleRejectRequest(req: Request, res: Response) {
+  try {
+    const { reason } = req.body || {};
+    const updated = await adminService.rejectRequest(req.params.id, reason);
+    return sendSuccess(res, updated);
+  } catch (error: any) {
+    return sendError(res, error.message, 400);
+  }
+}

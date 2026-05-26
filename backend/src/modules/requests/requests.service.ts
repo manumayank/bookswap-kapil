@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma';
 import { CreateRequestDto, UpdateRequestDto, FindMatchesDto } from './requests.dto';
+import { sendEventEmail, getAdminEmails } from '../../lib/email';
 
 const requestInclude = {
   user: { select: { id: true, name: true, city: true } },
@@ -14,10 +15,46 @@ const listingInclude = {
 };
 
 export async function createRequest(userId: string, data: CreateRequestDto) {
-  return prisma.request.create({
-    data: { ...data, userId },
-    include: requestInclude,
+  const request = await prisma.request.create({
+    data: { ...data, userId, status: 'PENDING_APPROVAL' },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      school: true,
+    },
   });
+
+  // Acknowledge the requester with an in-app notification
+  await prisma.notification.create({
+    data: {
+      userId: request.userId,
+      type: 'REQUEST_SUBMITTED',
+      channel: 'PUSH',
+      title: 'Request Submitted',
+      body: `Thanks for posting your request. It's awaiting admin approval — we'll notify you once it's approved.`,
+      data: { requestId: request.id },
+    },
+  });
+
+  if (request.user?.email) {
+    sendEventEmail({
+      to: request.user.email,
+      type: 'REQUEST_SUBMITTED_REQUESTER',
+      vars: {},
+    }).catch(console.error);
+  }
+  sendEventEmail({
+    to: getAdminEmails(),
+    type: 'REQUEST_SUBMITTED_ADMIN',
+    vars: {
+      requesterName: request.user?.name,
+      board: request.board,
+      class: request.class,
+      city: request.city,
+      maxPrice: request.maxPrice,
+    },
+  }).catch(console.error);
+
+  return request;
 }
 
 export async function getMyRequests(userId: string) {

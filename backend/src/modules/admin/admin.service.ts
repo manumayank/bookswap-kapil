@@ -1,14 +1,16 @@
 import prisma from '../../lib/prisma';
 import { sendWhatsAppNotification } from '../../lib/whatsapp';
+import { sendEventEmail } from '../../lib/email';
 import { checkRequestMatches } from '../requests/requests.service';
 
 export async function getStats() {
-  const [totalUsers, activeListings, openRequests, deals, schools] = await Promise.all([
+  const [totalUsers, activeListings, openRequests, deals, schools, pendingRequests] = await Promise.all([
     prisma.user.count(),
     prisma.listing.count({ where: { status: 'ACTIVE' } }),
     prisma.request.count({ where: { status: { in: ['OPEN', 'MATCHED'] } } }),
     prisma.deal.count(),
     prisma.school.count(),
+    prisma.request.count({ where: { status: 'PENDING_APPROVAL' } }),
   ]);
 
   const [completedDeals, totalListings, totalRequests, pendingListings] = await Promise.all([
@@ -28,6 +30,7 @@ export async function getStats() {
     totalListings,
     totalRequests,
     pendingListings,
+    pendingRequests,
   };
 }
 
@@ -341,4 +344,88 @@ export async function rejectListing(listingId: string, reason?: string) {
   }
 
   return updatedListing;
+}
+
+export async function getPendingRequests(page = 1, limit = 50) {
+  const skip = (page - 1) * limit;
+  const where = { status: 'PENDING_APPROVAL' as const };
+  const [requests, total] = await Promise.all([
+    prisma.request.findMany({
+      where,
+      skip,
+      take: limit,
+      include: { user: { select: { id: true, name: true, email: true, city: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.request.count({ where }),
+  ]);
+  return { requests, total, page, limit };
+}
+
+export async function approveRequest(requestId: string) {
+  const request = await prisma.request.findUnique({
+    where: { id: requestId },
+    include: { user: { select: { id: true, email: true, name: true } } },
+  });
+  if (!request) throw new Error('Request not found');
+  if (request.status !== 'PENDING_APPROVAL') {
+    throw new Error(`Request cannot be approved — current status is ${request.status}`);
+  }
+  const updated = await prisma.request.update({
+    where: { id: requestId },
+    data: { status: 'OPEN' },
+  });
+  await prisma.notification.create({
+    data: {
+      userId: request.userId,
+      type: 'REQUEST_APPROVED',
+      channel: 'PUSH',
+      title: 'Request Approved',
+      body: `Your book request is now live. We'll notify you when a matching listing appears.`,
+      data: { requestId: request.id },
+    },
+  });
+  if (request.user?.email) {
+    sendEventEmail({
+      to: request.user.email,
+      type: 'REQUEST_APPROVED',
+      vars: {},
+    }).catch(console.error);
+  }
+  return updated;
+}
+
+export async function rejectRequest(requestId: string, reason?: string) {
+  const request = await prisma.request.findUnique({
+    where: { id: requestId },
+    include: { user: { select: { id: true, email: true, name: true } } },
+  });
+  if (!request) throw new Error('Request not found');
+  if (request.status !== 'PENDING_APPROVAL') {
+    throw new Error(`Request cannot be rejected — current status is ${request.status}`);
+  }
+  const updated = await prisma.request.update({
+    where: { id: requestId },
+    data: { status: 'REJECTED' },
+  });
+  await prisma.notification.create({
+    data: {
+      userId: request.userId,
+      type: 'REQUEST_REJECTED',
+      channel: 'PUSH',
+      title: 'Request Rejected',
+      body: reason
+        ? `Your request was rejected: ${reason}`
+        : `Your request was rejected. You can post a new one from your dashboard.`,
+      data: { requestId: request.id, reason: reason || null },
+    },
+  });
+  if (request.user?.email) {
+    sendEventEmail({
+      to: request.user.email,
+      type: 'REQUEST_REJECTED',
+      vars: { reason: reason || null },
+    }).catch(console.error);
+  }
+  return updated;
 }

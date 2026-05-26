@@ -17,6 +17,9 @@ router.put('/listings/:id/reject', validate(rejectListingDto), adminController.h
 
 // Requests
 router.get('/requests', adminController.handleGetRequests);
+router.get('/requests/pending', adminController.handleGetPendingRequests);
+router.put('/requests/:id/approve', adminController.handleApproveRequest);
+router.put('/requests/:id/reject', adminController.handleRejectRequest);
 
 // Schools
 router.get('/schools', adminController.handleGetSchools);
