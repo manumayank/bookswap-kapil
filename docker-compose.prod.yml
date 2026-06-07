@@ -44,6 +44,8 @@ services:
       PINNACLE_MOBILE_NO: ${PINNACLE_MOBILE_NO:-}
       PINNACLE_USERNAME: ${PINNACLE_USERNAME:-}
       PINNACLE_PASSWORD: ${PINNACLE_PASSWORD:-}
+      ADMIN_NOTIFICATION_EMAILS: ${ADMIN_NOTIFICATION_EMAILS:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://sybrary.com}
     volumes:
       - bookswap_uploads:/app/uploads
 
