@@ -7,6 +7,7 @@ import { BookOpen, ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } fro
 import BookCard from '@/components/BookCard';
 import EmptyState from '@/components/ui/EmptyState';
 import ErrorState from '@/components/ui/ErrorState';
+import Select from '@/components/ui/Select';
 import BrowseFilters, {
   EMPTY_BROWSE_FILTERS,
   type BrowseFilterValues,
@@ -32,6 +33,12 @@ interface Listing {
 
 type Filters = BrowseFilterValues;
 type SortOption = 'newest' | 'price_asc' | 'price_desc';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'price_asc', label: 'Price: low to high' },
+  { value: 'price_desc', label: 'Price: high to low' },
+];
 
 const PER_PAGE = 9;
 
@@ -304,19 +311,18 @@ function BrowseContent() {
               <label htmlFor="browse-sort" className="sr-only">
                 Sort listings
               </label>
-              <select
+              <Select
                 id="browse-sort"
                 value={sort}
-                onChange={(e) => {
-                  setSort(e.target.value as SortOption);
+                onChange={(value) => {
+                  setSort(value as SortOption);
                   setPage(1);
                 }}
-                className="h-10 flex-1 cursor-pointer py-0 text-sm font-semibold sm:flex-none"
-              >
-                <option value="newest">Newest first</option>
-                <option value="price_asc">Price: low to high</option>
-                <option value="price_desc">Price: high to low</option>
-              </select>
+                options={SORT_OPTIONS}
+                align="right"
+                className="flex-1 sm:w-52 sm:flex-none"
+                buttonClassName="h-10 text-sm font-semibold"
+              />
             </div>
           </div>
 

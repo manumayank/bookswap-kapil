@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
 import PageHeader from '@/components/ui/PageHeader';
+import Select from '@/components/ui/Select';
 import { Field, FieldError, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
 import FormAlert from '@/components/forms/FormAlert';
 import EmptyState from '@/components/ui/EmptyState';
@@ -23,6 +24,11 @@ const TYPES = [
   { label: 'Olympiad', value: 'OLYMPIAD' },
   { label: 'Quiz', value: 'QUIZ' },
 ] as const;
+
+const CLASS_OPTIONS = CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` }));
+const YEAR_OPTIONS = YEARS.map((y) => ({ value: String(y), label: String(y) }));
+const TYPE_OPTIONS = TYPES.map((t) => ({ value: t.value as string, label: t.label as string }));
+const BOARD_SELECT_OPTIONS = BOARD_OPTIONS.map((b) => ({ value: b as string, label: boardLabel(b) }));
 
 const typeLabel = (v: string) => TYPES.find((t) => t.value === v)?.label || v;
 
@@ -301,34 +307,23 @@ export default function PapersPage() {
             </div>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
               <Field id="filter-board" label="Board">
-                <select
+                <Select
                   id="filter-board"
                   value={filters.board}
-                  onChange={(e) => setFilters({ ...filters, board: e.target.value })}
-                  className={controlClass}
-                >
-                  <option value="">All boards</option>
-                  {BOARD_OPTIONS.map((b) => (
-                    <option key={b} value={b}>
-                      {boardLabel(b)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setFilters({ ...filters, board: value })}
+                  options={[{ value: '', label: 'All boards' }, ...BOARD_SELECT_OPTIONS]}
+                />
               </Field>
               <Field id="filter-class" label="Class">
-                <select
+                <Select
                   id="filter-class"
                   value={filters.class}
-                  onChange={(e) => setFilters({ ...filters, class: e.target.value })}
-                  className={controlClass}
-                >
-                  <option value="">All classes</option>
-                  {CLASSES.map((c) => (
-                    <option key={c} value={c}>
-                      Class {c}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setFilters({ ...filters, class: value })}
+                  options={[{ value: '', label: 'All classes' }, ...CLASS_OPTIONS]}
+                  columns={3}
+                  menuMinWidth={288}
+                  align="right"
+                />
               </Field>
               <Field id="filter-subject" label="Subject">
                 <input
@@ -341,34 +336,23 @@ export default function PapersPage() {
                 />
               </Field>
               <Field id="filter-year" label="Year">
-                <select
+                <Select
                   id="filter-year"
                   value={filters.year}
-                  onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-                  className={controlClass}
-                >
-                  <option value="">All years</option>
-                  {YEARS.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setFilters({ ...filters, year: value })}
+                  options={[{ value: '', label: 'All years' }, ...YEAR_OPTIONS]}
+                  columns={3}
+                  menuMinWidth={240}
+                  align="right"
+                />
               </Field>
               <Field id="filter-type" label="Exam type" className="col-span-2 lg:col-span-1">
-                <select
+                <Select
                   id="filter-type"
                   value={filters.type}
-                  onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                  className={controlClass}
-                >
-                  <option value="">All types</option>
-                  {TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setFilters({ ...filters, type: value })}
+                  options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
+                />
               </Field>
               <Field id="filter-school" label="School" className="col-span-2 lg:col-span-1">
                 <div className="relative">
@@ -599,63 +583,51 @@ export default function PapersPage() {
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field id="paper-board" label="Board" error={uploadErrors.board}>
-                  <select
-                    {...fieldA11y('paper-board', { error: uploadErrors.board })}
+                  <Select
+                    id="paper-board"
+                    invalid={!!uploadErrors.board}
+                    aria-describedby={uploadErrors.board ? 'paper-board-error' : undefined}
                     value={uploadForm.board}
-                    onChange={(e) => setUpload('board', e.target.value)}
-                    className={`${controlClass} ${uploadErrors.board ? invalidClass : ''}`}
-                  >
-                    <option value="">Choose board</option>
-                    {BOARD_OPTIONS.map((b) => (
-                      <option key={b} value={b}>
-                        {boardLabel(b)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setUpload('board', value)}
+                    options={BOARD_SELECT_OPTIONS}
+                    placeholder="Choose board"
+                  />
                 </Field>
                 <Field id="paper-class" label="Class" error={uploadErrors.class}>
-                  <select
-                    {...fieldA11y('paper-class', { error: uploadErrors.class })}
+                  <Select
+                    id="paper-class"
+                    invalid={!!uploadErrors.class}
+                    aria-describedby={uploadErrors.class ? 'paper-class-error' : undefined}
                     value={uploadForm.class}
-                    onChange={(e) => setUpload('class', e.target.value)}
-                    className={`${controlClass} ${uploadErrors.class ? invalidClass : ''}`}
-                  >
-                    <option value="">Choose class</option>
-                    {CLASSES.map((c) => (
-                      <option key={c} value={c}>
-                        Class {c}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setUpload('class', value)}
+                    options={CLASS_OPTIONS}
+                    placeholder="Choose class"
+                    columns={3}
+                    menuMinWidth={288}
+                    align="right"
+                  />
                 </Field>
                 <Field id="paper-year" label="Year">
-                  <select
+                  <Select
                     id="paper-year"
                     value={uploadForm.year}
-                    onChange={(e) => setUpload('year', e.target.value)}
-                    className={controlClass}
-                  >
-                    {YEARS.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setUpload('year', value)}
+                    options={YEAR_OPTIONS}
+                    columns={3}
+                    menuMinWidth={240}
+                  />
                 </Field>
                 <Field id="paper-type" label="Exam type" error={uploadErrors.type}>
-                  <select
-                    {...fieldA11y('paper-type', { error: uploadErrors.type })}
+                  <Select
+                    id="paper-type"
+                    invalid={!!uploadErrors.type}
+                    aria-describedby={uploadErrors.type ? 'paper-type-error' : undefined}
                     value={uploadForm.type}
-                    onChange={(e) => setUpload('type', e.target.value)}
-                    className={`${controlClass} ${uploadErrors.type ? invalidClass : ''}`}
-                  >
-                    <option value="">Choose type</option>
-                    {TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setUpload('type', value)}
+                    options={TYPE_OPTIONS}
+                    placeholder="Choose type"
+                    align="right"
+                  />
                 </Field>
               </div>
 

@@ -10,6 +10,7 @@ import ErrorState, { InlineError } from '../_components/ErrorState';
 import { enumLabel } from '../_components/labels';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import Select from '@/components/ui/Select';
 import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
 
 interface SchoolForm {
@@ -21,6 +22,14 @@ interface SchoolForm {
 
 const emptyForm: SchoolForm = { name: '', city: '', board: '', address: '' };
 
+const BOARD_SELECT_OPTIONS = [
+  { value: 'CBSE', label: 'CBSE' },
+  { value: 'ICSE', label: 'ICSE' },
+  { value: 'STATE', label: 'State board' },
+  { value: 'IB', label: 'IB' },
+  { value: 'IGCSE', label: 'IGCSE' },
+];
+
 const labelClass = 'mb-2 block text-sm font-semibold';
 
 export default function AdminSchoolsPage() {
@@ -31,6 +40,7 @@ export default function AdminSchoolsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SchoolForm>(emptyForm);
+  const [boardError, setBoardError] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const fieldId = useId();
 
@@ -81,11 +91,13 @@ export default function AdminSchoolsPage() {
 
   function resetForm() {
     setForm(emptyForm);
+    setBoardError(false);
     setShowForm(false);
     setEditingId(null);
   }
 
   function startEdit(school: any) {
+    setBoardError(false);
     setForm({
       name: school.name || '',
       city: school.city || '',
@@ -105,6 +117,12 @@ export default function AdminSchoolsPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The custom Select isn't covered by native `required` validation, so check board here.
+    if (!form.board) {
+      setBoardError(true);
+      document.getElementById(`${fieldId}-board`)?.focus();
+      return;
+    }
     if (editingId) {
       updateMutation.mutate({ id: editingId, school: form });
     } else {
@@ -188,20 +206,24 @@ export default function AdminSchoolsPage() {
               <label htmlFor={`${fieldId}-board`} className={labelClass}>
                 Board
               </label>
-              <select
+              <Select
                 id={`${fieldId}-board`}
                 value={form.board}
-                onChange={(e) => setForm({ ...form, board: e.target.value })}
+                onChange={(value) => {
+                  setForm({ ...form, board: value });
+                  setBoardError(false);
+                }}
+                options={BOARD_SELECT_OPTIONS}
+                placeholder="Select board"
                 required
-                className="w-full"
-              >
-                <option value="">Select board</option>
-                <option value="CBSE">CBSE</option>
-                <option value="ICSE">ICSE</option>
-                <option value="STATE">State board</option>
-                <option value="IB">IB</option>
-                <option value="IGCSE">IGCSE</option>
-              </select>
+                invalid={boardError}
+                aria-describedby={boardError ? `${fieldId}-board-error` : undefined}
+              />
+              {boardError && (
+                <p id={`${fieldId}-board-error`} role="alert" className="mt-1.5 text-sm font-semibold text-danger">
+                  Select a board.
+                </p>
+              )}
             </div>
             <div>
               <label htmlFor={`${fieldId}-address`} className={labelClass}>

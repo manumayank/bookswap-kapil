@@ -6,6 +6,7 @@ import { BellRing, CheckCircle2, Loader2, Search, SlidersHorizontal } from 'luci
 import api from '@/lib/api';
 import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
 import PageHeader from '@/components/ui/PageHeader';
+import Select from '@/components/ui/Select';
 import { Field, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
 import FormAlert from '@/components/forms/FormAlert';
 import PriceInput from '@/components/forms/PriceInput';
@@ -14,6 +15,14 @@ import BookCard from '@/components/BookCard';
 import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
 
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
+const CLASS_OPTIONS = [
+  { value: '', label: 'Any class' },
+  ...CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` })),
+];
+const BOARD_SELECT_OPTIONS = [
+  { value: '', label: 'Any board' },
+  ...BOARD_OPTIONS.map((b) => ({ value: b, label: boardLabel(b) })),
+];
 const SUBJECTS = [
   'Maths', 'Science', 'Physics', 'Chemistry', 'Biology',
   'English', 'Hindi', 'Sanskrit', 'Social Science', 'History',
@@ -231,35 +240,23 @@ export default function NeedPage() {
                 </Field>
 
                 <Field id="need-class" label="Class">
-                  <select
+                  <Select
                     id="need-class"
                     value={filters.class}
-                    onChange={(e) => handleFilterChange('class', e.target.value)}
-                    className={controlClass}
-                  >
-                    <option value="">Any class</option>
-                    {CLASSES.map((c) => (
-                      <option key={c} value={c}>
-                        Class {c}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => handleFilterChange('class', value)}
+                    options={CLASS_OPTIONS}
+                    columns={3}
+                    menuMinWidth={288}
+                  />
                 </Field>
 
                 <Field id="need-board" label="Board">
-                  <select
+                  <Select
                     id="need-board"
                     value={filters.board}
-                    onChange={(e) => handleFilterChange('board', e.target.value)}
-                    className={controlClass}
-                  >
-                    <option value="">Any board</option>
-                    {BOARD_OPTIONS.map((b) => (
-                      <option key={b} value={b}>
-                        {boardLabel(b)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => handleFilterChange('board', value)}
+                    options={BOARD_SELECT_OPTIONS}
+                  />
                 </Field>
               </div>
 

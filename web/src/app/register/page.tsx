@@ -11,6 +11,12 @@ import AuthCard, { textLinkClass } from '@/components/forms/AuthCard';
 import { Field, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
 import FormAlert from '@/components/forms/FormAlert';
 import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
+import Select from '@/components/ui/Select';
+
+const BOARD_SELECT_OPTIONS = [
+  { value: '', label: 'Choose a board' },
+  ...BOARD_OPTIONS.map((b) => ({ value: b, label: boardLabel(b) })),
+];
 
 type FieldName = 'name' | 'email' | 'phone' | 'city';
 type Errors = Partial<Record<FieldName, string>>;
@@ -74,8 +80,9 @@ export default function RegisterPage() {
     return () => clearTimeout(timeout);
   }, [schoolSearch, form.city, form.board, selectedSchoolName, searchSchools]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => updateField(e.target.name, e.target.value);
+
+  const updateField = (name: string, value: string) => {
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name as FieldName]) setErrors((prev) => ({ ...prev, [name]: undefined }));
 
@@ -225,14 +232,13 @@ export default function RegisterPage() {
           </Field>
 
           <Field id="board" label="School board" optional>
-            <select id="board" name="board" value={form.board} onChange={handleChange} className={controlClass}>
-              <option value="">Choose a board</option>
-              {BOARD_OPTIONS.map((b) => (
-                <option key={b} value={b}>
-                  {boardLabel(b)}
-                </option>
-              ))}
-            </select>
+            <Select
+              id="board"
+              name="board"
+              value={form.board}
+              onChange={(value) => updateField('board', value)}
+              options={BOARD_SELECT_OPTIONS}
+            />
           </Field>
         </div>
 

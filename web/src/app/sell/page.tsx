@@ -24,8 +24,11 @@ import PriceInput from '@/components/forms/PriceInput';
 import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
+import Select from '@/components/ui/Select';
 
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
+const CLASS_OPTIONS = CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` }));
+const BOARD_SELECT_OPTIONS = BOARD_OPTIONS.map((b) => ({ value: b, label: boardLabel(b) }));
 const CATEGORIES = [
   { label: 'Textbook', value: 'BOOK', icon: BookOpen },
   { label: 'Stationery', value: 'STATIONERY', icon: PencilRuler },
@@ -166,11 +169,12 @@ export default function SellPage() {
     return () => clearTimeout(timeout);
   }, [schoolSearch, selectedSchoolName, searchSchools]);
 
-  const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const value = e.target.value;
+  const setField = (key: keyof Values, value: string) => {
     setValues((v) => ({ ...v, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   };
+  const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setField(key, e.target.value);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -593,34 +597,29 @@ export default function SellPage() {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <Field id="sell-board" label="Board" error={errors.board}>
-                    <select
-                      {...fieldA11y('sell-board', { error: errors.board })}
+                    <Select
+                      id="sell-board"
+                      invalid={!!errors.board}
+                      aria-describedby={errors.board ? 'sell-board-error' : undefined}
                       value={values.board}
-                      onChange={set('board')}
-                      className={`${controlClass} ${errors.board ? invalidClass : ''}`}
-                    >
-                      <option value="">Choose board</option>
-                      {BOARD_OPTIONS.map((board) => (
-                        <option key={board} value={board}>
-                          {boardLabel(board)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setField('board', value)}
+                      options={BOARD_SELECT_OPTIONS}
+                      placeholder="Choose board"
+                    />
                   </Field>
                   <Field id="sell-class" label="Class" error={errors.class}>
-                    <select
-                      {...fieldA11y('sell-class', { error: errors.class })}
+                    <Select
+                      id="sell-class"
+                      invalid={!!errors.class}
+                      aria-describedby={errors.class ? 'sell-class-error' : undefined}
                       value={values.class}
-                      onChange={set('class')}
-                      className={`${controlClass} ${errors.class ? invalidClass : ''}`}
-                    >
-                      <option value="">Choose class</option>
-                      {CLASSES.map((cls) => (
-                        <option key={cls} value={cls}>
-                          Class {cls}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setField('class', value)}
+                      options={CLASS_OPTIONS}
+                      placeholder="Choose class"
+                      columns={3}
+                      menuMinWidth={288}
+                      align="right"
+                    />
                   </Field>
                 </div>
 
