@@ -42,7 +42,8 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   const VIEW_H = 712;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -2000, 2000);
   camera.position.set(0, 0, 800);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x9a98c0, 1.15));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x9a98c0, 1.15);
+  scene.add(hemi);
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
   sunLight.position.set(-200, 300, 500);
   scene.add(sunLight);
@@ -89,7 +90,8 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     sun: new THREE.Color('#ffc93c'),
     green: new THREE.Color('#12a874'),
     rose: new THREE.Color('#ff8fa3'),
-    key: new THREE.Color(isDark() ? '#2f2e46' : '#dfdee7'),
+    key: new THREE.Color(isDark() ? '#2c2b57' : '#dfdee7'),
+    sunRoll: new THREE.Color(isDark() ? '#e6b64a' : '#ffc93c'),
     lcd: new THREE.Color('#17153a'),
   });
   const canvasTex = (c: HTMLCanvasElement) => {
@@ -117,7 +119,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   const house = inked(new RoundedBoxGeometry(BASE_W - 6, HOUSE_H, HOUSE_D, 6, 18), 'card', 2.6);
   house.position.set(0, HOUSE_Y, HOUSE_Z);
   machine.add(house);
-  const roll = inked(new THREE.CylinderGeometry(44, 44, BASE_W - 40, 40), 'sun', 2.2);
+  const roll = inked(new THREE.CylinderGeometry(44, 44, BASE_W - 40, 40), 'sunRoll', 2.2);
   roll.rotation.z = Math.PI / 2;
   roll.position.set(0, HOUSE_Y + HOUSE_H / 2 - 6, HOUSE_Z - 14);
   machine.add(roll);
@@ -279,12 +281,13 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   paperTex.anisotropy = 8;
   const LINES = 14;
   let receipt: Receipt | null = null;
+  let paperTint = '#fffdf6';
   function drawPaper(rowsShown: number) {
     const c = paperCanvas.getContext('2d')!;
     const W = 540, H = 880;
     c.globalCompositeOperation = 'source-over';
     c.clearRect(0, 0, W, H);
-    c.fillStyle = '#fffdf6';
+    c.fillStyle = paperTint;
     c.fillRect(0, 0, W, H);
     c.globalCompositeOperation = 'destination-out';
     c.beginPath();
@@ -370,7 +373,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   }
   const clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const paperMat = track(new THREE.MeshBasicMaterial({ map: paperTex, side: THREE.DoubleSide, alphaTest: 0.5, clippingPlanes: [clip] }));
-  const shadowMat = track(new THREE.MeshBasicMaterial({ color: 0x17153a, alphaMap: paperTex, alphaTest: 0.5, side: THREE.DoubleSide, clippingPlanes: [clip] }));
+  const shadowMat = track(new THREE.MeshBasicMaterial({ color: 0x0c0b1e, alphaMap: paperTex, alphaTest: 0.5, side: THREE.DoubleSide, clippingPlanes: [clip] }));
   const paper = new THREE.Mesh(paperGeo, paperMat);
   const paperShadow = new THREE.Mesh(paperGeo, shadowMat);
   paperShadow.position.set(6, -6, -2);
@@ -530,6 +533,11 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     const pal = palette() as any;
     toonMats.forEach((m) => m.color.copy(pal[m.userData.key]));
     outlineMats.forEach((m) => m.uniforms.color.value.copy(pal.ink));
+    // dark mode: softer light so the machine sits in the page instead of glowing
+    hemi.intensity = isDark() ? 0.95 : 1.15;
+    sunLight.intensity = isDark() ? 1.15 : 1.5;
+    paperTint = isDark() ? '#efeadf' : '#fffdf6';
+    lastRows = -1;
     drawLcd(lcdValue);
     drawLegends();
     drawBrand();

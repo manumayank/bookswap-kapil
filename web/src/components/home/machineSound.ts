@@ -73,6 +73,20 @@ export function createMachineSound(): MachineSound {
     src.start(at, Math.random() * 0.3);
     src.stop(at + dur + 0.02);
   }
+  // very short high-passed noise tick
+  function hp(at: number, dur: number, freq: number, gain: number) {
+    const src = ctx!.createBufferSource();
+    src.buffer = noise!;
+    const f = ctx!.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = freq;
+    const g = ctx!.createGain();
+    g.gain.setValueAtTime(gain, at);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    src.connect(f).connect(g).connect(master!);
+    src.start(at, Math.random() * 0.3);
+    src.stop(at + dur + 0.02);
+  }
   // short pitched tone
   function tone(at: number, dur: number, type: OscillatorType, from: number, to: number, gain: number) {
     const o = ctx!.createOscillator();
@@ -91,8 +105,14 @@ export function createMachineSound(): MachineSound {
     click(strength = 1) {
       if (!ready()) return;
       const t = ctx!.currentTime;
-      burst(t, 0.03, 3200 + Math.random() * 900, 4, 0.5 * strength);
-      tone(t, 0.04, 'triangle', 420, 160, 0.18 * strength);
+      const v = 0.92 + Math.random() * 0.16; // slight variation so repeats don't sound robotic
+      // 1. plastic tick as the keycap starts to move
+      hp(t, 0.008, 4200 * v, 0.42 * strength);
+      // 2. bottom-out "thock": a mid body plus a short low knock
+      burst(t + 0.012, 0.045, 1050 * v, 2.2, 0.5 * strength);
+      tone(t + 0.012, 0.05, 'sine', 190 * v, 85, 0.22 * strength);
+      // 3. softer tick as the key springs back
+      hp(t + 0.085, 0.006, 3600 * v, 0.14 * strength);
     },
     printRun(seconds) {
       if (!ready()) return;

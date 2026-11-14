@@ -105,31 +105,31 @@ html.dark {
   --sun-rgb: 255 214 102;
   --sun: #ffd666;
 
-  --background-rgb: 20 20 30;
-  --background: #14141e;
+  --background-rgb: 18 18 37;
+  --background: #121225;
   --foreground-rgb: 244 243 250;
   --foreground: #f4f3fa;
-  --card-rgb: 29 29 42;
-  --card: #1d1d2a;
+  --card-rgb: 27 27 52;
+  --card: #1b1b34;
   --muted-rgb: 198 197 214;
   --muted: #c6c5d6;
   --muted-light-rgb: 156 155 178;
   --muted-light: #9c9bb2;
-  --muted-extra-light-rgb: 39 39 56;
-  --muted-extra-light: #272738;
+  --muted-extra-light-rgb: 38 38 74;
+  --muted-extra-light: #26264a;
 
-  --edge-rgb: 214 213 228;
-  --edge: #d6d5e4;
-  --drop: #45436a;
-  --card-border: rgba(214, 213, 228, 0.14);
-  --border: rgba(214, 213, 228, 0.28);
+  --edge-rgb: 169 166 216;
+  --edge: #a9a6d8;
+  --drop: #2a2862;
+  --card-border: rgba(169, 166, 216, 0.16);
+  --border: rgba(169, 166, 216, 0.32);
 
-  --surface-inverse-rgb: 12 12 20;
+  --surface-inverse-rgb: 10 10 24;
 
   --badge-primary-text: #c7c9ff;
   --badge-secondary-text: #7cf0c6;
 
-  --glass-bg: rgba(20, 20, 30, 0.9);
+  --glass-bg: rgba(18, 18, 37, 0.9);
 }
 
 * {
