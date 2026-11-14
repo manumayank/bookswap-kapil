@@ -6,7 +6,7 @@ export const sendOtpDto = z.object({
 
 export const verifyOtpDto = z.object({
   email: z.string().email('Invalid email address'),
-  otp: z.string().length(6, 'OTP must be 6 digits'),
+  otp: z.string().regex(/^\d{4,6}$/, 'Enter the code from the email'),
 });
 
 export const refreshTokenDto = z.object({

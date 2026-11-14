@@ -9,6 +9,7 @@ import BookCard from '@/components/BookCard';
 import ErrorState from '@/components/ui/ErrorState';
 import Reveal from '@/components/Reveal';
 import ReceiptArt from '@/components/home/ReceiptArt';
+import Select from '@/components/ui/Select';
 import api from '@/lib/api';
 import { boardLabel } from '@/lib/labels';
 
@@ -44,32 +45,36 @@ type SlotProps = {
   options: { value: string; label: string }[];
   tone?: 'sun' | 'primary';
   flipKey: number;
+  columns?: number;
 };
 
-function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey }: SlotProps) {
+/** A yellow word in the hero sentence that opens a pencil-box dropdown. */
+function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey, columns }: SlotProps) {
   return (
-    <span
-      className={`group relative inline-flex items-center gap-[0.12em] align-baseline mx-[0.04em] my-[0.08em] px-[0.22em] rounded-[0.22em] border-2 border-edge shadow-pop transition-transform duration-150 ease-pop hover:-translate-x-0.5 hover:-translate-y-0.5 hover:-rotate-1 focus-within:-translate-y-0.5 focus-within:ring-4 focus-within:ring-primary/40 ${
+    <Select
+      aria-label={label}
+      value={value}
+      onChange={onChange}
+      options={options}
+      columns={columns}
+      menuMinWidth={columns && columns > 1 ? 240 : 200}
+      className="align-baseline mx-[0.04em] my-[0.08em]"
+      triggerClassName={`group inline-flex items-center gap-[0.12em] px-[0.22em] rounded-[0.22em] border-2 border-edge shadow-pop transition-transform duration-150 ease-pop hover:-translate-x-0.5 hover:-translate-y-0.5 hover:-rotate-1 aria-expanded:-translate-y-0.5 aria-expanded:-rotate-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
         tone === 'primary' ? 'bg-primary text-on-primary' : 'bg-sun text-ink'
       }`}
-    >
-      <span key={flipKey} className="inline-block animate-[slotFlip_.35s_cubic-bezier(.34,1.56,.64,1)]">
-        {display}
-      </span>
-      <ChevronDown aria-hidden className="w-[0.42em] h-[0.42em] opacity-70 shrink-0" strokeWidth={3} />
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base !p-0 !border-0 !shadow-none"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </span>
+      renderTrigger={({ open }) => (
+        <>
+          <span key={flipKey} className="inline-block animate-[slotFlip_.35s_cubic-bezier(.34,1.56,.64,1)]">
+            {display}
+          </span>
+          <ChevronDown
+            aria-hidden
+            className={`w-[0.42em] h-[0.42em] opacity-70 shrink-0 transition-transform duration-200 ease-pop ${open ? 'rotate-180' : ''}`}
+            strokeWidth={3}
+          />
+        </>
+      )}
+    />
   );
 }
 
@@ -145,7 +150,8 @@ function HeroSentence() {
           value={cls}
           display={`Class ${cls}`}
           onChange={change('cls', setCls)}
-          options={CLASSES.map((c) => ({ value: c, label: `Class ${c}` }))}
+          options={CLASSES.map((c) => ({ value: c, label: c }))}
+          columns={4}
           flipKey={flips.cls}
         />{' '}
         <Slot

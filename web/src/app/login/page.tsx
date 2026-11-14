@@ -62,7 +62,7 @@ export default function LoginPage() {
     e.preventDefault();
     resetMessages();
 
-    if (otp.length !== 6) {
+    if (!/^\d{4,6}$/.test(otp)) {
       setFieldError('Enter all 6 digits from the email.');
       return;
     }
