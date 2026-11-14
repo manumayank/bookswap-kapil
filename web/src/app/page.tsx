@@ -9,6 +9,7 @@ import BookCard from '@/components/BookCard';
 import ErrorState from '@/components/ui/ErrorState';
 import Reveal from '@/components/Reveal';
 import HeroMachine from '@/components/home/HeroMachine';
+import HeroBackground from '@/components/home/HeroBackground';
 import Select from '@/components/ui/Select';
 import api from '@/lib/api';
 import { boardLabel } from '@/lib/labels';
@@ -356,7 +357,8 @@ export default function HomePage() {
     <div className="pb-8">
       {/* ---------- Hero ---------- */}
       <section className="relative overflow-hidden border-b-2 border-edge">
-        <div className="container relative pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-16 lg:pb-20">
+        <HeroBackground />
+        <div className="container relative z-[1] pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-16 lg:pb-20">
           <HeroSentence />
 
         </div>
