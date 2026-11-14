@@ -3,9 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  BookOpen,
+  BookX,
+  Check,
+  GraduationCap,
+  Lock,
+  MapPin,
+  PencilRuler,
+  School,
+  ShieldCheck,
+  Tag,
+} from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
-import { boardLabel, categoryLabel, conditionLabel } from '@/lib/labels';
+import { boardLabel, categoryLabel, conditionLabel, pickupLabel } from '@/lib/labels';
+import { coverTone, formatRupees } from '@/components/listing/format';
 
 interface Listing {
   id: string;
@@ -18,8 +32,11 @@ interface Listing {
   subject?: string;
   category: string;
   city: string;
+  sector?: string | null;
+  pickupLocation?: string | null;
   description?: string;
   status: string;
+  createdAt?: string;
   images: { imageUrl: string }[];
   user: {
     id: string;
@@ -31,10 +48,14 @@ interface Listing {
   };
 }
 
+function firstName(name?: string): string {
+  return (name || '').trim().split(/\s+/)[0] || 'the seller';
+}
+
 export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated, hydrate } = useAuthStore();
+  const { isAuthenticated, user, hydrate } = useAuthStore();
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +79,7 @@ export default function ListingDetailPage() {
   async function fetchListing(id: string) {
     try {
       setLoading(true);
+      setError('');
       const { data } = await api.get(`/listings/${id}`);
       if (data.success) {
         setListing(data.data);
@@ -85,7 +107,7 @@ export default function ListingDetailPage() {
       const { data } = await api.post('/deals', {
         listingId: listing.id,
       });
-      
+
       if (data.success) {
         setDealCreated(true);
         // Redirect to deals page after 2 seconds
@@ -94,7 +116,7 @@ export default function ListingDetailPage() {
         }, 2000);
       }
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Could not send your interest. Please try again.';
+      const message = err.response?.data?.error || 'Your request did not go through. Please try again.';
       setDealError(message);
     } finally {
       setCreatingDeal(false);
@@ -103,15 +125,27 @@ export default function ListingDetailPage() {
 
   if (loading) {
     return (
-      <div className="container py-20">
-        <div className="flex flex-col lg:flex-row gap-10 lg:gap-20 animate-pulse">
-          <div className="flex-1">
-            <div className="aspect-[4/3] rounded-[32px] md:rounded-[48px] bg-muted-extra-light" />
+      <div className="container py-8 md:py-12" aria-busy="true" aria-label="Loading listing">
+        <div className="skeleton mb-6 h-10 w-36" />
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12">
+          <div>
+            <div className="skeleton aspect-[4/3] rounded-lg" />
+            <div className="mt-4 grid grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="skeleton aspect-square" />
+              ))}
+            </div>
           </div>
-          <div className="w-full lg:w-[500px]">
-            <div className="h-8 w-32 bg-muted-extra-light rounded-md mb-6" />
-            <div className="h-16 w-full bg-muted-extra-light rounded-md mb-8" />
-            <div className="h-12 w-48 bg-muted-extra-light rounded-md" />
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="skeleton h-7 w-20 rounded-full" />
+              <div className="skeleton h-7 w-16 rounded-full" />
+            </div>
+            <div className="skeleton h-12 w-full" />
+            <div className="skeleton h-12 w-2/3" />
+            <div className="skeleton h-36 w-full rounded-lg" />
+            <div className="skeleton h-14 w-full" />
+            <div className="skeleton h-32 w-full rounded-lg" />
           </div>
         </div>
       </div>
@@ -120,265 +154,277 @@ export default function ListingDetailPage() {
 
   if (error || !listing) {
     return (
-      <div className="container py-20 text-center">
-        <h1 className="text-4xl font-black mb-4">Listing Not Found</h1>
-        <p className="text-muted-light mb-8">{error || 'This listing may have been removed or doesn&apos;t exist.'}</p>
-        <Link href="/browse" className="btn btn-primary">
-          Browse Listings
-        </Link>
+      <div className="container py-16 md:py-24">
+        <div className="card-flat mx-auto flex max-w-lg flex-col items-center px-6 py-12 text-center">
+          <span className="mb-5 flex h-16 w-16 -rotate-3 items-center justify-center rounded-lg border-2 border-edge bg-sun text-ink shadow-pop-sm">
+            <BookX className="h-8 w-8" strokeWidth={1.75} aria-hidden />
+          </span>
+          <h1 className="mb-3 text-3xl md:text-4xl">This listing isn&apos;t available</h1>
+          <p className="mb-7 text-muted">
+            It may have been sold, or the seller removed it. There could be another copy for the same class.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link href="/browse" className="btn btn-primary">
+              Browse books
+            </Link>
+            <Link href="/need" className="btn btn-outline">
+              Request this book
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   const isSold = listing.status === 'SOLD' || listing.status === 'CANCELLED';
-  const savingsPercent = listing.buyingPrice 
-    ? Math.round(((listing.buyingPrice - listing.sellingPrice) / listing.buyingPrice) * 100)
-    : 0;
+  const isOwner = !!user && user.id === listing.user.id;
+  const hasMrp = !!listing.buyingPrice && listing.buyingPrice > listing.sellingPrice;
+  const savings = hasMrp ? listing.buyingPrice! - listing.sellingPrice : 0;
+  const savingsPercent = hasMrp ? Math.round((savings / listing.buyingPrice!) * 100) : 0;
+  const images = listing.images || [];
+  const activeImage = images[selectedImage]?.imageUrl || images[0]?.imageUrl;
+  const isStationery = listing.category === 'STATIONERY';
+  const Glyph = isStationery ? PencilRuler : BookOpen;
+  const seller = firstName(listing.user.name);
+  const listedOn = listing.createdAt
+    ? new Date(listing.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const pickup = [listing.pickupLocation ? pickupLabel(listing.pickupLocation) : '', listing.sector]
+    .filter(Boolean)
+    .join(', ');
+
+  const details: { icon: typeof MapPin; label: string; value: string }[] = [
+    ...(listing.class ? [{ icon: GraduationCap, label: 'Class', value: `Class ${listing.class}` }] : []),
+    ...(listing.board ? [{ icon: BookOpen, label: 'Board', value: boardLabel(listing.board) }] : []),
+    ...(listing.school ? [{ icon: School, label: 'School', value: listing.school.name }] : []),
+    { icon: Tag, label: 'Condition', value: conditionLabel(listing.condition) },
+    { icon: MapPin, label: 'Pickup', value: pickup ? `${pickup}, ${listing.city}` : listing.city },
+  ];
+
+  // The one action on the page, rendered in the side column on desktop and
+  // in a sticky bar on phones.
+  function renderAction(size: 'lg' | 'md') {
+    const h = size === 'lg' ? 'btn-lg' : '';
+    if (isOwner) {
+      return (
+        <Link href="/dashboard" className={`btn btn-outline w-full ${h}`}>
+          Manage your listing
+        </Link>
+      );
+    }
+    if (dealCreated) {
+      return (
+        <p role="status" className={`btn btn-secondary w-full ${h} pointer-events-none`}>
+          <Check className="h-5 w-5" aria-hidden />
+          Request sent
+        </p>
+      );
+    }
+    if (isSold) {
+      return (
+        <p className={`btn btn-outline w-full ${h} pointer-events-none text-muted`} aria-disabled="true">
+          No longer available
+        </p>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={handleCreateDeal}
+        disabled={creatingDeal}
+        className={`btn btn-primary w-full ${h}`}
+      >
+        {creatingDeal
+          ? 'Sending request…'
+          : isAuthenticated
+            ? 'Request this book'
+            : 'Log in to request this book'}
+      </button>
+    );
+  }
 
   return (
-    <div className="container py-12 md:py-20">
-      <div className="flex flex-col lg:flex-row gap-10 lg:gap-20">
-        {/* Left: Image Gallery */}
-        <div className="flex-1 animate-fade-in">
-          <Link
-            href="/browse"
-            className="inline-flex items-center gap-2 min-h-10 text-xs font-black uppercase tracking-[0.2em] text-muted-light hover:text-primary transition-colors mb-8"
-          >
-            ← Back to Marketplace
-          </Link>
+    <div className="container pb-32 pt-6 md:pt-10 lg:pb-16">
+      <Link
+        href="/browse"
+        className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-muted decoration-primary decoration-2 underline-offset-4 hover:text-foreground hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Back to browse
+      </Link>
 
-          <div className="aspect-[4/3] rounded-[32px] md:rounded-[48px] bg-muted-extra-light border border-card-border overflow-hidden relative shadow-2xl">
-            {listing.images && listing.images.length > 0 ? (
-              <img 
-                src={`${listing.images[selectedImage]?.imageUrl || listing.images[0]?.imageUrl}`}
-                alt={listing.title}
-                className="w-full h-full object-cover"
-              />
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12 animate-fade-in">
+        {/* Left: gallery + about */}
+        <div className="min-w-0">
+          <div className="card-premium relative aspect-[4/3] overflow-hidden rounded-lg">
+            {activeImage ? (
+              <img src={activeImage} alt={listing.title} className="h-full w-full object-cover" />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 md:p-20 bg-primary/5">
-                <span className="text-7xl md:text-[120px] mb-4 md:mb-8" aria-hidden>📚</span>
-                <p className="text-muted-light font-black uppercase tracking-widest text-xs">
-                  Photo Coming Soon
-                </p>
+              <div className={`flex h-full w-full flex-col items-center justify-center gap-3 ${coverTone(listing.id)}`}>
+                <Glyph className="h-24 w-24 text-ink md:h-32 md:w-32" strokeWidth={1.5} aria-hidden />
+                <span className="text-sm font-semibold text-ink">No photo yet</span>
               </div>
             )}
             {isSold && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <span className="text-white text-4xl font-black border-4 border-white px-8 py-4 rotate-[-15deg]">
-                  SOLD
+              <div className="absolute inset-0 flex items-center justify-center bg-surface-inverse/60">
+                <span className="sticker px-5 py-2 text-2xl">
+                  {listing.status === 'SOLD' ? 'Sold' : 'No longer available'}
                 </span>
               </div>
             )}
-            <div className="absolute top-4 left-4 md:top-8 md:left-8 flex flex-wrap gap-2 md:gap-3">
-              <span className="badge badge-primary glass backdrop-blur-md px-4 py-2 md:px-6 md:py-3">
-                {conditionLabel(listing.condition)}
-              </span>
-              {listing.board && (
-                <span className="badge text-foreground glass backdrop-blur-md px-4 py-2 md:px-6 md:py-3">
-                  {boardLabel(listing.board)}
-                </span>
-              )}
-            </div>
           </div>
 
-          {listing.images && listing.images.length > 1 && (
-            <div className="grid grid-cols-4 gap-3 md:gap-4 mt-6 md:mt-8">
-              {listing.images.map((img, i) => (
+          {images.length > 1 && (
+            <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-5">
+              {images.map((img, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setSelectedImage(i)}
-                  aria-label={`Show photo ${i + 1} of ${listing.images.length}`}
+                  aria-label={`Show photo ${i + 1} of ${images.length}`}
                   aria-pressed={selectedImage === i}
-                  className={`aspect-square rounded-2xl md:rounded-3xl border-2 overflow-hidden cursor-pointer transition-all hover:scale-105 ${
-                    selectedImage === i ? 'border-primary' : 'border-card-border'
+                  className={`aspect-square overflow-hidden rounded-md border-2 transition-transform duration-150 ${
+                    selectedImage === i
+                      ? 'border-edge shadow-pop-sm -translate-x-0.5 -translate-y-0.5'
+                      : 'border-card-border opacity-80 hover:border-edge hover:opacity-100'
                   }`}
                 >
-                  <img src={`${img.imageUrl}`} alt="" className="w-full h-full object-cover" />
+                  <img src={img.imageUrl} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
           )}
+
+          {/* About (desktop position; repeated below the action on phones) */}
+          <section className="mt-10 hidden lg:block" aria-labelledby="about-heading-desktop">
+            <h2 id="about-heading-desktop" className="mb-3 text-2xl">
+              About this {isStationery ? 'set' : 'book'}
+            </h2>
+            <p className="max-w-[68ch] whitespace-pre-line text-muted">
+              {listing.description || `${seller} hasn't added a description.`}
+            </p>
+          </section>
         </div>
 
-        {/* Right: Details & Actions */}
-        <div className="w-full lg:w-[500px] flex flex-col animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          {/* Subject & Class Tags */}
-          <div className="mb-12">
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              {listing.subject && (
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary bg-primary/10 px-3 py-1 rounded-md">
-                  {listing.subject}
-                </span>
-              )}
-              {listing.class && (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-light" />
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-light">
-                    Class {listing.class}
-                  </span>
-                </>
-              )}
-              {listing.category && (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-light" />
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-light">
-                    {categoryLabel(listing.category)}
-                  </span>
-                </>
-              )}
-            </div>
-
-            <h1 className="text-4xl md:text-5xl font-black mb-8 tracking-tighter leading-none">
-              {listing.title}
-            </h1>
-
-            {/* Price */}
-            <div className="flex items-center gap-6">
-              <span className="text-4xl md:text-5xl font-black tracking-tighter">
-                ₹{listing.sellingPrice}
-              </span>
-              {!!listing.buyingPrice && listing.buyingPrice > listing.sellingPrice && (
-                <div className="flex flex-col">
-                  <span className="text-muted-light line-through font-bold text-sm tracking-tighter">
-                    ₹{listing.buyingPrice} MRP
-                  </span>
-                  <span className="text-secondary font-black text-xs uppercase tracking-widest">
-                    {savingsPercent}% Savings
-                  </span>
-                </div>
-              )}
-            </div>
+        {/* Right: summary, price, action, seller */}
+        <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+          <div className="mb-3 flex flex-wrap gap-2">
+            {listing.class ? <span className="badge badge-primary">Class {listing.class}</span> : null}
+            {listing.board ? <span className="badge badge-muted">{boardLabel(listing.board)}</span> : null}
+            <span className="badge badge-muted">{categoryLabel(listing.category)}</span>
+            {listing.subject ? <span className="badge badge-muted">{listing.subject}</span> : null}
           </div>
 
-          {/* Description & Detail Grid */}
-          <div className="card-flat p-6 md:p-10 mb-12">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-light mb-6">
-              Description
-            </h3>
-            <p className="text-muted font-medium leading-relaxed text-base mb-10">
-              {listing.description || 'No description provided.'}
-            </p>
+          <h1 className="mb-2 text-4xl md:text-5xl">{listing.title}</h1>
+          {listedOn && <p className="mb-6 text-sm text-muted">Listed on {listedOn}</p>}
 
-            <div className="grid grid-cols-2 gap-y-8 gap-x-4 pt-10 border-t border-card-border">
-              {listing.board && (
-                <div>
-                  <span className="block text-muted-light font-black uppercase tracking-widest text-xs mb-2">
-                    Academic Board
-                  </span>
-                  <span className="font-bold text-sm">{boardLabel(listing.board)}</span>
-                </div>
-              )}
-              {listing.class && (
-                <div>
-                  <span className="block text-muted-light font-black uppercase tracking-widest text-xs mb-2">
-                    Class Level
-                  </span>
-                  <span className="font-bold text-sm">Class {listing.class}</span>
-                </div>
-              )}
-              <div>
-                <span className="block text-muted-light font-black uppercase tracking-widest text-xs mb-2">
-                  Condition
-                </span>
-                <span className="font-bold text-sm">{conditionLabel(listing.condition)}</span>
-              </div>
-              <div>
-                <span className="block text-muted-light font-black uppercase tracking-widest text-xs mb-2">
-                  Location
-                </span>
-                <span className="font-bold text-sm">{listing.city}</span>
-              </div>
-              {listing.school && (
-                <div className="col-span-2">
-                  <span className="block text-muted-light font-black uppercase tracking-widest text-xs mb-2">
-                    School
-                  </span>
-                  <span className="font-bold text-sm">{listing.school.name}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Seller Card — Identity hidden until deal accepted */}
-          <div className="card-flat p-6 md:p-8 bg-muted-extra-light/50 border-transparent mb-12">
-            <div className="flex items-center gap-6 mb-6">
-              <div className="w-16 h-16 rounded-[22px] bg-primary text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-primary/20">
-                {listing.user.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <h4 className="font-black text-xl tracking-tight">
-                  Seller in {listing.user.city}
-                </h4>
-                <p className="text-muted-light text-xs font-bold uppercase tracking-tighter">
-                  Posted by {listing.user.name.split(' ')[0]}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 px-4 py-3 rounded-xl bg-primary/5 border border-primary/10">
-              <p className="text-xs text-muted font-medium leading-relaxed">
-                🔒 Seller&apos;s full name, phone, and address are revealed only after you both agree to the deal.
+          {/* Price block */}
+          <div className="card-flat mb-5 p-5">
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <p className="text-5xl font-extrabold leading-none tracking-tight">
+                <span className="sr-only">Price </span>
+                {formatRupees(listing.sellingPrice)}
               </p>
+              {hasMrp && (
+                <p className="pb-1 text-muted">
+                  <span className="sr-only">Original price </span>
+                  <s>{formatRupees(listing.buyingPrice!)}</s> new
+                </p>
+              )}
+              {hasMrp && (
+                <span className="badge badge-secondary mb-1 text-sm">
+                  Save {formatRupees(savings)} ({savingsPercent}%)
+                </span>
+              )}
             </div>
+
+            <dl className="mt-5 grid gap-3 border-t-2 border-card-border pt-5 sm:grid-cols-2">
+              {details.map(({ icon: Icon, label, value }) => (
+                <div key={label} className={`flex items-start gap-3 ${label === 'School' || label === 'Pickup' ? 'sm:col-span-2' : ''}`}>
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-muted-extra-light text-primary">
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="text-sm text-muted">{label}</dt>
+                    <dd className="font-semibold">{value}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
           </div>
 
-          {/* Deal Error Message */}
           {dealError && (
-            <div role="alert" className="mb-4 p-4 rounded-xl bg-accent/10 text-accent font-medium">
+            <div role="alert" className="mb-4 rounded-md border-2 border-accent bg-accent/10 px-4 py-3 text-sm font-semibold text-accent">
               {dealError}
             </div>
           )}
+          {dealCreated && (
+            <p role="status" className="mb-4 rounded-md border-2 border-secondary bg-secondary/10 px-4 py-3 text-sm font-semibold text-secondary-dark">
+              Request sent to {seller}. Taking you to your deals&hellip;
+            </p>
+          )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-4 sticky bottom-8 p-1 glass backdrop-blur-xl rounded-[32px] shadow-2xl">
-            {dealCreated ? (
-              <div role="status" className="min-h-16 md:min-h-20 px-4 text-center flex items-center justify-center text-lg md:text-xl font-black text-secondary rounded-3xl bg-secondary/10">
-                ✓ Interest Expressed! Check Dashboard
+          <div className="mb-6 hidden lg:block">{renderAction('lg')}</div>
+
+          {/* Locked seller panel */}
+          {!isOwner && (
+            <div className="card-soft p-5">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border-2 border-edge bg-sun text-ink">
+                  <Lock className="h-5 w-5" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold">
+                    Listed by {seller} in {listing.user.city || listing.city}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted">
+                    {seller}&apos;s phone number and pickup address unlock once they accept your request. Until
+                    then, neither of you sees the other&apos;s contact details.
+                  </p>
+                </div>
               </div>
-            ) : isSold ? (
-              <div className="min-h-16 md:min-h-20 px-4 text-center flex items-center justify-center text-lg md:text-xl font-black text-muted rounded-3xl bg-muted-extra-light">
-                This item is no longer available
-              </div>
-            ) : (
-              <button
-                onClick={handleCreateDeal}
-                disabled={creatingDeal}
-                className="btn btn-primary h-16 md:h-20 text-lg md:text-xl font-black rounded-3xl w-full shadow-2xl group"
-              >
-                {creatingDeal ? (
-                  'Processing...'
-                ) : !isAuthenticated ? (
-                  <>
-                    Login to Express Interest
-                    <span className="group-hover:translate-x-1 transition-transform ml-2">→</span>
-                  </>
-                ) : (
-                  <>
-                    I&apos;m Interested
-                    <span className="group-hover:translate-x-1 transition-transform ml-2">🛒</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* About (phone position) */}
+          <section className="mt-8 lg:hidden" aria-labelledby="about-heading">
+            <h2 id="about-heading" className="mb-3 text-2xl">
+              About this {isStationery ? 'set' : 'book'}
+            </h2>
+            <p className="whitespace-pre-line text-muted">
+              {listing.description || `${seller} hasn't added a description.`}
+            </p>
+          </section>
         </div>
       </div>
 
-      {/* Safety Banner */}
-      <div className="mt-20 md:mt-32 p-8 md:p-12 rounded-[32px] md:rounded-[48px] bg-surface-inverse text-center relative overflow-hidden">
-        <div className="relative z-10">
-          <h3 className="text-white font-black text-2xl mb-4 tracking-tight">
-            Stay Safe with Sybrary
-          </h3>
-          <p className="text-white/70 text-base font-medium max-w-2xl mx-auto leading-relaxed">
-            We recommend meeting in public, well-lit areas for exchanges. Never share your OTP or
-            bank details before verifying the item in person. Seller details are only shared after
-            both parties accept the deal.
-          </p>
+      {/* Safety tips */}
+      <section className="card-soft mt-12 p-5 md:mt-16 md:p-8" aria-labelledby="safety-heading">
+        <div className="flex flex-col gap-5 md:flex-row md:gap-8">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border-2 border-edge bg-secondary text-ink">
+            <ShieldCheck className="h-6 w-6" aria-hidden />
+          </span>
+          <div>
+            <h2 id="safety-heading" className="mb-3 text-2xl">
+              Meeting the seller
+            </h2>
+            <ul className="grid gap-3 text-muted md:grid-cols-3 md:gap-6">
+              <li>Meet at the school gate or another busy, well-lit place, ideally during the day.</li>
+              <li>Check the books page by page before you pay. Look for missing or torn pages.</li>
+              <li>Never share an OTP or bank details. Pay only once you have the books in hand.</li>
+            </ul>
+          </div>
         </div>
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" aria-hidden>
-          <span className="text-[300px] absolute -bottom-20 -right-20 rotate-12">🛡️</span>
+      </section>
+
+      {/* Phone action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-edge bg-card px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 lg:hidden">
+        <div className="mx-auto flex max-w-xl items-center gap-4">
+          <div className="shrink-0">
+            <p className="text-2xl font-extrabold leading-none">{formatRupees(listing.sellingPrice)}</p>
+            {hasMrp && <p className="mt-1 text-xs font-semibold text-secondary-dark">Save {formatRupees(savings)}</p>}
+          </div>
+          <div className="min-w-0 flex-1">{renderAction('md')}</div>
         </div>
       </div>
     </div>

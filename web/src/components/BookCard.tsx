@@ -1,15 +1,20 @@
 import Link from 'next/link';
-import { categoryLabel, conditionLabel } from '@/lib/labels';
+import { BookOpen, PencilRuler } from 'lucide-react';
+import { boardLabel, categoryLabel, conditionLabel } from '@/lib/labels';
+import { coverTone, formatRupees } from '@/components/listing/format';
 
 interface BookCardProps {
   id: string;
   title: string;
   sellingPrice: number;
-  buyingPrice?: number;
+  buyingPrice?: number | null;
   condition: string;
   category: string;
   city: string;
   imageUrl?: string;
+  board?: string | null;
+  classLevel?: number | null;
+  schoolName?: string | null;
 }
 
 export default function BookCard({
@@ -21,64 +26,54 @@ export default function BookCard({
   category,
   city,
   imageUrl,
+  board,
+  classLevel,
+  schoolName,
 }: BookCardProps) {
-  const savings = buyingPrice ? buyingPrice - sellingPrice : 0;
+  const savings = buyingPrice && buyingPrice > sellingPrice ? buyingPrice - sellingPrice : 0;
+  const isStationery = category === 'STATIONERY';
+  const Glyph = isStationery ? PencilRuler : BookOpen;
+  const place = [schoolName, city].filter(Boolean).join(', ');
 
   return (
-    <Link href={`/listings/${id}`} className="group card-premium card-interactive overflow-hidden block h-full">
-      <div className="relative aspect-[4/5] bg-muted-extra-light overflow-hidden">
+    <Link
+      href={`/listings/${id}`}
+      className="group card-premium card-interactive flex h-full flex-col overflow-hidden rounded-lg"
+    >
+      {/* Cover */}
+      <div className="relative aspect-[4/3] overflow-hidden border-b-2 border-edge">
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          />
+          <img src={imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-primary/5">
-            <div className="w-20 h-20 rounded-[28px] bg-card flex items-center justify-center text-primary text-3xl shadow-sm mb-4 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
-              {category === 'STATIONERY' ? '\u270F\uFE0F' : '\uD83D\uDCDA'}
-            </div>
-            <span className="text-muted-light text-xs font-black uppercase tracking-[0.2em]">{categoryLabel(category)}</span>
+          <div className={`flex h-full w-full items-center justify-center ${coverTone(id)}`} aria-hidden>
+            <Glyph className="h-16 w-16 text-ink transition-transform duration-300 ease-pop group-hover:-rotate-6" strokeWidth={1.75} />
           </div>
         )}
-        <div className="absolute top-4 left-4">
-          <span className="badge badge-primary glass backdrop-blur-md">{conditionLabel(condition)}</span>
-        </div>
+
+        <span className="sticker absolute left-3 top-3 text-lg leading-tight">
+          <span className="sr-only">Price </span>
+          {formatRupees(sellingPrice)}
+        </span>
       </div>
 
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-3 gap-4">
-          <h3 className="font-extrabold text-lg leading-tight group-hover:text-primary transition-colors line-clamp-2">
-            {title}
-          </h3>
+      {/* Body */}
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <h3 className="line-clamp-2 text-lg font-bold leading-snug decoration-primary decoration-2 underline-offset-4 group-hover:underline">
+          {title}
+        </h3>
+
+        <div className="flex flex-wrap gap-1.5">
+          {classLevel ? <span className="badge badge-primary">Class {classLevel}</span> : null}
+          {board ? <span className="badge badge-muted">{boardLabel(board)}</span> : null}
+          {isStationery && !classLevel ? <span className="badge badge-muted">{categoryLabel(category)}</span> : null}
+          <span className="badge badge-muted">{conditionLabel(condition)}</span>
         </div>
 
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="font-black text-xl text-foreground">
-              {'\u20B9'}{sellingPrice}
-            </span>
-            {!!buyingPrice && buyingPrice > sellingPrice && (
-              <span className="text-xs text-muted line-through">
-                {'\u20B9'}{buyingPrice}
-              </span>
-            )}
-          </div>
+        <div className="mt-auto flex items-end justify-between gap-3 pt-1">
+          {place ? <p className="min-w-0 truncate text-sm text-muted">{place}</p> : <span />}
           {savings > 0 && (
-            <span className="badge badge-secondary">
-              Save {'\u20B9'}{savings}
-            </span>
+            <span className="badge badge-secondary shrink-0">Save {formatRupees(savings)}</span>
           )}
-        </div>
-
-        <div className="flex items-center gap-3 pt-4 border-t border-card-border">
-          <div className="w-8 h-8 rounded-xl bg-muted-extra-light flex items-center justify-center text-xs font-black text-muted uppercase tracking-widest border border-card-border">
-            {city?.charAt(0) || '?'}
-          </div>
-          <div>
-            <p className="text-foreground text-xs font-bold leading-none mb-1">{city}</p>
-            <p className="text-muted-light text-xs font-medium uppercase tracking-tight">Location</p>
-          </div>
         </div>
       </div>
     </Link>

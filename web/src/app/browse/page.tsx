@@ -1,11 +1,18 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { AlertCircle, BookOpen, ChevronLeft, ChevronRight, RotateCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import BookCard from '@/components/BookCard';
+import BrowseFilters, {
+  EMPTY_BROWSE_FILTERS,
+  type BrowseFilterValues,
+} from '@/components/listing/BrowseFilters';
+import FilterSheet from '@/components/listing/FilterSheet';
+import { formatRupees } from '@/components/listing/format';
 import api from '@/lib/api';
-import { BOARD_OPTIONS, CATEGORY_OPTIONS, boardLabel, categoryLabel } from '@/lib/labels';
+import { CATEGORY_OPTIONS, boardLabel } from '@/lib/labels';
 
 interface Listing {
   id: string;
@@ -17,35 +24,54 @@ interface Listing {
   city: string;
   board?: string;
   class?: number;
+  school?: { name: string } | null;
   images?: { imageUrl: string }[];
 }
 
-interface Filters {
-  board: string;
-  classLevel: string;
-  category: string;
-  priceMin: string;
-  priceMax: string;
-  city: string;
-}
-
+type Filters = BrowseFilterValues;
 type SortOption = 'newest' | 'price_asc' | 'price_desc';
 
 const PER_PAGE = 9;
-const CLASSES = Array.from({ length: 12 }, (_, i) => String(i + 1));
-const EMPTY_FILTERS: Filters = { board: '', classLevel: '', category: '', priceMin: '', priceMax: '', city: '' };
-
-const LABEL = 'text-xs font-black uppercase tracking-[0.2em] text-muted-light mb-4 block';
 
 function normalizeCategory(value: string | null): string {
   const v = (value || '').toUpperCase();
   return (CATEGORY_OPTIONS as string[]).includes(v) ? v : '';
 }
 
+/** "No Class 6 CBSE textbooks in Bangalore yet" from whatever is active. */
+function emptyHeadline(filters: Filters, search: string): string {
+  const noun =
+    filters.category === 'STATIONERY' ? 'stationery' : filters.category === 'BOOK' ? 'textbooks' : 'books';
+  const parts = [
+    filters.classLevel ? `Class ${filters.classLevel}` : '',
+    filters.board ? boardLabel(filters.board) : '',
+    noun,
+  ].filter(Boolean);
+  let line = `No ${parts.join(' ')}`;
+  if (search) line += ` matching “${search}”`;
+  if (filters.city.trim()) line += ` in ${filters.city.trim()}`;
+  if (filters.priceMax) line += ` under ${formatRupees(Number(filters.priceMax))}`;
+  return `${line} yet`;
+}
+
+function pageWindow(page: number, totalPages: number): (number | 'gap')[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const pages = new Set([1, totalPages, page - 1, page, page + 1]);
+  const sorted = Array.from(pages)
+    .filter((p) => p >= 1 && p <= totalPages)
+    .sort((a, b) => a - b);
+  const out: (number | 'gap')[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) out.push('gap');
+    out.push(p);
+  });
+  return out;
+}
+
 function BrowseContent() {
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<Filters>(() => ({
-    ...EMPTY_FILTERS,
+    ...EMPTY_BROWSE_FILTERS,
     category: normalizeCategory(searchParams.get('category')),
   }));
   const [search, setSearch] = useState(() => searchParams.get('q') || '');
@@ -56,7 +82,8 @@ function BrowseContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [total, setTotal] = useState(0);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Re-seed when the URL changes (e.g. home search submitted again)
   useEffect(() => {
@@ -98,10 +125,10 @@ function BrowseContent() {
         setListings(data.data || []);
         setTotal(data.pagination?.total || 0);
       } else {
-        setError(data.error || 'Could not load listings.');
+        setError(data.error || 'We could not load listings.');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Could not load listings. Please try again.');
+      setError(err?.response?.data?.error || 'We could not reach Sybrary. Check your connection and try again.');
       setListings([]);
       setTotal(0);
     } finally {
@@ -119,200 +146,147 @@ function BrowseContent() {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters(EMPTY_FILTERS);
+    setFilters(EMPTY_BROWSE_FILTERS);
     setSearch('');
+    setDebouncedSearch('');
     setPage(1);
   }, []);
 
-  const activeFilterCount = Object.values(filters).filter(Boolean).length + (debouncedSearch ? 1 : 0);
+  const goToPage = (p: number) => {
+    setPage(p);
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
+
+  // Active filters as removable chips
+  const activeChips: { key: string; label: string; clear: () => void }[] = [];
+  if (debouncedSearch)
+    activeChips.push({
+      key: 'q',
+      label: `“${debouncedSearch}”`,
+      clear: () => {
+        setSearch('');
+        setDebouncedSearch('');
+        setPage(1);
+      },
+    });
+  if (filters.category)
+    activeChips.push({
+      key: 'category',
+      label: filters.category === 'STATIONERY' ? 'Stationery' : 'Textbooks',
+      clear: () => updateFilter('category', ''),
+    });
+  if (filters.classLevel)
+    activeChips.push({ key: 'class', label: `Class ${filters.classLevel}`, clear: () => updateFilter('classLevel', '') });
+  if (filters.board)
+    activeChips.push({ key: 'board', label: boardLabel(filters.board), clear: () => updateFilter('board', '') });
+  if (filters.city.trim())
+    activeChips.push({ key: 'city', label: filters.city.trim(), clear: () => updateFilter('city', '') });
+  if (filters.priceMin || filters.priceMax) {
+    const min = filters.priceMin ? formatRupees(Number(filters.priceMin)) : '';
+    const max = filters.priceMax ? formatRupees(Number(filters.priceMax)) : '';
+    const label = min && max ? `${min} to ${max}` : min ? `From ${min}` : `Under ${max}`;
+    activeChips.push({
+      key: 'price',
+      label,
+      clear: () => {
+        updateFilter('priceMin', '');
+        updateFilter('priceMax', '');
+      },
+    });
+  }
+
+  const activeCount = activeChips.length;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const countLabel = `${total.toLocaleString('en-IN')} ${total === 1 ? 'listing' : 'listings'}`;
 
   return (
-    <div className="container py-12 md:py-20">
-      {/* Header */}
-      <header className="mb-10 md:mb-16 text-center">
-        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-primary mb-6">
-          <Link href="/" className="hover:underline">Home</Link>
-          <span className="opacity-30" aria-hidden>/</span>
-          <span>Marketplace</span>
+    <div className="container py-10 md:py-14">
+      {/* Page header */}
+      <header className="mb-8 flex flex-col gap-5 md:mb-10 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <h1 className="mb-3 text-4xl md:text-5xl">Browse books</h1>
+          <p className="text-muted">
+            Last year&apos;s textbooks and stationery from parents near you. Seller contact details stay private
+            until they accept your request.
+          </p>
         </div>
-        <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tighter">Browse Books</h1>
-        <p className="text-muted font-medium text-lg max-w-lg mx-auto leading-relaxed">
-          Find textbooks, study materials, and more from fellow parents in your neighborhood.
-        </p>
+
+        <form
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setDebouncedSearch(search.trim());
+            setPage(1);
+          }}
+          className="relative w-full lg:max-w-sm"
+        >
+          <label htmlFor="browse-search" className="sr-only">
+            Search listings by title
+          </label>
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" aria-hidden />
+          <input
+            id="browse-search"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title, like Science Class 7"
+            className="h-12 w-full pl-12"
+          />
+        </form>
       </header>
 
-      {/* Search */}
-      <form
-        role="search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setDebouncedSearch(search.trim());
-          setPage(1);
-        }}
-        className="max-w-2xl mx-auto mb-10"
-      >
-        <label htmlFor="browse-search" className="sr-only">Search listings by title</label>
-        <input
-          id="browse-search"
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by title..."
-          className="w-full py-4 px-5 rounded-2xl font-bold"
-        />
-      </form>
-
-      <div className="flex flex-col lg:flex-row gap-10">
-        {/* Sidebar Filters */}
-        <aside className="w-full lg:w-72 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((v) => !v)}
-            aria-expanded={filtersOpen}
-            aria-controls="browse-filters"
-            className="lg:hidden btn btn-outline w-full h-12 justify-between"
-          >
-            <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
-            <span aria-hidden>{filtersOpen ? '▲' : '▼'}</span>
-          </button>
-
-          <div
-            id="browse-filters"
-            className={`card-flat p-6 md:p-8 lg:sticky lg:top-24 mt-4 lg:mt-0 ${filtersOpen ? 'block' : 'hidden'} lg:block`}
-          >
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-lg font-black tracking-tight">Filters</h2>
-              {activeFilterCount > 0 && (
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="text-xs font-black uppercase tracking-[0.2em] text-accent hover:underline px-2 py-1"
-                >
-                  Reset all
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        {/* Desktop filter rail */}
+        <aside className="hidden w-[300px] flex-shrink-0 lg:sticky lg:top-24 lg:block" aria-label="Filters">
+          <div className="card-flat p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <h2 className="text-xl font-extrabold">Filters</h2>
+              {activeCount > 0 && (
+                <button type="button" onClick={resetFilters} className="btn btn-ghost btn-sm -mr-2">
+                  Clear all
                 </button>
               )}
             </div>
-
-            <div className="space-y-8">
-              {/* Board */}
-              <fieldset>
-                <legend className={LABEL}>Board</legend>
-                <div className="flex flex-wrap gap-2">
-                  {BOARD_OPTIONS.map((board) => (
-                    <button
-                      key={board}
-                      type="button"
-                      aria-pressed={filters.board === board}
-                      onClick={() => updateFilter('board', filters.board === board ? '' : board)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                        filters.board === board
-                          ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                          : 'bg-muted-extra-light text-muted hover:text-foreground'
-                      }`}
-                    >
-                      {boardLabel(board)}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-
-              {/* Category */}
-              <fieldset>
-                <legend className={LABEL}>Category</legend>
-                <div className="space-y-2">
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      aria-pressed={filters.category === cat}
-                      onClick={() => updateFilter('category', filters.category === cat ? '' : cat)}
-                      className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between border ${
-                        filters.category === cat
-                          ? 'bg-primary/10 text-primary border-primary/20'
-                          : 'border-transparent hover:bg-muted-extra-light'
-                      }`}
-                    >
-                      <span>{categoryLabel(cat)}</span>
-                      {filters.category === cat && <span aria-hidden>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-
-              {/* Class */}
-              <div>
-                <label htmlFor="filter-class" className={LABEL}>Class</label>
-                <select
-                  id="filter-class"
-                  value={filters.classLevel}
-                  onChange={(e) => updateFilter('classLevel', e.target.value)}
-                  className="w-full py-3 px-4 rounded-xl font-bold text-sm"
-                >
-                  <option value="">Any class</option>
-                  {CLASSES.map((c) => (
-                    <option key={c} value={c}>Class {c}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Price */}
-              <fieldset>
-                <legend className={LABEL}>Price (&#8377;)</legend>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="filter-min" className="sr-only">Minimum price</label>
-                  <input
-                    id="filter-min"
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    value={filters.priceMin}
-                    onChange={(e) => updateFilter('priceMin', e.target.value)}
-                    placeholder="Min"
-                    className="w-full min-w-0 py-3 px-4 rounded-xl font-bold text-sm"
-                  />
-                  <span className="text-muted" aria-hidden>–</span>
-                  <label htmlFor="filter-max" className="sr-only">Maximum price</label>
-                  <input
-                    id="filter-max"
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    value={filters.priceMax}
-                    onChange={(e) => updateFilter('priceMax', e.target.value)}
-                    placeholder="Max"
-                    className="w-full min-w-0 py-3 px-4 rounded-xl font-bold text-sm"
-                  />
-                </div>
-              </fieldset>
-
-              {/* City */}
-              <div>
-                <label htmlFor="filter-city" className={LABEL}>City</label>
-                <input
-                  id="filter-city"
-                  type="text"
-                  value={filters.city}
-                  onChange={(e) => updateFilter('city', e.target.value)}
-                  placeholder="Search city..."
-                  className="w-full py-3 px-4 rounded-xl font-bold text-sm"
-                />
-              </div>
-            </div>
+            <BrowseFilters values={filters} onChange={updateFilter} idPrefix="rail" />
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0">
-          {/* Toolbar */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-8 border-b border-card-border">
-            <p className="text-muted font-medium" aria-live="polite">
-              {loading ? 'Loading...' : error ? '' : `${total} listing${total === 1 ? '' : 's'} found`}
-            </p>
+        {/* Results */}
+        <section className="min-w-0 flex-1" aria-labelledby="results-heading">
+          <div ref={resultsRef} className="scroll-mt-24" />
 
-            <div className="flex items-center gap-4">
-              <label htmlFor="browse-sort" className="text-xs font-black uppercase tracking-[0.2em] text-muted-light">
-                Sort by
+          {/* Results header */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 id="results-heading" className="text-2xl font-extrabold" aria-live="polite">
+              {loading ? (
+                <span className="text-muted">Finding books&hellip;</span>
+              ) : error ? (
+                'Results'
+              ) : (
+                countLabel
+              )}
+            </h2>
+
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="btn btn-outline btn-sm flex-1 sm:flex-none lg:hidden"
+                aria-haspopup="dialog"
+                aria-expanded={sheetOpen}
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                Filters
+                {activeCount > 0 && (
+                  <span className="ml-1 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full border-2 border-edge bg-sun px-1.5 text-xs font-bold text-ink">
+                    {activeCount}
+                  </span>
+                )}
+              </button>
+              <label htmlFor="browse-sort" className="sr-only">
+                Sort listings
               </label>
               <select
                 id="browse-sort"
@@ -321,56 +295,95 @@ function BrowseContent() {
                   setSort(e.target.value as SortOption);
                   setPage(1);
                 }}
-                className="py-2 px-4 rounded-xl font-bold text-sm cursor-pointer"
+                className="h-10 flex-1 cursor-pointer py-0 text-sm font-semibold sm:flex-none"
               >
-                <option value="newest">Most Recent</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
+                <option value="newest">Newest first</option>
+                <option value="price_asc">Price: low to high</option>
+                <option value="price_desc">Price: high to low</option>
               </select>
             </div>
           </div>
 
-          {/* Listings Grid */}
+          {/* Active filter chips */}
+          {activeCount > 0 && (
+            <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {activeChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={chip.clear}
+                  className="chip shrink-0"
+                  data-active="true"
+                  aria-label={`Remove filter ${chip.label}`}
+                >
+                  {chip.label}
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="shrink-0 px-2 text-sm font-semibold text-primary underline decoration-2 underline-offset-4 min-h-10"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6" aria-busy="true">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading listings">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="card-flat overflow-hidden">
-                  <div className="aspect-[4/5] skeleton rounded-none" />
-                  <div className="p-6 space-y-3">
-                    <div className="h-4 skeleton" />
-                    <div className="h-4 skeleton w-2/3" />
+                  <div className="skeleton aspect-[4/3] rounded-none border-b-2 border-card-border" />
+                  <div className="space-y-3 p-4">
+                    <div className="skeleton h-5 w-4/5" />
+                    <div className="flex gap-2">
+                      <div className="skeleton h-6 w-16 rounded-full" />
+                      <div className="skeleton h-6 w-14 rounded-full" />
+                      <div className="skeleton h-6 w-24 rounded-full" />
+                    </div>
+                    <div className="skeleton h-4 w-1/2" />
                   </div>
                 </div>
               ))}
             </div>
           ) : error ? (
-            <div role="alert" className="card-flat p-10 text-center">
-              <div className="text-5xl mb-4" aria-hidden>&#9888;&#65039;</div>
-              <h3 className="text-xl font-black mb-2">Something went wrong</h3>
-              <p className="text-muted mb-6">{error}</p>
-              <button type="button" onClick={fetchListings} className="btn btn-primary h-12">
+            <div role="alert" className="card-flat flex flex-col items-center px-6 py-12 text-center">
+              <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-edge bg-accent/15 text-accent">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </span>
+              <h3 className="mb-2 text-2xl">Listings didn&apos;t load</h3>
+              <p className="mb-6 max-w-md text-muted">{error}</p>
+              <button type="button" onClick={fetchListings} className="btn btn-primary">
+                <RotateCw className="h-4 w-4" aria-hidden />
                 Try again
               </button>
             </div>
           ) : listings.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="text-6xl mb-6" aria-hidden>📚</div>
-              <h3 className="text-2xl font-black mb-4">No listings found</h3>
-              <p className="text-muted mb-8">Try adjusting your filters, or post a request and we&apos;ll notify you.</p>
-              <div className="flex flex-wrap justify-center gap-3">
-                {activeFilterCount > 0 && (
+            <div className="card-flat flex flex-col items-center px-6 py-12 text-center md:py-16">
+              <span className="mb-5 flex h-16 w-16 -rotate-3 items-center justify-center rounded-lg border-2 border-edge bg-sun text-ink shadow-pop-sm">
+                <BookOpen className="h-8 w-8" strokeWidth={1.75} aria-hidden />
+              </span>
+              <h3 className="mb-2 max-w-lg text-2xl">
+                {activeCount > 0 ? emptyHeadline(filters, debouncedSearch) : 'No books listed yet'}
+              </h3>
+              <p className="mb-7 max-w-md text-muted">
+                Tell us what you need and we&apos;ll let you know as soon as a parent lists it.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link href="/need" className="btn btn-primary">
+                  Request this book
+                </Link>
+                {activeCount > 0 && (
                   <button type="button" onClick={resetFilters} className="btn btn-outline">
                     Clear filters
                   </button>
                 )}
-                <Link href="/need" className="btn btn-primary">
-                  Request a Book
-                </Link>
               </div>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {listings.map((listing) => (
                   <BookCard
                     key={listing.id}
@@ -381,39 +394,89 @@ function BrowseContent() {
                     condition={listing.condition}
                     category={listing.category}
                     city={listing.city}
+                    board={listing.board}
+                    classLevel={listing.class}
+                    schoolName={listing.school?.name}
                     imageUrl={listing.images?.[0]?.imageUrl}
                   />
                 ))}
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
-                <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-2 mt-12">
+                <nav aria-label="Pages" className="mt-10 flex items-center justify-between gap-3 border-t-2 border-edge pt-6">
                   <button
                     type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    onClick={() => goToPage(Math.max(1, page - 1))}
                     disabled={page === 1}
-                    className="btn btn-outline h-12"
+                    className="btn btn-outline btn-sm"
                   >
-                    ← Previous
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    Previous
                   </button>
-                  <span className="px-4 py-2 font-bold">
+
+                  <ol className="hidden items-center gap-1.5 sm:flex">
+                    {pageWindow(page, totalPages).map((p, i) =>
+                      p === 'gap' ? (
+                        <li key={`gap-${i}`} className="px-1 text-muted" aria-hidden>
+                          &hellip;
+                        </li>
+                      ) : (
+                        <li key={p}>
+                          <button
+                            type="button"
+                            onClick={() => goToPage(p)}
+                            aria-current={p === page ? 'page' : undefined}
+                            aria-label={`Page ${p}`}
+                            className={`btn btn-sm w-10 px-0 ${
+                              p === page ? 'bg-foreground text-background' : 'btn-ghost'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        </li>
+                      ),
+                    )}
+                  </ol>
+                  <p className="text-sm font-semibold text-muted sm:hidden">
                     Page {page} of {totalPages}
-                  </span>
+                  </p>
+
                   <button
                     type="button"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() => goToPage(Math.min(totalPages, page + 1))}
                     disabled={page === totalPages}
-                    className="btn btn-outline h-12"
+                    className="btn btn-outline btn-sm"
                   >
-                    Next →
+                    Next
+                    <ChevronRight className="h-4 w-4" aria-hidden />
                   </button>
                 </nav>
               )}
             </>
           )}
-        </main>
+        </section>
       </div>
+
+      {/* Phone filter sheet */}
+      <FilterSheet
+        open={sheetOpen}
+        onClose={closeSheet}
+        title="Filters"
+        footer={
+          <div className="flex gap-3">
+            {activeCount > 0 && (
+              <button type="button" onClick={resetFilters} className="btn btn-ghost">
+                Clear all
+              </button>
+            )}
+            <button type="button" onClick={closeSheet} className="btn btn-primary flex-1">
+              {loading ? 'Show results' : `Show ${countLabel}`}
+            </button>
+          </div>
+        }
+      >
+        <BrowseFilters values={filters} onChange={updateFilter} idPrefix="sheet" />
+      </FilterSheet>
     </div>
   );
 }
@@ -422,9 +485,9 @@ export default function BrowsePage() {
   return (
     <Suspense
       fallback={
-        <div className="container py-20">
-          <div className="h-16 skeleton max-w-md mx-auto mb-6" />
-          <div className="h-6 skeleton max-w-lg mx-auto" />
+        <div className="container py-10 md:py-14">
+          <div className="skeleton mb-4 h-12 max-w-xs" />
+          <div className="skeleton h-5 max-w-lg" />
         </div>
       }
     >
