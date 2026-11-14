@@ -19,7 +19,8 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 import { boardLabel, categoryLabel, conditionLabel, pickupLabel } from '@/lib/labels';
-import { NO_PHOTO_CLASS, NO_PHOTO_IMG, formatRupees } from '@/components/listing/format';
+import { formatRupees } from '@/components/listing/format';
+import NoPhotoArt from '@/components/listing/NoPhotoArt';
 
 interface Listing {
   id: string;
@@ -261,7 +262,7 @@ export default function ListingDetailPage() {
               <img src={activeImage} alt={listing.title} className="h-full w-full object-cover" />
             ) : (
               <>
-                <img src={NO_PHOTO_IMG} alt="" className={`h-full w-full object-cover ${NO_PHOTO_CLASS}`} />
+                <NoPhotoArt />
                 <span className="badge badge-muted absolute right-4 bottom-4 bg-card/90">The seller hasn&apos;t added a photo yet</span>
               </>
             )}

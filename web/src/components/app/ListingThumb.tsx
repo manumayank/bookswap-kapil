@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { NO_PHOTO_CLASS, NO_PHOTO_IMG } from '@/components/listing/format';
+import NoPhotoArt from '@/components/listing/NoPhotoArt';
 
 const SIZES = {
   sm: 'h-12 w-12',
@@ -33,7 +33,7 @@ export default function ListingThumb({
       {imageUrl ? (
         <img src={imageUrl} alt="" className="h-full w-full object-cover" />
       ) : (
-        <img src={NO_PHOTO_IMG} alt="" className={`h-full w-full object-cover ${NO_PHOTO_CLASS}`} />
+        <NoPhotoArt />
       )}
     </div>
   );

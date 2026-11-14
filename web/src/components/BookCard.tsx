@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { BookOpen, PencilRuler } from 'lucide-react';
 import { boardLabel, categoryLabel, conditionLabel } from '@/lib/labels';
-import { NO_PHOTO_CLASS, NO_PHOTO_IMG, formatRupees } from '@/components/listing/format';
+import { formatRupees } from '@/components/listing/format';
+import NoPhotoArt from '@/components/listing/NoPhotoArt';
 
 interface BookCardProps {
   id: string;
@@ -46,7 +47,7 @@ export default function BookCard({
           <img src={imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <>
-            <img src={NO_PHOTO_IMG} alt="" loading="lazy" className={`h-full w-full object-cover ${NO_PHOTO_CLASS}`} />
+            <NoPhotoArt />
             <span className="badge badge-muted absolute right-3 bottom-3 bg-card/90">No photo yet</span>
           </>
         )}
