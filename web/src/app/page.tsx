@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronDown, Leaf, Lock, PencilRuler, Recycle, Wallet } from 'lucide-react';
 import BookCard from '@/components/BookCard';
 import Reveal from '@/components/Reveal';
+import ReceiptArt from '@/components/home/ReceiptArt';
 import api from '@/lib/api';
 import { boardLabel } from '@/lib/labels';
 
@@ -122,8 +123,9 @@ function HeroSentence() {
   const cityDisplay = city || 'any city';
 
   return (
+    <div className="grid gap-12 lg:gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
     <form onSubmit={go} aria-label="Find or sell school books">
-      <h1 className="text-[2.15rem] leading-[1.32] sm:text-6xl sm:leading-[1.25] lg:text-[4.6rem] lg:leading-[1.22] font-extrabold tracking-[-0.035em] max-w-[17ch] animate-pop">
+      <h1 className="text-[2.15rem] leading-[1.32] sm:text-[3.4rem] sm:leading-[1.25] lg:text-[3.5rem] xl:text-[4rem] lg:leading-[1.24] font-extrabold tracking-[-0.035em] max-w-[17ch] animate-pop">
         I&apos;m{' '}
         <Slot
           label="I want to"
@@ -188,6 +190,8 @@ function HeroSentence() {
         </button>
       </div>
     </form>
+    <ReceiptArt classLevel={cls} board={board} />
+    </div>
   );
 }
 
@@ -252,28 +256,9 @@ export default function HomePage() {
     <div className="pb-8">
       {/* ---------- Hero ---------- */}
       <section className="relative overflow-hidden border-b-2 border-edge">
-        <div className="container relative pt-14 pb-16 sm:pt-20 sm:pb-24 lg:pt-24 lg:pb-28">
+        <div className="container relative pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-16 lg:pb-20">
           <HeroSentence />
 
-          {/* Props: one restrained cluster, desktop only */}
-          <div aria-hidden className="pointer-events-none absolute right-6 bottom-10 hidden xl:block w-[260px] h-[220px]">
-            <span
-              className="sticker absolute right-2 top-0 text-base animate-pop"
-              style={{ '--delay': '520ms', '--tilt': '6deg' } as React.CSSProperties}
-            >
-              <Recycle size={18} strokeWidth={2.6} /> Reused, not reprinted
-            </span>
-            <svg
-              viewBox="0 0 190 24"
-              className="absolute left-0 bottom-6 w-[210px] animate-pop"
-              style={{ '--delay': '640ms', '--tilt': '-14deg' } as React.CSSProperties}
-            >
-              <rect x="1" y="2" width="142" height="20" rx="3" fill="var(--sun)" stroke="var(--edge)" strokeWidth="2" />
-              <rect x="1" y="2" width="20" height="20" rx="3" fill="var(--accent)" stroke="var(--edge)" strokeWidth="2" />
-              <path d="M143 2l40 10-40 10z" fill="#f5d9a8" stroke="var(--edge)" strokeWidth="2" />
-              <path d="M175 10l8 2-8 2z" fill="var(--edge)" />
-            </svg>
-          </div>
         </div>
       </section>
 

@@ -549,6 +549,75 @@ input[type='checkbox'], input[type='radio'] {
   to { opacity: 1; }
 }
 
+/* ---------- Home hero receipt ---------- */
+.receipt-paper {
+  transform: translateY(100%);
+  animation: receiptFeed var(--feed-ms, 2s) steps(18, end) var(--feed-delay, 0ms) forwards;
+}
+
+.receipt-art:hover .receipt-paper {
+  rotate: -1deg;
+  transition: rotate 0.35s var(--ease-pop);
+}
+
+.receipt-line {
+  opacity: 0;
+  animation: receiptLine 0.18s ease-out forwards;
+}
+
+.receipt-rule {
+  border-top: 2px dashed #17153a;
+  margin: 4px 0;
+}
+
+.receipt-zigzag {
+  height: 10px;
+  margin: 0 0 -1px;
+  background:
+    linear-gradient(135deg, transparent 6px, #fffdf6 0) 0 0 / 12px 10px repeat-x,
+    linear-gradient(225deg, transparent 6px, #fffdf6 0) 0 0 / 12px 10px repeat-x;
+}
+
+.receipt-barcode {
+  background: repeating-linear-gradient(90deg,
+    #17153a 0 2px, transparent 2px 4px, #17153a 4px 5px, transparent 5px 8px,
+    #17153a 8px 11px, transparent 11px 12px, #17153a 12px 13px, transparent 13px 16px);
+}
+
+.receipt-stamp {
+  opacity: 0;
+  transform: rotate(-12deg) scale(2.4);
+  background: color-mix(in srgb, #fffdf6 82%, transparent);
+  animation: receiptStamp 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+.receipt-key {
+  animation: receiptKey 0.16s ease-in-out 2 alternate;
+}
+
+@keyframes receiptFeed {
+  to { transform: translateY(0); }
+}
+
+@keyframes receiptLine {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes receiptStamp {
+  to { opacity: 1; transform: rotate(-12deg) scale(1); }
+}
+
+@keyframes receiptKey {
+  to { transform: translateY(2px); box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt-paper { transform: none; }
+  .receipt-line, .receipt-stamp { opacity: 1; }
+  .receipt-stamp { transform: rotate(-12deg); }
+}
+
 @keyframes slotFlip {
   from { opacity: 0; transform: translateY(-35%) rotateX(75deg); }
   to { opacity: 1; transform: none; }
