@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
   { href: '/need', label: 'Requests' },
   { href: '/papers', label: 'Exam papers' },
+  { href: '/initiative', label: 'Our initiative' },
 ] as const;
 
 const MENU_ITEM =
