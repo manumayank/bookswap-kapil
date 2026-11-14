@@ -6,7 +6,7 @@ import { hand } from '@/components/initiative/hand';
 
 /*
  * Footer: the last page of a school notebook (ruled lines, red margin, binder
- * holes, sign-off on the left, handwritten links on the right) with a giant outlined "Sybrary" watermark that
+ * sign-off on the left, handwritten links and a reuse sketch on the right) with a giant outlined "Sybrary" watermark that
  * rises into place when the footer scrolls into view.
  * Every line of text sits on the 40px ruling.
  */
@@ -65,12 +65,11 @@ export default function Footer() {
 
   return (
     <footer ref={ref} className="notebook-footer relative mt-24 overflow-hidden border-t-2 border-edge bg-card">
-      {/* binder holes + margin line */}
-      <span aria-hidden className="notebook-holes hidden sm:block absolute left-4 top-10 bottom-24 w-[18px]" />
-      <span aria-hidden className="absolute top-0 bottom-0 left-[36px] sm:left-[60px] w-[2px] bg-accent/70" />
+      {/* margin line */}
+      <span aria-hidden className="absolute top-0 bottom-0 left-[22px] sm:left-[30px] w-[2px] bg-accent/70" />
 
-      <div className="container relative pl-[56px] sm:pl-[92px] pt-10">
-        <div className="grid gap-y-[40px] gap-x-16 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+      <div className="container relative pl-10 sm:pl-14 pt-10">
+        <div className="grid gap-y-[40px] gap-x-12 xl:gap-x-16 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-start">
           {/* Left: sign-off */}
           <div>
             <p className={`${hand} text-[2.1rem] sm:text-[2.6rem] leading-[40px] sm:leading-[80px] text-foreground max-w-[22ch]`}>
@@ -104,11 +103,25 @@ export default function Footer() {
               </div>
             ))}
           </nav>
+
+          {/* Right: reuse sketch that draws itself */}
+          <svg
+            aria-hidden
+            viewBox="0 0 140 110"
+            className="notebook-doodle hidden lg:block w-[120px] xl:w-[140px] h-auto self-center text-primary"
+          >
+            <path pathLength={1} d="M22 58 A34 34 0 0 1 88 34" />
+            <path pathLength={1} d="M88 34 l-11 -3 M88 34 l-5 10" />
+            <path pathLength={1} d="M100 54 A34 34 0 0 1 34 82" />
+            <path pathLength={1} d="M34 82 l11 2 M34 82 l4 -10" />
+            <path pathLength={1} d="M52 48 q8 -4 13 1 v20 q-6 -4 -13 -1 z" />
+            <path pathLength={1} d="M78 48 q-8 -4 -13 1 v20 q6 -4 13 -1 z" />
+          </svg>
         </div>
       </div>
 
       {/* Giant outlined watermark, left-aligned with the content */}
-      <div aria-hidden className="notebook-watermark container relative mt-[40px] flex justify-start pl-[48px] sm:pl-[84px] select-none">
+      <div aria-hidden className="notebook-watermark container relative mt-[40px] flex justify-start pl-8 sm:pl-12 select-none">
         {WORD.map((ch, i) => (
           <span key={i} style={{ transitionDelay: `${i * 60}ms` }}>
             {ch}
