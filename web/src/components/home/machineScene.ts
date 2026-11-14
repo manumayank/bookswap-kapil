@@ -88,11 +88,11 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     ink: new THREE.Color(css('--edge') || '#17153a'),
     card: new THREE.Color(css('--card') || '#f7f7fa'),
     // machine body: its own colour so it reads as a solid object on the dark page
-    body: new THREE.Color(isDark() ? '#3d3c74' : (css('--card') || '#f7f7fa')),
+    body: new THREE.Color(isDark() ? '#3a3a40' : (css('--card') || '#f7f7fa')),
     sun: new THREE.Color('#ffc93c'),
     green: new THREE.Color('#12a874'),
     rose: new THREE.Color('#ff8fa3'),
-    key: new THREE.Color(isDark() ? '#56558f' : '#dfdee7'),
+    key: new THREE.Color(isDark() ? '#5a5a63' : '#dfdee7'),
     sunRoll: new THREE.Color(isDark() ? '#e6b64a' : '#ffc93c'),
     lcd: new THREE.Color('#17153a'),
   });
