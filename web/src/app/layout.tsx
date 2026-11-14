@@ -12,8 +12,8 @@ const sans = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: 'Sybrary – buy and sell used school books',
-  description: "Buy and sell last year's school textbooks and stationery with parents from your child's school and board.",
+  title: 'Sybrary – give school books a second life',
+  description: 'Reuse school textbooks and stationery. Buy and sell with families from your child's school and board, save money and save paper.',
 };
 
 export const viewport: Viewport = {

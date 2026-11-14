@@ -33,6 +33,20 @@ type SortOption = 'newest' | 'price_asc' | 'price_desc';
 
 const PER_PAGE = 9;
 
+const BOARD_VALUES = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'];
+
+/** Filters that can arrive in the URL (home hero sentence, category links). */
+function urlFilters(sp: URLSearchParams | ReturnType<typeof useSearchParams>) {
+  const cls = Number(sp.get('class'));
+  const board = (sp.get('board') || '').toUpperCase();
+  return {
+    category: normalizeCategory(sp.get('category')),
+    classLevel: Number.isInteger(cls) && cls >= 1 && cls <= 12 ? String(cls) : '',
+    board: BOARD_VALUES.includes(board) ? board : '',
+    city: (sp.get('city') || '').trim(),
+  };
+}
+
 function normalizeCategory(value: string | null): string {
   const v = (value || '').toUpperCase();
   return (CATEGORY_OPTIONS as string[]).includes(v) ? v : '';
@@ -72,7 +86,7 @@ function BrowseContent() {
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<Filters>(() => ({
     ...EMPTY_BROWSE_FILTERS,
-    category: normalizeCategory(searchParams.get('category')),
+    ...urlFilters(searchParams),
   }));
   const [search, setSearch] = useState(() => searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -90,8 +104,8 @@ function BrowseContent() {
     const q = searchParams.get('q') || '';
     setSearch(q);
     setDebouncedSearch(q);
-    const category = normalizeCategory(searchParams.get('category'));
-    setFilters((prev) => (prev.category === category ? prev : { ...prev, category }));
+    const fromUrl = urlFilters(searchParams);
+    setFilters((prev) => ({ ...prev, ...fromUrl }));
     setPage(1);
   }, [searchParams]);
 

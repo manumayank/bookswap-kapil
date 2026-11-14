@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import BookCard from '@/components/BookCard';
-import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { BookOpen, ChevronDown, Leaf, Lock, PencilRuler, Recycle, Wallet } from 'lucide-react';
+import BookCard from '@/components/BookCard';
+import Reveal from '@/components/Reveal';
+import api from '@/lib/api';
+import { boardLabel } from '@/lib/labels';
 
 interface ApiListing {
   id: string;
@@ -15,13 +18,220 @@ interface ApiListing {
   condition: string;
   category: string;
   city: string;
+  board?: string;
+  class?: number;
+  school?: { name: string } | null;
   images?: { imageUrl: string }[];
 }
 
-export default function HomePage() {
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+type Intent = 'buy' | 'sell';
 
+const CLASSES = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'];
+const CITIES = ['Bangalore', 'Mumbai', 'Delhi', 'Pune', 'Chennai', 'Hyderabad', 'Kolkata', 'Ahmedabad'];
+
+/* ------------------------------------------------------------------ */
+/* Hero: the headline is the search form                               */
+/* ------------------------------------------------------------------ */
+
+type SlotProps = {
+  label: string;
+  value: string;
+  display: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  tone?: 'sun' | 'primary';
+  flipKey: number;
+};
+
+function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey }: SlotProps) {
+  return (
+    <span
+      className={`group relative inline-flex items-center gap-[0.12em] align-baseline mx-[0.04em] my-[0.08em] px-[0.22em] rounded-[0.22em] border-2 border-edge shadow-pop transition-transform duration-150 ease-pop hover:-translate-x-0.5 hover:-translate-y-0.5 hover:-rotate-1 focus-within:-translate-y-0.5 focus-within:ring-4 focus-within:ring-primary/40 ${
+        tone === 'primary' ? 'bg-primary text-on-primary' : 'bg-sun text-ink'
+      }`}
+    >
+      <span key={flipKey} className="inline-block animate-[slotFlip_.35s_cubic-bezier(.34,1.56,.64,1)]">
+        {display}
+      </span>
+      <ChevronDown aria-hidden className="w-[0.42em] h-[0.42em] opacity-70 shrink-0" strokeWidth={3} />
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base !p-0 !border-0 !shadow-none"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
+function HeroSentence() {
+  const router = useRouter();
+  const [intent, setIntent] = useState<Intent>('buy');
+  const [cls, setCls] = useState('6');
+  const [board, setBoard] = useState('CBSE');
+  const [city, setCity] = useState('Bangalore');
+  const [flips, setFlips] = useState({ intent: 0, cls: 0, board: 0, city: 0 });
+  const touched = useRef(false);
+
+  const bump = (k: keyof typeof flips) => setFlips((f) => ({ ...f, [k]: f[k] + 1 }));
+
+  // On first load the blanks flip through a few examples, like a worksheet being filled in.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const seq: [string, string, string][] = [
+      ['3', 'ICSE', 'Mumbai'],
+      ['10', 'STATE', 'Pune'],
+      ['6', 'CBSE', 'Bangalore'],
+    ];
+    let i = 0;
+    const id = window.setInterval(() => {
+      if (touched.current || i >= seq.length) return window.clearInterval(id);
+      const [c, b, ci] = seq[i++];
+      setCls(c);
+      setBoard(b);
+      setCity(ci);
+      setFlips((f) => ({ ...f, cls: f.cls + 1, board: f.board + 1, city: f.city + 1 }));
+    }, 700);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const change = (k: keyof typeof flips, set: (v: string) => void) => (v: string) => {
+    touched.current = true;
+    set(v);
+    bump(k);
+  };
+
+  const go = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (intent === 'sell') {
+      router.push('/sell');
+      return;
+    }
+    const q = new URLSearchParams({ class: cls, board });
+    if (city) q.set('city', city);
+    router.push(`/browse?${q.toString()}`);
+  };
+
+  const cityDisplay = city || 'any city';
+
+  return (
+    <form onSubmit={go} aria-label="Find or sell school books">
+      <h1 className="text-[2.15rem] leading-[1.32] sm:text-6xl sm:leading-[1.25] lg:text-[4.6rem] lg:leading-[1.22] font-extrabold tracking-[-0.035em] max-w-[17ch] animate-pop">
+        I&apos;m{' '}
+        <Slot
+          label="I want to"
+          value={intent}
+          display={intent === 'buy' ? 'looking for' : 'passing on'}
+          onChange={change('intent', (v) => setIntent(v as Intent))}
+          options={[
+            { value: 'buy', label: 'looking for' },
+            { value: 'sell', label: 'passing on' },
+          ]}
+          tone="primary"
+          flipKey={flips.intent}
+        />{' '}
+        <Slot
+          label="Class"
+          value={cls}
+          display={`Class ${cls}`}
+          onChange={change('cls', setCls)}
+          options={CLASSES.map((c) => ({ value: c, label: `Class ${c}` }))}
+          flipKey={flips.cls}
+        />{' '}
+        <Slot
+          label="Board"
+          value={board}
+          display={boardLabel(board) || board}
+          onChange={change('board', setBoard)}
+          options={BOARDS.map((b) => ({ value: b, label: boardLabel(b) || b }))}
+          flipKey={flips.board}
+        />{' '}
+        books in{' '}
+        <Slot
+          label="City"
+          value={city}
+          display={cityDisplay}
+          onChange={change('city', setCity)}
+          options={[...CITIES.map((c) => ({ value: c, label: c })), { value: '', label: 'any city' }]}
+          flipKey={flips.city}
+        />
+        .
+      </h1>
+
+      <p className="mt-7 text-lg sm:text-xl text-muted max-w-[46ch] leading-relaxed animate-pop" style={{ '--delay': '140ms' } as React.CSSProperties}>
+        {intent === 'buy'
+          ? 'Give a school book its second term. Families save money, and every book reused is one less printed.'
+          : 'Books your child has outgrown can teach another child. List them in a couple of minutes and get paid at hand-over.'}
+      </p>
+
+      <div className="mt-8 flex flex-wrap items-center gap-3 animate-pop" style={{ '--delay': '220ms' } as React.CSSProperties}>
+        <button type="submit" className="btn btn-primary btn-lg">
+          {intent === 'buy' ? `Show Class ${cls} books` : `List my Class ${cls} books`}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            touched.current = true;
+            setIntent((i) => (i === 'buy' ? 'sell' : 'buy'));
+            bump('intent');
+          }}
+          className="btn btn-ghost"
+        >
+          {intent === 'buy' ? 'I have books to pass on' : 'I need books instead'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
+const STEPS = [
+  {
+    title: 'List what your child has outgrown',
+    body: 'Add a photo, the class and board, and your price. Our team checks every listing before it goes live.',
+  },
+  {
+    title: 'A family nearby asks for it',
+    body: 'They send a request from the listing. You choose whether to accept, and your number stays hidden until you do.',
+  },
+  {
+    title: 'Hand over, and the book starts its next term',
+    body: 'Meet at the school gate or a place you pick. They pay you directly at hand-over.',
+  },
+];
+
+const REASONS = [
+  {
+    icon: Wallet,
+    tone: 'bg-sun text-ink',
+    title: 'Money stays with families',
+    body: 'You pay a parent, not a shop. Each listing shows how much less it costs than buying new.',
+  },
+  {
+    icon: Leaf,
+    tone: 'bg-secondary text-ink',
+    title: 'Fewer books printed',
+    body: 'Textbooks barely change between years. Reusing them saves paper, ink and the trip to the shop.',
+  },
+  {
+    icon: Lock,
+    tone: 'bg-primary text-on-primary',
+    title: 'Your number stays private',
+    body: 'Phone and address only show once a seller accepts a request. No group chats, no spam.',
+  },
+];
+
+export default function HomePage() {
   const {
     data: listings,
     isLoading,
@@ -30,9 +240,7 @@ export default function HomePage() {
   } = useQuery<ApiListing[]>({
     queryKey: ['listings', 'recent'],
     queryFn: async () => {
-      const res = await api.get('/listings', {
-        params: { limit: 8, sortBy: 'newest' },
-      });
+      const res = await api.get('/listings', { params: { limit: 8, sortBy: 'newest' } });
       const data = res.data?.data;
       return Array.isArray(data) ? data : [];
     },
@@ -40,118 +248,71 @@ export default function HomePage() {
     staleTime: 60_000,
   });
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/browse?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      router.push('/browse');
-    }
-  };
-
-  const handleTagClick = (tag: string) => {
-    router.push(`/browse?q=${encodeURIComponent(tag)}`);
-  };
-
   return (
-    <div className="flex flex-col gap-32 pb-32">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-32 pb-48">
-        <div className="container relative z-10 text-center">
-          <div className="max-w-4xl mx-auto animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.2em] mb-10">
-              The Smartest Way to Buy & Sell School Books
-            </div>
-            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black mb-10 tracking-tight leading-[0.9]">
-              Education made <br />
-              <span className="text-primary italic">affordable.</span>
-            </h1>
-            <p className="text-xl text-muted mb-16 leading-relaxed max-w-2xl mx-auto font-medium">
-              Join thousands of parents and students in your neighborhood to buy and sell textbooks, stationery, and more. Save money, save trees.
-            </p>
+    <div className="pb-8">
+      {/* ---------- Hero ---------- */}
+      <section className="relative overflow-hidden border-b-2 border-edge">
+        <div className="container relative pt-14 pb-16 sm:pt-20 sm:pb-24 lg:pt-24 lg:pb-28">
+          <HeroSentence />
 
-            {/* Search Bar — single primary CTA for buyers */}
-            <form onSubmit={handleSearch} className="card-premium p-3 flex flex-col md:flex-row gap-3 max-w-3xl mx-auto shadow-2xl bg-card/50 backdrop-blur-xl">
-              <div className="flex-1 flex items-center px-6 gap-4 bg-muted-extra-light rounded-2xl transition-all focus-within:bg-card focus-within:ring-2 focus-within:ring-primary/20">
-                <span className="text-xl opacity-40" aria-hidden>&#128269;</span>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by title, board, or school..."
-                  aria-label="Search books"
-                  className="w-full py-5 bg-transparent border-none outline-none font-bold placeholder:text-muted-light text-base p-0"
-                />
-              </div>
-              <button type="submit" className="btn btn-primary h-14 md:h-16 px-12 text-lg font-black shadow-2xl">
-                Find Books
-              </button>
-            </form>
-
-            {/* Trending Tags */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs">
-              <span className="text-muted-light font-black uppercase tracking-widest">Trending:</span>
-              <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
-                {['CBSE', 'ICSE', 'NCERT', 'Stationery'].map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => handleTagClick(tag)}
-                    type="button"
-                    className="min-h-10 px-3 rounded-lg hover:text-primary cursor-pointer transition-colors font-extrabold uppercase tracking-widest underline decoration-primary/30 underline-offset-4 bg-transparent border-none text-foreground text-xs"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Background Accents */}
-        <div className="absolute top-[-10%] right-[-10%] glow-primary opacity-20"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-secondary/10 blur-[130px] rounded-full"></div>
-      </section>
-
-      {/* Stats / Social Proof */}
-      <section className="container">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12 text-center border-y border-card-border py-12 md:py-20">
-          <div>
-            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">8k+</p>
-            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Books Listed</p>
-          </div>
-          <div>
-            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">&#8377;35L+</p>
-            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Saved by Parents</p>
-          </div>
-          <div>
-            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">5k+</p>
-            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Successful Swaps</p>
-          </div>
-          <div>
-            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">4.8/5</p>
-            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Parent Trust Score</p>
+          {/* Props: one restrained cluster, desktop only */}
+          <div aria-hidden className="pointer-events-none absolute right-6 bottom-10 hidden xl:block w-[260px] h-[220px]">
+            <span
+              className="sticker absolute right-2 top-0 text-base animate-pop"
+              style={{ '--delay': '520ms', '--tilt': '6deg' } as React.CSSProperties}
+            >
+              <Recycle size={18} strokeWidth={2.6} /> Reused, not reprinted
+            </span>
+            <svg
+              viewBox="0 0 190 24"
+              className="absolute left-0 bottom-6 w-[210px] animate-pop"
+              style={{ '--delay': '640ms', '--tilt': '-14deg' } as React.CSSProperties}
+            >
+              <rect x="1" y="2" width="142" height="20" rx="3" fill="var(--sun)" stroke="var(--edge)" strokeWidth="2" />
+              <rect x="1" y="2" width="20" height="20" rx="3" fill="var(--accent)" stroke="var(--edge)" strokeWidth="2" />
+              <path d="M143 2l40 10-40 10z" fill="#f5d9a8" stroke="var(--edge)" strokeWidth="2" />
+              <path d="M175 10l8 2-8 2z" fill="var(--edge)" />
+            </svg>
           </div>
         </div>
       </section>
 
-      {/* Recently Added Listings */}
-      <section className="container">
-        <div className="flex flex-wrap items-end justify-between gap-6 mb-16">
+      {/* ---------- How it works ---------- */}
+      <section className="container section-padding">
+        <Reveal>
+          <h2 className="text-3xl md:text-4xl max-w-[20ch]">How a book gets its second term</h2>
+        </Reveal>
+        <ol className="mt-10 grid gap-5 md:grid-cols-3">
+          {STEPS.map((s, i) => (
+            <Reveal as="li" key={s.title} delay={i * 90} className="card-premium p-6 md:p-7 flex flex-col gap-3">
+              <span className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-sun text-ink border-2 border-edge font-extrabold text-lg shadow-pop-sm">
+                {i + 1}
+              </span>
+              <h3 className="text-xl">{s.title}</h3>
+              <p className="text-muted leading-relaxed">{s.body}</p>
+            </Reveal>
+          ))}
+        </ol>
+      </section>
+
+      {/* ---------- Recently listed ---------- */}
+      <section className="container pb-[72px] lg:pb-[104px]">
+        <Reveal className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
-            <span className="text-xs font-black uppercase tracking-[0.3em] text-primary mb-4 block">Marketplace</span>
-            <h2 className="text-4xl font-black tracking-tight">Recently Added</h2>
+            <h2 className="text-3xl md:text-4xl">Ready for their next term</h2>
+            <p className="mt-2 text-muted">Newest listings from families near you.</p>
           </div>
-          <Link href="/browse" className="btn btn-outline h-12 text-xs font-black uppercase tracking-widest">
-            Browse All Books <span>&#8594;</span>
+          <Link href="/browse" className="btn btn-outline">
+            Browse all books
           </Link>
-        </div>
+        </Reveal>
 
         {isLoading ? (
           <div className="grid-marketplace" aria-busy="true" aria-label="Loading listings">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="card-flat overflow-hidden">
-                <div className="aspect-[4/5] skeleton rounded-none" />
-                <div className="p-6 space-y-3">
+                <div className="aspect-[4/3] skeleton rounded-none" />
+                <div className="p-5 space-y-3">
                   <div className="h-4 skeleton" />
                   <div className="h-4 skeleton w-2/3" />
                 </div>
@@ -159,22 +320,24 @@ export default function HomePage() {
             ))}
           </div>
         ) : isError ? (
-          <div className="card-flat p-10 text-center">
-            <p className="font-bold mb-2">Couldn&apos;t load recent listings.</p>
-            <p className="text-sm text-muted mb-6">Check your connection and try again.</p>
-            <button type="button" onClick={() => refetch()} className="btn btn-outline h-11">
+          <div className="card-flat p-8 sm:p-10 text-center">
+            <p className="font-bold text-lg">We couldn&apos;t load the newest listings.</p>
+            <p className="mt-1 text-muted">Check your connection and try again.</p>
+            <button type="button" onClick={() => refetch()} className="btn btn-outline mt-6">
               Try again
             </button>
           </div>
         ) : !listings || listings.length === 0 ? (
-          <div className="card-flat p-10 md:p-16 text-center">
-            <div className="text-5xl mb-4" aria-hidden>&#128218;</div>
-            <h3 className="text-2xl font-black mb-3">No books listed yet</h3>
-            <p className="text-muted mb-8 max-w-md mx-auto">
-              Be the first parent in your area to list a textbook or stationery set.
+          <div className="card-flat p-8 sm:p-12 text-center">
+            <span className="inline-flex w-14 h-14 items-center justify-center rounded-md bg-sun text-ink border-2 border-edge shadow-pop-sm -rotate-3">
+              <BookOpen aria-hidden size={26} strokeWidth={2.4} />
+            </span>
+            <h3 className="mt-5 text-2xl">Be the first to pass books on</h3>
+            <p className="mt-2 text-muted max-w-md mx-auto">
+              No listings in your area yet. Add the books your child has outgrown and they&apos;ll show up here.
             </p>
-            <Link href="/sell" className="btn btn-primary">
-              List a Book
+            <Link href="/sell" className="btn btn-primary mt-6">
+              List your books
             </Link>
           </div>
         ) : (
@@ -189,6 +352,9 @@ export default function HomePage() {
                 condition={listing.condition}
                 category={listing.category}
                 city={listing.city}
+                board={listing.board}
+                classLevel={listing.class}
+                schoolName={listing.school?.name}
                 imageUrl={listing.images?.[0]?.imageUrl}
               />
             ))}
@@ -196,76 +362,105 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Category Shortcuts */}
-      <section className="container">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* ---------- Why reuse ---------- */}
+      <section className="border-y-2 border-edge bg-muted-extra-light">
+        <div className="container section-padding">
+          <Reveal>
+            <h2 className="text-3xl md:text-4xl max-w-[22ch]">Good for your wallet, and for the next class</h2>
+          </Reveal>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {REASONS.map((r, i) => (
+              <Reveal key={r.title} delay={i * 90} className="card-flat p-6 md:p-7">
+                <span className={`inline-flex w-12 h-12 items-center justify-center rounded-md border-2 border-edge shadow-pop-sm ${r.tone}`}>
+                  <r.icon aria-hidden size={22} strokeWidth={2.4} />
+                </span>
+                <h3 className="mt-5 text-xl">{r.title}</h3>
+                <p className="mt-2 text-muted leading-relaxed">{r.body}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Shop by type ---------- */}
+      <section className="container section-padding">
+        <Reveal>
+          <h2 className="text-3xl md:text-4xl">What families pass on</h2>
+        </Reveal>
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
           {[
             {
-              emoji: '\uD83D\uDCDA',
+              icon: BookOpen,
               title: 'Textbooks',
-              desc: 'CBSE, ICSE, IB & State Boards',
-              color: 'primary',
+              body: 'NCERT, ICSE, State board, IB and IGCSE books, guides and workbooks.',
               href: '/browse?category=BOOK',
+              tone: 'bg-primary text-on-primary',
             },
             {
-              emoji: '\u270F\uFE0F',
+              icon: PencilRuler,
               title: 'Stationery',
-              desc: 'Kits, Geometry Boxes, Art Supplies',
-              color: 'secondary',
+              body: 'Geometry boxes, art kits, calculators and unused notebooks.',
               href: '/browse?category=STATIONERY',
+              tone: 'bg-secondary text-ink',
             },
-          ].map((cat, i) => (
-            <Link
-              key={i}
-              href={cat.href}
-              className="card-premium card-interactive p-8 md:p-10 group cursor-pointer border-transparent shadow-none bg-muted-extra-light/50 hover:bg-card block"
-            >
-              <div
-                className={`w-16 h-16 rounded-2xl mb-8 flex items-center justify-center text-3xl shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${
-                  cat.color === 'primary' ? 'bg-primary/10' : 'bg-secondary/10'
-                }`}
+          ].map((c, i) => (
+            <Reveal key={c.title} delay={i * 90}>
+              <Link
+                href={c.href}
+                className="group card-premium card-interactive flex items-center gap-5 p-6 md:p-8 h-full"
               >
-                {cat.emoji}
-              </div>
-              <h3 className="text-xl font-black mb-2">{cat.title}</h3>
-              <p className="text-sm text-muted font-medium mb-6">{cat.desc}</p>
-              <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100 transition-all md:translate-x-[-10px] md:group-hover:translate-x-0">
-                <span className="text-xs font-black uppercase tracking-widest text-primary">Explore Category</span>
-                <span className="text-primary text-lg">&#8594;</span>
-              </div>
-            </Link>
+                <span
+                  className={`inline-flex w-16 h-16 shrink-0 items-center justify-center rounded-lg border-2 border-edge transition-transform duration-300 ease-pop group-hover:-rotate-6 group-hover:scale-105 ${c.tone}`}
+                >
+                  <c.icon aria-hidden size={30} strokeWidth={2.2} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-2xl font-extrabold tracking-tight">{c.title}</span>
+                  <span className="block mt-1 text-muted">{c.body}</span>
+                  <span className="inline-block mt-3 font-bold text-primary underline decoration-2 underline-offset-4 decoration-transparent group-hover:decoration-primary transition-colors">
+                    Browse {c.title.toLowerCase()}
+                  </span>
+                </span>
+              </Link>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      {/* For Sellers — segmented seller entry point */}
+      {/* ---------- Seller band ---------- */}
       <section className="container">
-        <div className="relative rounded-[40px] md:rounded-[60px] bg-surface-inverse p-8 sm:p-16 md:p-32 overflow-hidden">
-          <div className="relative z-10 max-w-2xl">
-            <span className="text-xs font-black uppercase tracking-[0.3em] text-primary-light mb-6 block">For Sellers</span>
-            <h2 className="text-4xl sm:text-5xl md:text-7xl font-black text-white mb-10 tracking-tighter leading-none">
-              Turn your{' '}
-              <span className="text-primary-light">old books</span> into cash.
-            </h2>
-            <p className="text-white/70 text-lg md:text-xl mb-14 leading-relaxed font-medium">
-              List your items in seconds. Help another student succeed and earn from books you no longer need.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6">
-              <Link
-                href="/sell"
-                className="btn btn-primary h-16 md:h-20 px-10 md:px-16 text-lg md:text-xl font-black rounded-3xl"
-              >
-                List a Book
-              </Link>
+        <Reveal className="relative overflow-hidden rounded-2xl border-2 border-edge shadow-pop-lg bg-surface-inverse text-white">
+          <div className="pencil-stripe" aria-hidden />
+          <div className="grid gap-8 p-7 sm:p-10 lg:p-14 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+            <div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl !text-white max-w-[18ch]">
+                Outgrown books can teach another child.
+              </h2>
+              <p className="mt-4 text-lg text-white/80 max-w-[48ch] leading-relaxed">
+                Clear the shelf before the new term. List a full set or a single guide, set your price, and hand it
+                over when a family asks.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link href="/sell" className="btn btn-sun btn-lg">
+                  List your books
+                </Link>
+                <Link href="/need" className="btn btn-ghost btn-lg !text-white hover:!bg-white/10">
+                  Request a book instead
+                </Link>
+              </div>
             </div>
+            <ul className="grid gap-3 text-white/90">
+              {['Checked by our team before it goes live', 'Your number stays hidden until you accept', 'Paid directly at hand-over'].map(
+                (t) => (
+                  <li key={t} className="flex items-center gap-3 rounded-md border-2 border-white/25 px-4 py-3 font-semibold">
+                    <Recycle aria-hidden size={18} className="text-sun shrink-0" />
+                    {t}
+                  </li>
+                ),
+              )}
+            </ul>
           </div>
-          <div className="absolute top-0 right-0 w-[60%] h-full bg-primary/20 -skew-x-12 translate-x-1/4"></div>
-          <div className="absolute top-1/2 right-1/4 w-64 h-64 rounded-full bg-secondary blur-[100px] opacity-20"></div>
-
-          <div className="absolute bottom-10 right-10 hidden lg:block opacity-20 rotate-12">
-            <span className="text-[200px]">&#128218;</span>
-          </div>
-        </div>
+        </Reveal>
       </section>
     </div>
   );
