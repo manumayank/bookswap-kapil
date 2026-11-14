@@ -1,13 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { BookOpen, PencilRuler } from 'lucide-react';
-
-const FILLS = ['bg-primary', 'bg-secondary', 'bg-sun', 'bg-accent'];
-
-function hash(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
+import { NO_PHOTO_CLASS, NO_PHOTO_IMG } from '@/components/listing/format';
 
 const SIZES = {
   sm: 'h-12 w-12',
@@ -32,17 +24,16 @@ export default function ListingThumb({
   size?: keyof typeof SIZES;
   className?: string;
 }) {
-  const Glyph = category === 'STATIONERY' ? PencilRuler : BookOpen;
   return (
     <div
       className={`${SIZES[size]} shrink-0 overflow-hidden rounded-md border-2 border-edge ${
-        imageUrl ? 'bg-muted-extra-light' : FILLS[hash(id || 'x') % FILLS.length]
+        'bg-muted-extra-light'
       } flex items-center justify-center ${className}`}
     >
       {imageUrl ? (
         <img src={imageUrl} alt="" className="h-full w-full object-cover" />
       ) : (
-        <Glyph className="text-ink" size={size === 'lg' ? 36 : size === 'md' ? 26 : 20} strokeWidth={2.25} aria-hidden="true" />
+        <img src={NO_PHOTO_IMG} alt="" className={`h-full w-full object-cover ${NO_PHOTO_CLASS}`} />
       )}
     </div>
   );

@@ -19,7 +19,7 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 import { boardLabel, categoryLabel, conditionLabel, pickupLabel } from '@/lib/labels';
-import { coverTone, formatRupees } from '@/components/listing/format';
+import { NO_PHOTO_CLASS, NO_PHOTO_IMG, formatRupees } from '@/components/listing/format';
 
 interface Listing {
   id: string;
@@ -260,10 +260,10 @@ export default function ListingDetailPage() {
             {activeImage ? (
               <img src={activeImage} alt={listing.title} className="h-full w-full object-cover" />
             ) : (
-              <div className={`flex h-full w-full flex-col items-center justify-center gap-3 ${coverTone(listing.id)}`}>
-                <Glyph className="h-24 w-24 text-ink md:h-32 md:w-32" strokeWidth={1.5} aria-hidden />
-                <span className="text-sm font-semibold text-ink">No photo yet</span>
-              </div>
+              <>
+                <img src={NO_PHOTO_IMG} alt="" className={`h-full w-full object-cover ${NO_PHOTO_CLASS}`} />
+                <span className="badge badge-muted absolute right-4 bottom-4 bg-card/90">The seller hasn&apos;t added a photo yet</span>
+              </>
             )}
             {isSold && (
               <div className="absolute inset-0 flex items-center justify-center bg-surface-inverse/60">
