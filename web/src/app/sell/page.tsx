@@ -1,54 +1,121 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  Home as HomeIcon,
+  ImagePlus,
+  MapPin,
+  PencilRuler,
+  School as SchoolIcon,
+  X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
-import { useRouter } from 'next/navigation';
-import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
+import { BOARD_OPTIONS, boardLabel, conditionLabel } from '@/lib/labels';
+import { Field, FieldError, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
+import FormAlert from '@/components/forms/FormAlert';
+import PriceInput from '@/components/forms/PriceInput';
+import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
+import EmptyState from '@/components/forms/EmptyState';
 
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
-const CATEGORIES = ['BOOK', 'STATIONERY'] as const;
-const CONDITIONS = [
-  { label: 'Hardly Used', value: 'HARDLY_USED' },
-  { label: 'Well Maintained', value: 'WELL_MAINTAINED' },
-  { label: 'Marker Used', value: 'MARKER_USED' },
-  { label: 'Stains', value: 'STAINS' },
-  { label: 'Torn Pages', value: 'TORN_PAGES' },
+const CATEGORIES = [
+  { label: 'Textbook', value: 'BOOK', icon: BookOpen },
+  { label: 'Stationery', value: 'STATIONERY', icon: PencilRuler },
 ] as const;
+const CONDITIONS = ['HARDLY_USED', 'WELL_MAINTAINED', 'MARKER_USED', 'STAINS', 'TORN_PAGES'] as const;
 const PICKUP_OPTIONS = [
-  { label: 'School Gate', value: 'SCHOOL_GATE' },
-  { label: 'My Home/Location', value: 'HOME' },
-  { label: 'Public Place', value: 'PUBLIC' },
+  { label: 'School gate', hint: 'Meet at drop-off or pickup time', value: 'SCHOOL_GATE', icon: SchoolIcon },
+  { label: 'My home', hint: 'The buyer collects from you', value: 'HOME', icon: HomeIcon },
+  { label: 'Public place', hint: 'A mall, park or metro station', value: 'PUBLIC', icon: MapPin },
 ] as const;
 const MAX_PHOTOS = 4;
-
-const LABEL = 'text-xs font-black uppercase tracking-[0.2em] text-muted-light block mb-4';
-
-interface School {
-  id: string;
-  name: string;
-  city: string;
-  board: string;
-}
+const STEPS = ['Photos', 'Details', 'Price'] as const;
 
 interface Photo {
   file: File;
   url: string;
 }
 
+type Values = {
+  title: string;
+  category: string;
+  condition: string;
+  board: string;
+  class: string;
+  subject: string;
+  city: string;
+  sector: string;
+  pickupLocation: string;
+  description: string;
+  buyingPrice: string;
+  sellingPrice: string;
+};
+
+type ErrorKey = keyof Values | 'photos' | 'school';
+type Errors = Partial<Record<ErrorKey, string>>;
+
+const EMPTY: Values = {
+  title: '',
+  category: '',
+  condition: '',
+  board: '',
+  class: '',
+  subject: '',
+  city: '',
+  sector: '',
+  pickupLocation: '',
+  description: '',
+  buyingPrice: '',
+  sellingPrice: '',
+};
+
+// First focusable element for each error key
+const FOCUS_ID: Record<ErrorKey, string> = {
+  photos: 'photo-input-0',
+  title: 'sell-title',
+  category: 'sell-category-BOOK',
+  condition: `sell-condition-${CONDITIONS[0]}`,
+  board: 'sell-board',
+  class: 'sell-class',
+  subject: 'sell-subject',
+  school: 'sell-school',
+  city: 'sell-city',
+  sector: 'sell-sector',
+  pickupLocation: `sell-pickup-${PICKUP_OPTIONS[0].value}`,
+  description: 'sell-description',
+  buyingPrice: 'sell-mrp',
+  sellingPrice: 'sell-price',
+};
+
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
 export default function SellPage() {
   const router = useRouter();
-  const { isAuthenticated, isHydrated, hydrate } = useAuthStore();
+  const { isAuthenticated, isHydrated, hydrate, user } = useAuthStore();
+  const [step, setStep] = useState(0);
+  const [values, setValues] = useState<Values>(EMPTY);
+  const [errors, setErrors] = useState<Errors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [submitError, setSubmitError] = useState('');
+  const [submitted, setSubmitted] = useState<{ photosFailed: boolean } | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const photosRef = useRef<Photo[]>([]);
   photosRef.current = photos;
+  const topRef = useRef<HTMLDivElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
 
   // School search
   const [schoolSearch, setSchoolSearch] = useState('');
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [selectedSchoolName, setSelectedSchoolName] = useState('');
@@ -57,12 +124,26 @@ export default function SellPage() {
     hydrate();
   }, [hydrate]);
 
+  // Start with the seller's own city
+  useEffect(() => {
+    if (user?.city) setValues((v) => (v.city ? v : { ...v, city: user.city }));
+  }, [user]);
+
   // Release preview object URLs on unmount
   useEffect(() => {
     return () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url));
   }, []);
 
-  // Search schools
+  // Move to the top of the new step and put focus on its heading
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    stepHeadingRef.current?.focus({ preventScroll: true });
+  }, [step]);
+
   const searchSchools = useCallback(async (query: string) => {
     if (query.length < 2) {
       setSchools([]);
@@ -85,6 +166,12 @@ export default function SellPage() {
     return () => clearTimeout(timeout);
   }, [schoolSearch, selectedSchoolName, searchSchools]);
 
+  const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setValues((v) => ({ ...v, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -94,6 +181,7 @@ export default function SellPage() {
       next.slice(MAX_PHOTOS).forEach((p) => URL.revokeObjectURL(p.url));
       return next.slice(0, MAX_PHOTOS);
     });
+    setErrors((prev) => ({ ...prev, photos: undefined }));
     e.target.value = '';
   };
 
@@ -105,44 +193,89 @@ export default function SellPage() {
     });
   };
 
+  const validateStep = (s: number): Errors => {
+    const e: Errors = {};
+    if (s === 0) {
+      if (photos.length === 0) e.photos = 'Add a photo of the front cover to continue.';
+    }
+    if (s === 1) {
+      if (!values.title.trim()) e.title = 'Add a title, for example the book name and class.';
+      if (!values.category) e.category = 'Choose textbook or stationery.';
+      if (!values.condition) e.condition = 'Choose the condition that fits best.';
+      if (!values.subject.trim()) e.subject = 'Add the subject.';
+      if (!values.description.trim()) e.description = 'Add a short description for buyers.';
+      if (!values.board) e.board = 'Choose the board.';
+      if (!values.class) e.class = 'Choose the class.';
+      if (!schoolSearch.trim()) e.school = 'Add the school name.';
+      if (!values.city.trim()) e.city = 'Add your city.';
+      if (!values.pickupLocation) e.pickupLocation = 'Choose where to hand over the item.';
+    }
+    if (s === 2) {
+      if (!(Number(values.sellingPrice) >= 1)) e.sellingPrice = 'Enter your selling price in rupees.';
+    }
+    return e;
+  };
+
+  const showErrors = (e: Errors) => {
+    setErrors(e);
+    const first = Object.keys(e)[0] as ErrorKey | undefined;
+    if (first) {
+      const el = document.getElementById(FOCUS_ID[first]);
+      el?.focus();
+      if (first === 'photos') topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return !first;
+  };
+
+  const goNext = () => {
+    if (!showErrors(validateStep(step))) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+
+  const goBack = () => {
+    setErrors({});
+    setStep((s) => Math.max(s - 1, 0));
+  };
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!isAuthenticated) return;
-
-    if (photos.length === 0) {
-      setStatus({ type: 'error', message: 'Please add at least one photo of the front cover.' });
+    if (step < STEPS.length - 1) {
+      goNext();
       return;
     }
+    if (!isAuthenticated) return;
 
-    // Validate school name is provided
-    if (!schoolSearch.trim()) {
-      setStatus({ type: 'error', message: 'Please enter a school name' });
-      return;
+    // Re-check every step before sending
+    for (let s = 0; s < STEPS.length; s++) {
+      const stepErrors = validateStep(s);
+      if (Object.keys(stepErrors).length > 0) {
+        setStep(s);
+        setTimeout(() => showErrors(stepErrors), 0);
+        return;
+      }
     }
 
     setIsSubmitting(true);
-    setStatus(null);
+    setSubmitError('');
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    const buyingPriceRaw = Number(formData.get('buyingPrice'));
+    const buyingPriceRaw = Number(values.buyingPrice);
 
     try {
-      // Build payload - use schoolId if selected from dropdown, otherwise pass schoolName for auto-creation
+      // Use schoolId if picked from the list, otherwise send schoolName for auto-creation
       const payload: any = {
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-        category: formData.get('category') as string,
-        condition: formData.get('condition') as string,
-        board: formData.get('board') as string,
-        class: Number(formData.get('class')),
-        subject: formData.get('subject') as string,
-        city: formData.get('city') as string,
-        sector: (formData.get('sector') as string) || undefined,
-        pickupLocation: formData.get('pickupLocation') as string,
+        title: values.title,
+        description: values.description,
+        category: values.category,
+        condition: values.condition,
+        board: values.board,
+        class: Number(values.class),
+        subject: values.subject,
+        city: values.city,
+        sector: values.sector || undefined,
+        pickupLocation: values.pickupLocation,
         // MRP is optional; the API rejects 0, so omit it when empty
         buyingPrice: buyingPriceRaw > 0 ? buyingPriceRaw : undefined,
-        sellingPrice: Number(formData.get('sellingPrice')),
+        sellingPrice: Number(values.sellingPrice),
       };
 
       if (selectedSchoolId) {
@@ -154,7 +287,7 @@ export default function SellPage() {
       const { data } = await api.post('/listings', payload);
 
       if (data.success) {
-        let imageWarning = '';
+        let photosFailed = false;
         if (photos.length > 0 && data.data?.id) {
           const imageFormData = new FormData();
           photos.forEach((p) => imageFormData.append('images', p.file));
@@ -164,12 +297,12 @@ export default function SellPage() {
             });
           } catch (imgErr) {
             console.error('Image upload failed:', imgErr);
-            imageWarning = ' (photos failed to upload — you can add them from your dashboard)';
+            photosFailed = true;
           }
         }
 
-        setStatus({ type: 'success', message: `Listing submitted for review!${imageWarning}` });
-        form.reset();
+        setSubmitted({ photosFailed });
+        setValues(EMPTY);
         photos.forEach((p) => URL.revokeObjectURL(p.url));
         setPhotos([]);
         setSelectedSchoolId('');
@@ -180,11 +313,10 @@ export default function SellPage() {
           router.push('/dashboard');
         }, 2000);
       } else {
-        setStatus({ type: 'error', message: data.error || 'Something went wrong.' });
+        setSubmitError(data.error || "We couldn't submit your listing. Try again.");
       }
     } catch (err: any) {
-      const message = err?.response?.data?.error || 'Failed to connect to server.';
-      setStatus({ type: 'error', message });
+      setSubmitError(err?.response?.data?.error || "We couldn't reach Sybrary. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -192,12 +324,13 @@ export default function SellPage() {
 
   if (!isHydrated) {
     return (
-      <div className="bg-background min-h-screen py-16 md:py-24" aria-busy="true">
-        <div className="container max-w-3xl">
-          <div className="h-14 skeleton max-w-sm mx-auto mb-6" />
-          <div className="h-6 skeleton max-w-md mx-auto mb-16" />
-          <div className="h-64 skeleton rounded-[28px] mb-8" />
-          <div className="h-96 skeleton rounded-[28px]" />
+      <div className="container max-w-6xl py-12 md:py-16" aria-busy="true">
+        <div className="skeleton mb-4 h-12 max-w-sm" />
+        <div className="skeleton mb-10 h-6 max-w-md" />
+        <div className="skeleton mb-8 h-12 max-w-xl" />
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="skeleton h-96 rounded-lg" />
+          <div className="skeleton hidden h-96 rounded-lg lg:block" />
         </div>
       </div>
     );
@@ -205,462 +338,688 @@ export default function SellPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="bg-background min-h-screen py-24">
-        <div className="container max-w-3xl text-center animate-fade-in">
-          <h1 className="text-4xl font-black mb-6 tracking-tight">Please log in</h1>
-          <p className="text-muted font-medium text-lg mb-10">
-            You need to be logged in to list an item for sale.
-          </p>
-          <Link href="/login" className="btn btn-primary text-lg">
-            Go to Login
-          </Link>
-        </div>
+      <div className="container max-w-xl py-16 md:py-24 animate-fade-in">
+        <EmptyState
+          icon={BookOpen}
+          title="Log in to list your books"
+          actions={
+            <>
+              <Link href="/login" className="btn btn-primary">
+                Log in
+              </Link>
+              <Link href="/browse" className="btn btn-outline">
+                Browse books instead
+              </Link>
+            </>
+          }
+        >
+          <p>Listing takes about two minutes. You’ll need a photo of the front cover and your price.</p>
+        </EmptyState>
       </div>
     );
   }
 
-  return (
-    <div className="bg-background min-h-screen py-16 md:py-24">
-      <div className="container max-w-3xl">
-        <header className="mb-14 md:mb-20 text-center animate-fade-in">
-          <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-primary mb-6">
-            <Link href="/" className="hover:underline">Home</Link>
-            <span className="opacity-30" aria-hidden>/</span>
-            <span>Post Listing</span>
-          </div>
-          <h1 className="text-4xl sm:text-6xl font-black mb-6 tracking-tight">List your item</h1>
-          <p className="text-muted font-medium text-lg max-w-md mx-auto leading-relaxed">
-            Join our community of parents saving on school essentials.
-          </p>
-        </header>
-
-        <form className="flex flex-col gap-12" onSubmit={handleSubmit}>
-          {status && (
-            <div
-              role={status.type === 'error' ? 'alert' : 'status'}
-              className={`p-6 rounded-3xl font-bold text-center animate-slide-down ${
-                status.type === 'success'
-                  ? 'bg-secondary/10 text-secondary border border-secondary/20'
-                  : 'bg-accent/10 text-accent border border-accent/20'
-              }`}
-            >
-              {status.message}
-            </div>
+  if (submitted) {
+    return (
+      <div className="container max-w-xl py-16 md:py-24 animate-fade-in">
+        <EmptyState
+          icon={CheckCircle2}
+          tone="secondary"
+          title="Submitted for review"
+          actions={
+            <Link href="/dashboard" className="btn btn-primary">
+              Go to dashboard
+            </Link>
+          }
+        >
+          <p>Our team checks every listing before buyers can see it. We’ll notify you when yours is live.</p>
+          {submitted.photosFailed && (
+            <p className="mt-3 font-semibold text-foreground">
+              Your photos didn’t upload. You can add them from your dashboard.
+            </p>
           )}
+          <p className="mt-3 text-sm">Taking you to your dashboard…</p>
+        </EmptyState>
+      </div>
+    );
+  }
 
-          {/* Step 1: Photos & Media */}
-          <section aria-labelledby="step-photos">
-            <div className="flex items-center gap-4 mb-8">
-              <span className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20" aria-hidden>
-                01
-              </span>
-              <h2 id="step-photos" className="text-2xl font-black tracking-tight">Photos (Required)</h2>
-            </div>
+  const mrp = Number(values.buyingPrice);
+  const price = Number(values.sellingPrice);
+  const savings = mrp > 0 && price > 0 && price < mrp ? mrp - price : 0;
+  const isLast = step === STEPS.length - 1;
 
-            <div className="card-flat p-6 md:p-10">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
-                  const photo = photos[i];
-                  const isMain = i === 0;
-                  if (photo) {
-                    return (
-                      <div key={photo.url} className="aspect-square rounded-[24px] relative overflow-hidden border border-card-border">
-                        <img src={photo.url} alt={isMain ? 'Front cover preview' : `Photo ${i + 1} preview`} className="absolute inset-0 w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(i)}
-                          aria-label={`Remove ${isMain ? 'front cover' : `photo ${i + 1}`}`}
-                          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white text-lg font-bold flex items-center justify-center hover:bg-black/80"
+  const preview = (
+    <ListingPreview
+      photoUrl={photos[0]?.url}
+      values={values}
+      schoolName={schoolSearch.trim()}
+      savings={savings}
+    />
+  );
+
+  return (
+    <div ref={topRef} className="container max-w-6xl scroll-mt-24 py-10 md:py-14">
+      <header className="mb-8">
+        <Link
+          href="/"
+          className="-ml-2 mb-4 inline-flex min-h-[40px] items-center gap-1.5 rounded-sm px-2 text-sm font-semibold text-muted hover:text-foreground hover:underline decoration-primary decoration-2 underline-offset-4"
+        >
+          <ArrowLeft size={16} strokeWidth={2.5} aria-hidden />
+          Home
+        </Link>
+        <h1 className="text-4xl md:text-5xl">List your books</h1>
+        <p className="mt-3 max-w-xl text-base text-muted md:text-lg">
+          Three quick steps. Buyers see your listing once our team has checked it.
+        </p>
+      </header>
+
+      <Stepper step={step} onJump={(i) => i < step && setStep(i)} />
+
+      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <form noValidate onSubmit={handleSubmit} className="min-w-0 animate-fade-in" key={step}>
+          {/* Step 1: Photos */}
+          {step === 0 && (
+            <section aria-labelledby="step-heading">
+              <StepHeading ref={stepHeadingRef}>Add photos</StepHeading>
+              <p className="mb-6 text-muted">
+                Start with the front cover. Add the back or a few inside pages if they show the condition.
+              </p>
+
+              <div className="card-flat p-4 sm:p-6">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                  {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
+                    const photo = photos[i];
+                    const isMain = i === 0;
+                    if (photo) {
+                      return (
+                        <div
+                          key={photo.url}
+                          className="relative aspect-square overflow-hidden rounded-md border-2 border-edge bg-muted-extra-light"
                         >
-                          <span aria-hidden>&times;</span>
-                        </button>
-                        {isMain && (
-                          <span className="absolute bottom-2 left-2 badge badge-primary bg-card/90">Cover</span>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.url}
+                            alt={isMain ? 'Front cover preview' : `Photo ${i + 1} preview`}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(i)}
+                            aria-label={`Remove ${isMain ? 'front cover' : `photo ${i + 1}`}`}
+                            className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-edge bg-card text-foreground shadow-pop-sm hover:bg-muted-extra-light"
+                          >
+                            <X size={18} strokeWidth={2.75} aria-hidden />
+                          </button>
+                          {isMain && <span className="badge badge-sun absolute bottom-2 left-2">Cover</span>}
+                        </div>
+                      );
+                    }
+                    // Only the next empty slot is an active picker
+                    const isNextSlot = i === photos.length;
+                    const inputId = `photo-input-${i}`;
+                    return (
+                      <div key={`slot-${i}`} className="relative aspect-square">
+                        {isNextSlot && (
+                          <input
+                            id={inputId}
+                            type="file"
+                            className="peer sr-only"
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageUpload}
+                            aria-describedby={errors.photos ? 'photos-error' : 'photos-hint'}
+                          />
                         )}
+                        <label
+                          htmlFor={isNextSlot ? inputId : undefined}
+                          aria-disabled={!isNextSlot}
+                          className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-3 text-center transition-colors peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                            isNextSlot
+                              ? `cursor-pointer bg-muted-extra-light text-foreground hover:border-solid hover:border-edge ${
+                                  errors.photos ? 'border-accent' : 'border-edge'
+                                }`
+                              : 'cursor-default border-card-border text-muted-light'
+                          }`}
+                        >
+                          {isNextSlot ? (
+                            <>
+                              <span
+                                className={`flex h-11 w-11 items-center justify-center rounded-full border-2 border-edge ${
+                                  isMain ? 'bg-sun text-ink' : 'bg-card'
+                                }`}
+                                aria-hidden
+                              >
+                                <ImagePlus size={20} strokeWidth={2.25} />
+                              </span>
+                              <span className="text-sm font-bold leading-tight">
+                                {isMain ? 'Add front cover' : 'Add photo'}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[13px] font-semibold">Photo {i + 1}</span>
+                          )}
+                        </label>
                       </div>
                     );
-                  }
-                  // Only the next empty slot is an active picker
-                  const isNextSlot = i === photos.length;
-                  const inputId = `photo-input-${i}`;
-                  return (
-                    <div key={`slot-${i}`} className="aspect-square relative">
-                      {isNextSlot && (
-                        <input
-                          id={inputId}
-                          type="file"
-                          className="sr-only peer"
-                          accept="image/*"
-                          multiple
-                          onChange={handleImageUpload}
-                        />
-                      )}
-                      <label
-                        htmlFor={isNextSlot ? inputId : undefined}
-                        aria-disabled={!isNextSlot}
-                        className={`absolute inset-0 rounded-[24px] border-2 border-dashed flex flex-col items-center justify-center p-4 group transition-all peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
-                          isMain
-                            ? 'border-primary bg-primary/5 hover:border-primary-dark'
-                            : 'border-border'
-                        } ${isNextSlot ? 'cursor-pointer hover:border-primary' : 'opacity-60 cursor-default'}`}
-                      >
-                        {isMain ? (
-                          <>
-                            <span className="mb-3 group-hover:scale-110 transition-transform" aria-hidden>
-                              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                            </span>
-                            <span className="text-xs font-black uppercase tracking-widest text-primary text-center">
-                              Front Cover *
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-2xl opacity-60 group-hover:opacity-100 group-hover:text-primary group-hover:scale-125 transition-all mb-2" aria-hidden>
-                              +
-                            </span>
-                            <span className="text-xs font-bold uppercase tracking-widest text-muted-light">
-                              {isNextSlot ? 'Add photo' : 'Optional'}
-                            </span>
-                          </>
-                        )}
-                      </label>
-                    </div>
-                  );
-                })}
+                  })}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                  <p id="photos-hint" className="text-[13px] text-muted">
+                    {photos.length} of {MAX_PHOTOS} photos. You can pick several at once.
+                  </p>
+                </div>
+                <FieldError id="photos-error" message={errors.photos} />
               </div>
-              <div className="mt-8 p-4 rounded-xl bg-muted-extra-light/50 border border-card-border flex items-start gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary flex-shrink-0 mt-0.5" aria-hidden><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                <p className="text-xs text-muted font-medium leading-relaxed">
-                  <span className="font-bold text-foreground">Required:</span> At least one front cover photo (up to {MAX_PHOTOS}).
-                  Items with clear photos sell <span className="text-secondary font-bold">3x faster</span>.
-                </p>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
-          {/* Step 2: Item Details */}
-          <section aria-labelledby="step-details">
-            <div className="flex items-center gap-4 mb-8">
-              <span className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20" aria-hidden>
-                02
-              </span>
-              <h2 id="step-details" className="text-2xl font-black tracking-tight">Item Details</h2>
-            </div>
-
-            <div className="card-flat p-6 md:p-10 flex flex-col gap-10">
-              {/* Title */}
+          {/* Step 2: Details */}
+          {step === 1 && (
+            <section aria-labelledby="step-heading" className="flex flex-col gap-6">
               <div>
-                <label htmlFor="sell-title" className={LABEL}>
-                  What are you selling? *
-                </label>
-                <input
-                  id="sell-title"
-                  name="title"
-                  type="text"
-                  required
-                  placeholder="e.g. NCERT Mathematics Class X - 2024 Edition"
-                  className="w-full text-base font-bold py-5 px-6 rounded-2xl"
-                />
+                <StepHeading ref={stepHeadingRef}>Describe the item</StepHeading>
+                <p className="text-muted">Parents search by class, board and school, so these matter most.</p>
               </div>
 
-              {/* Category & Condition */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label htmlFor="sell-category" className={LABEL}>
-                    Category *
-                  </label>
-                  <select
-                    id="sell-category"
-                    name="category"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl cursor-pointer"
-                  >
-                    <option value="">Select category</option>
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat === 'BOOK' ? 'Textbooks' : 'Stationery'}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="sell-condition" className={LABEL}>
-                    Condition *
-                  </label>
-                  <select
-                    id="sell-condition"
-                    name="condition"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl cursor-pointer"
-                  >
-                    <option value="">Select condition</option>
-                    {CONDITIONS.map((cond) => (
-                      <option key={cond.value} value={cond.value}>{cond.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <fieldset className="card-flat flex flex-col gap-5 p-5 sm:p-6">
+                <legend className="sr-only">About the item</legend>
+                <h3 className="text-lg font-bold" aria-hidden>
+                  About the item
+                </h3>
 
-              {/* Board & Class */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label htmlFor="sell-board" className={LABEL}>
-                    Board *
-                  </label>
-                  <select
-                    id="sell-board"
-                    name="board"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl cursor-pointer"
-                  >
-                    <option value="">Select board</option>
-                    {BOARD_OPTIONS.map((board) => (
-                      <option key={board} value={board}>{boardLabel(board)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="sell-class" className={LABEL}>
-                    Class *
-                  </label>
-                  <select
-                    id="sell-class"
-                    name="class"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl cursor-pointer"
-                  >
-                    <option value="">Select class</option>
-                    {CLASSES.map((cls) => (
-                      <option key={cls} value={cls}>Class {cls}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Subject */}
-              <div>
-                <label htmlFor="sell-subject" className={LABEL}>
-                  Subject *
-                </label>
-                <input
-                  id="sell-subject"
-                  name="subject"
-                  type="text"
-                  required
-                  placeholder="e.g. Mathematics, Science, English..."
-                  className="w-full font-bold py-5 px-6 rounded-2xl"
-                />
-              </div>
-
-              {/* School Search */}
-              <div className="relative">
-                <label htmlFor="sell-school" className={LABEL}>
-                  School *
-                </label>
-                <input
-                  id="sell-school"
-                  type="text"
-                  value={schoolSearch}
-                  autoComplete="off"
-                  onChange={(e) => {
-                    setSchoolSearch(e.target.value);
-                    setSelectedSchoolName('');
-                    setSelectedSchoolId('');
-                    setShowSchoolDropdown(true);
-                  }}
-                  onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setShowSchoolDropdown(false);
-                  }}
-                  placeholder="Type your school name..."
-                  className="w-full font-bold py-5 px-6 rounded-2xl"
-                />
-                {showSchoolDropdown && schools.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-card border border-card-border rounded-2xl mt-2 max-h-60 overflow-y-auto z-10 shadow-xl">
-                    {schools.map((school) => (
-                      <button
-                        key={school.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSchoolId(school.id);
-                          setSelectedSchoolName(school.name);
-                          setSchoolSearch(school.name);
-                          setShowSchoolDropdown(false);
-                        }}
-                        className="w-full text-left px-6 py-4 hover:bg-muted-extra-light border-b border-card-border last:border-0"
-                      >
-                        <div className="font-bold">{school.name}</div>
-                        <div className="text-xs text-muted">{school.city} • {boardLabel(school.board)}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showSchoolDropdown && schoolSearch.length >= 2 && schools.length === 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-card border border-card-border rounded-2xl mt-2 p-6 z-10 shadow-xl">
-                    <div className="text-center">
-                      <p className="text-muted mb-4">No schools found matching &quot;{schoolSearch}&quot;</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedSchoolName(schoolSearch);
-                          setShowSchoolDropdown(false);
-                        }}
-                        className="btn btn-primary h-auto min-h-12 py-3 max-w-full whitespace-normal"
-                      >
-                        + Add &quot;{schoolSearch}&quot; as New School
-                      </button>
-                      <p className="text-xs text-muted mt-2">This school will be added to our database</p>
-                    </div>
-                  </div>
-                )}
-                {selectedSchoolName && (
-                  <div className="mt-3 p-3 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center gap-2">
-                    <span className="text-secondary" aria-hidden>✓</span>
-                    <span className="text-sm font-medium">
-                      {selectedSchoolId ? 'Selected:' : 'Adding new school:'} {selectedSchoolName}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* City & Sector */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label htmlFor="sell-city" className={LABEL}>
-                    City *
-                  </label>
+                <Field id="sell-title" label="Title" error={errors.title} hint="Name the book or set, e.g. NCERT Mathematics Class 10 (2024 edition)">
                   <input
-                    id="sell-city"
-                    name="city"
+                    {...fieldA11y('sell-title', { error: errors.title, hint: true })}
                     type="text"
-                    required
-                    placeholder="e.g. Delhi"
-                    className="w-full font-bold py-5 px-6 rounded-2xl"
+                    value={values.title}
+                    onChange={set('title')}
+                    placeholder="NCERT Mathematics Class 10"
+                    className={`${controlClass} ${errors.title ? invalidClass : ''}`}
                   />
-                </div>
-                <div>
-                  <label htmlFor="sell-sector" className={LABEL}>
-                    Sector/Colony/Area
-                  </label>
-                  <input
-                    id="sell-sector"
-                    name="sector"
-                    type="text"
-                    placeholder="e.g. Sector 45, Gurgaon"
-                    className="w-full font-bold py-5 px-6 rounded-2xl"
-                  />
-                </div>
-              </div>
+                </Field>
 
-              {/* Pickup Location */}
-              <fieldset>
-                <legend className={LABEL}>Preferred Pickup Location *</legend>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {PICKUP_OPTIONS.map((option) => (
-                    <label key={option.value} className="relative cursor-pointer">
-                      <input
-                        type="radio"
-                        name="pickupLocation"
-                        value={option.value}
-                        required
-                        className="sr-only peer"
-                      />
-                      <div className="p-6 rounded-2xl border-2 border-card-border bg-card text-center text-sm font-bold transition-all hover:border-primary hover:bg-muted-extra-light peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:font-black peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary">
-                        {option.label}
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                <RadioGroup
+                  name="category"
+                  legend="Type"
+                  error={errors.category}
+                  value={values.category}
+                  onChange={(v) => {
+                    setValues((s) => ({ ...s, category: v }));
+                    setErrors((p) => ({ ...p, category: undefined }));
+                  }}
+                  options={CATEGORIES.map((c) => ({ value: c.value, label: c.label, icon: c.icon }))}
+                  idPrefix="sell-category"
+                />
+
+                <RadioGroup
+                  name="condition"
+                  legend="Condition"
+                  error={errors.condition}
+                  value={values.condition}
+                  onChange={(v) => {
+                    setValues((s) => ({ ...s, condition: v }));
+                    setErrors((p) => ({ ...p, condition: undefined }));
+                  }}
+                  options={CONDITIONS.map((c) => ({ value: c, label: conditionLabel(c) }))}
+                  idPrefix="sell-condition"
+                />
+
+                <Field id="sell-subject" label="Subject" error={errors.subject}>
+                  <input
+                    {...fieldA11y('sell-subject', { error: errors.subject })}
+                    type="text"
+                    value={values.subject}
+                    onChange={set('subject')}
+                    placeholder="Mathematics"
+                    className={`${controlClass} ${errors.subject ? invalidClass : ''}`}
+                  />
+                </Field>
+
+                <Field
+                  id="sell-description"
+                  label="Description"
+                  error={errors.description}
+                  hint="Mention missing pages, highlighting, or anything included like a workbook."
+                >
+                  <textarea
+                    {...fieldA11y('sell-description', { error: errors.description, hint: true })}
+                    rows={4}
+                    value={values.description}
+                    onChange={set('description')}
+                    placeholder="Clean copy, a few pencil notes in chapter 3. Comes with the lab manual."
+                    className={`w-full resize-y ${errors.description ? invalidClass : ''}`}
+                  />
+                </Field>
               </fieldset>
 
-              {/* Description */}
+              <fieldset className="card-flat flex flex-col gap-5 p-5 sm:p-6">
+                <legend className="sr-only">Class and school</legend>
+                <h3 className="text-lg font-bold" aria-hidden>
+                  Class and school
+                </h3>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field id="sell-board" label="Board" error={errors.board}>
+                    <select
+                      {...fieldA11y('sell-board', { error: errors.board })}
+                      value={values.board}
+                      onChange={set('board')}
+                      className={`${controlClass} ${errors.board ? invalidClass : ''}`}
+                    >
+                      <option value="">Choose board</option>
+                      {BOARD_OPTIONS.map((board) => (
+                        <option key={board} value={board}>
+                          {boardLabel(board)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field id="sell-class" label="Class" error={errors.class}>
+                    <select
+                      {...fieldA11y('sell-class', { error: errors.class })}
+                      value={values.class}
+                      onChange={set('class')}
+                      className={`${controlClass} ${errors.class ? invalidClass : ''}`}
+                    >
+                      <option value="">Choose class</option>
+                      {CLASSES.map((cls) => (
+                        <option key={cls} value={cls}>
+                          Class {cls}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <Field id="sell-school" label="School" error={errors.school}>
+                  <div className="relative">
+                    <input
+                      {...fieldA11y('sell-school', { error: errors.school })}
+                      type="text"
+                      role="combobox"
+                      aria-expanded={showSchoolDropdown && schoolSearch.length >= 2}
+                      aria-controls="sell-school-suggestions"
+                      aria-autocomplete="list"
+                      value={schoolSearch}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setSchoolSearch(e.target.value);
+                        setSelectedSchoolName('');
+                        setSelectedSchoolId('');
+                        setShowSchoolDropdown(true);
+                        if (errors.school) setErrors((p) => ({ ...p, school: undefined }));
+                      }}
+                      onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setShowSchoolDropdown(false);
+                      }}
+                      placeholder="Start typing the school name"
+                      className={`${controlClass} ${errors.school ? invalidClass : ''}`}
+                    />
+                    <SchoolSuggestions
+                      listId="sell-school-suggestions"
+                      open={showSchoolDropdown && schoolSearch.length >= 2}
+                      schools={schools}
+                      onSelect={(school) => {
+                        setSelectedSchoolId(school.id);
+                        setSelectedSchoolName(school.name);
+                        setSchoolSearch(school.name);
+                        setShowSchoolDropdown(false);
+                      }}
+                      empty={
+                        <div>
+                          <p className="mb-3">
+                            No school called <span className="font-semibold text-foreground">“{schoolSearch}”</span> yet.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSchoolName(schoolSearch);
+                              setShowSchoolDropdown(false);
+                            }}
+                            className="btn btn-outline btn-sm h-auto min-h-[40px] max-w-full whitespace-normal py-2 text-left"
+                          >
+                            Add “{schoolSearch}” as a new school
+                          </button>
+                        </div>
+                      }
+                    />
+                  </div>
+                  {selectedSchoolName && (
+                    <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-secondary-dark">
+                      <Check size={16} strokeWidth={3} aria-hidden />
+                      {selectedSchoolId ? 'School selected' : 'We’ll add this school for you'}
+                    </p>
+                  )}
+                </Field>
+              </fieldset>
+
+              <fieldset className="card-flat flex flex-col gap-5 p-5 sm:p-6">
+                <legend className="sr-only">Pickup</legend>
+                <h3 className="text-lg font-bold" aria-hidden>
+                  Pickup
+                </h3>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field id="sell-city" label="City" error={errors.city}>
+                    <input
+                      {...fieldA11y('sell-city', { error: errors.city })}
+                      type="text"
+                      autoComplete="address-level2"
+                      value={values.city}
+                      onChange={set('city')}
+                      placeholder="Bengaluru"
+                      className={`${controlClass} ${errors.city ? invalidClass : ''}`}
+                    />
+                  </Field>
+                  <Field id="sell-sector" label="Area or sector" optional>
+                    <input
+                      id="sell-sector"
+                      type="text"
+                      value={values.sector}
+                      onChange={set('sector')}
+                      placeholder="HSR Layout"
+                      className={controlClass}
+                    />
+                  </Field>
+                </div>
+
+                <fieldset aria-describedby={errors.pickupLocation ? 'sell-pickup-error' : undefined}>
+                  <legend className="mb-2 text-sm font-semibold">Where should the buyer collect it?</legend>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {PICKUP_OPTIONS.map((option) => {
+                      const Icon = option.icon;
+                      const id = `sell-pickup-${option.value}`;
+                      return (
+                        <label key={option.value} htmlFor={id} className="relative cursor-pointer">
+                          <input
+                            id={id}
+                            type="radio"
+                            name="pickupLocation"
+                            value={option.value}
+                            checked={values.pickupLocation === option.value}
+                            onChange={() => {
+                              setValues((s) => ({ ...s, pickupLocation: option.value }));
+                              setErrors((p) => ({ ...p, pickupLocation: undefined }));
+                            }}
+                            className="peer sr-only"
+                          />
+                          <span
+                            className={`flex h-full min-h-[64px] items-start gap-3 rounded-md border-2 bg-card p-3.5 transition-colors hover:border-edge peer-checked:border-edge peer-checked:bg-sun peer-checked:text-ink peer-checked:shadow-pop-sm peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary peer-checked:[&_.hint]:text-ink ${
+                              errors.pickupLocation ? 'border-accent' : 'border-border'
+                            }`}
+                          >
+                            <Icon size={20} strokeWidth={2.25} className="mt-0.5 shrink-0" aria-hidden />
+                            <span>
+                              <span className="block text-sm font-bold">{option.label}</span>
+                              <span className="hint block text-[13px] leading-snug text-muted">{option.hint}</span>
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <FieldError id="sell-pickup-error" message={errors.pickupLocation} />
+                </fieldset>
+                <p className="text-[13px] text-muted">
+                  Buyers only see your phone number and address after you accept their request.
+                </p>
+              </fieldset>
+            </section>
+          )}
+
+          {/* Step 3: Price */}
+          {step === 2 && (
+            <section aria-labelledby="step-heading" className="flex flex-col gap-6">
               <div>
-                <label htmlFor="sell-description" className={LABEL}>
-                  Description *
-                </label>
-                <textarea
-                  id="sell-description"
-                  name="description"
-                  rows={5}
-                  required
-                  placeholder="Tell buyers about the condition, any missing pages, highlights, or notes..."
-                  className="w-full font-medium py-5 px-6 rounded-2xl resize-none"
-                ></textarea>
+                <StepHeading ref={stepHeadingRef}>Set your price</StepHeading>
+                <p className="text-muted">Adding the printed price (MRP) shows buyers how much they save.</p>
               </div>
-            </div>
-          </section>
 
-          {/* Step 3: Pricing */}
-          <section aria-labelledby="step-pricing">
-            <div className="flex items-center gap-4 mb-8">
-              <span className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20" aria-hidden>
-                03
-              </span>
-              <h2 id="step-pricing" className="text-2xl font-black tracking-tight">Pricing</h2>
-            </div>
-
-            <div className="card-flat p-6 md:p-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label htmlFor="sell-mrp" className={LABEL}>
-                    Original Price (MRP)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-2xl text-muted-light" aria-hidden>
-                      &#8377;
-                    </span>
-                    <input
-                      id="sell-mrp"
-                      name="buyingPrice"
-                      type="number"
-                      min="1"
-                      inputMode="numeric"
-                      placeholder="Optional"
-                      className="w-full pl-12 pr-6 py-6 text-3xl font-black rounded-2xl placeholder:text-base placeholder:font-bold"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="sell-price" className={LABEL}>
-                    Your Selling Price *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-2xl text-muted-light" aria-hidden>
-                      &#8377;
-                    </span>
-                    <input
-                      id="sell-price"
-                      name="sellingPrice"
-                      type="number"
-                      min="1"
-                      inputMode="numeric"
+              <div className="card-flat p-5 sm:p-6">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field id="sell-price" label="Your price" error={errors.sellingPrice}>
+                    <PriceInput
+                      {...fieldA11y('sell-price', { error: errors.sellingPrice })}
+                      size="lg"
+                      value={values.sellingPrice}
+                      onChange={set('sellingPrice')}
                       placeholder="0"
-                      required
-                      className="w-full pl-12 pr-6 py-6 text-3xl font-black rounded-2xl"
+                      className={errors.sellingPrice ? invalidClass : ''}
                     />
-                  </div>
+                  </Field>
+                  <Field id="sell-mrp" label="MRP" optional>
+                    <PriceInput
+                      id="sell-mrp"
+                      size="lg"
+                      value={values.buyingPrice}
+                      onChange={set('buyingPrice')}
+                      placeholder="0"
+                      aria-describedby="sell-savings"
+                    />
+                  </Field>
+                </div>
+
+                <div id="sell-savings" aria-live="polite" className="mt-5 min-h-[24px]">
+                  {savings > 0 && (
+                    <p className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="badge badge-secondary text-[13px]">Buyers save {rupees(savings)}</span>
+                      <span className="text-muted">{Math.round((savings / mrp) * 100)}% below the MRP</span>
+                    </p>
+                  )}
+                  {mrp > 0 && price > mrp && (
+                    <p className="text-sm text-muted">Your price is higher than the MRP. Check both amounts.</p>
+                  )}
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* Submit */}
-          <div className="flex flex-col gap-6 pt-10">
-            <button
-              type="submit"
-              disabled={isSubmitting || photos.length === 0}
-              className="btn btn-primary h-16 md:h-20 text-lg md:text-xl font-black shadow-2xl rounded-[28px] group"
-            >
-              {isSubmitting ? 'Submitting...' : photos.length === 0 ? 'Add Photo to Continue' : 'Submit My Listing'}
-              {!isSubmitting && photos.length > 0 && (
-                <span className="group-hover:translate-x-2 transition-transform inline-block ml-2" aria-hidden>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </span>
-              )}
+              <div className="lg:hidden">
+                <h3 className="mb-3 text-lg font-bold">How buyers will see it</h3>
+                <div className="max-w-[320px]">{preview}</div>
+              </div>
+
+              {submitError && <FormAlert>{submitError}</FormAlert>}
+            </section>
+          )}
+
+          {/* Actions: sticky on phones */}
+          <div className="sticky bottom-0 z-20 -mx-4 mt-8 flex items-center gap-3 border-t-2 border-edge bg-background px-4 py-3 sm:-mx-6 sm:px-6 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0">
+            {step > 0 && (
+              <button type="button" onClick={goBack} className="btn btn-outline">
+                Back
+              </button>
+            )}
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary flex-1 md:ml-auto md:flex-none md:px-8">
+              {isLast ? (isSubmitting ? 'Submitting…' : 'Submit for review') : 'Continue'}
             </button>
-            <p className="text-center text-xs text-muted-light font-medium max-w-xs mx-auto">
-              By clicking Submit, you agree to follow our Community Guidelines.
-            </p>
           </div>
+          {isLast && (
+            <p className="mt-3 text-[13px] text-muted md:text-right">
+              By submitting, you agree to follow our community guidelines.
+            </p>
+          )}
         </form>
+
+        <aside className="hidden lg:sticky lg:top-28 lg:block" aria-label="Listing preview">
+          <h2 className="mb-3 text-lg font-bold">Preview</h2>
+          {preview}
+          <p className="mt-4 text-[13px] text-muted">This is roughly how your listing will look in search.</p>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Pieces ---------- */
+
+const StepHeading = forwardRef<HTMLHeadingElement, { children: React.ReactNode }>(function StepHeading(
+  { children },
+  ref,
+) {
+  return (
+    <h2 id="step-heading" ref={ref} tabIndex={-1} className="mb-2 text-2xl outline-none md:text-3xl">
+      {children}
+    </h2>
+  );
+});
+
+function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }) {
+  return (
+    <nav aria-label="Listing progress">
+      <p className="sr-only" aria-live="polite">
+        Step {step + 1} of {STEPS.length}: {STEPS[step]}
+      </p>
+      <ol className="flex items-center gap-2 sm:gap-3">
+        {STEPS.map((label, i) => {
+          const done = i < step;
+          const current = i === step;
+          const circle = current
+            ? 'bg-primary text-on-primary shadow-pop-sm'
+            : done
+              ? 'bg-secondary text-ink'
+              : 'bg-card text-muted';
+          const content = (
+            <>
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-edge text-sm font-extrabold ${circle}`}
+                aria-hidden
+              >
+                {done ? <Check size={16} strokeWidth={3} /> : i + 1}
+              </span>
+              <span className={`text-sm font-bold ${current ? 'text-foreground' : 'text-muted'} ${current ? '' : 'hidden sm:inline'}`}>
+                {label}
+              </span>
+            </>
+          );
+          return (
+            <li key={label} className="flex flex-1 items-center gap-2 sm:gap-3 last:flex-none" aria-current={current ? 'step' : undefined}>
+              {done ? (
+                <button
+                  type="button"
+                  onClick={() => onJump(i)}
+                  className="flex min-h-[40px] items-center gap-2 rounded-full pr-1 hover:underline decoration-primary decoration-2 underline-offset-4"
+                  aria-label={`Back to step ${i + 1}: ${label}`}
+                >
+                  {content}
+                </button>
+              ) : (
+                <span className="flex min-h-[40px] items-center gap-2">{content}</span>
+              )}
+              {i < STEPS.length - 1 && (
+                <span className={`h-[3px] flex-1 rounded-full ${i < step ? 'bg-secondary' : 'bg-card-border'}`} aria-hidden />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+function RadioGroup({
+  name,
+  legend,
+  options,
+  value,
+  onChange,
+  error,
+  idPrefix,
+}: {
+  name: string;
+  legend: string;
+  options: { value: string; label: string; icon?: LucideIcon }[];
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+  idPrefix: string;
+}) {
+  return (
+    <fieldset aria-describedby={error ? `${idPrefix}-error` : undefined}>
+      <legend className="mb-2 text-sm font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => {
+          const id = `${idPrefix}-${o.value}`;
+          const Icon = o.icon;
+          return (
+            <label key={o.value} htmlFor={id} className="cursor-pointer">
+              <input
+                id={id}
+                type="radio"
+                name={name}
+                value={o.value}
+                checked={value === o.value}
+                onChange={() => onChange(o.value)}
+                className="peer sr-only"
+              />
+              <span
+                className={`inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted-extra-light peer-checked:border-edge peer-checked:bg-sun peer-checked:text-ink peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                  error ? 'border-accent' : 'border-edge'
+                }`}
+              >
+                {Icon && <Icon size={16} strokeWidth={2.25} aria-hidden />}
+                {o.label}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <FieldError id={`${idPrefix}-error`} message={error} />
+    </fieldset>
+  );
+}
+
+function ListingPreview({
+  photoUrl,
+  values,
+  schoolName,
+  savings,
+}: {
+  photoUrl?: string;
+  values: Values;
+  schoolName: string;
+  savings: number;
+}) {
+  const price = Number(values.sellingPrice);
+  const isStationery = values.category === 'STATIONERY';
+  const Glyph = isStationery ? PencilRuler : BookOpen;
+  const place = [schoolName, values.city].filter(Boolean);
+
+  return (
+    <div className="card-premium overflow-hidden" aria-hidden>
+      <div className="relative aspect-[4/3] border-b-2 border-edge bg-sun">
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-ink">
+            <Glyph size={64} strokeWidth={1.75} />
+          </div>
+        )}
+        <span className="sticker absolute left-3 top-3 text-lg">{price > 0 ? rupees(price) : '₹ —'}</span>
+      </div>
+      <div className="p-4">
+        <p className={`line-clamp-2 text-lg font-bold leading-snug ${values.title ? '' : 'text-muted-light'}`}>
+          {values.title || 'Your title appears here'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {values.class && <span className="badge badge-primary">Class {values.class}</span>}
+          {values.board && <span className="badge badge-muted">{boardLabel(values.board)}</span>}
+          {values.condition && <span className="badge badge-muted">{conditionLabel(values.condition)}</span>}
+          {savings > 0 && <span className="badge badge-secondary">Save {rupees(savings)}</span>}
+          {!values.class && !values.board && !values.condition && savings === 0 && (
+            <span className="badge badge-muted">Class and board</span>
+          )}
+        </div>
+        {place.length > 0 && (
+          <div className="mt-3 text-sm text-muted">
+            {place.map((p) => (
+              <p key={p} className="truncate">
+                {p}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Mail } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import Logo from '@/components/Logo';
+import AuthCard, { textLinkClass } from '@/components/forms/AuthCard';
+import { Field, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
+import FormAlert from '@/components/forms/FormAlert';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,247 +16,158 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [fieldError, setFieldError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const resetMessages = () => {
+    setFieldError('');
+    setFormError('');
+    setNotice('');
+  };
+
+  const requestCode = async () => {
+    await sendOtp(email.trim());
+  };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    resetMessages();
 
     if (!email || !email.includes('@')) {
-      setError('Please enter a valid email address');
+      setFieldError('Enter an email address like name@example.com.');
       return;
     }
 
     try {
-      await sendOtp(email);
+      await requestCode();
       setOtpSent(true);
-      setSuccess('OTP sent! Check your email.');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send OTP. Please try again.');
+      setFormError(err.response?.data?.error || "We couldn't send the code. Check the email address and try again.");
+    }
+  };
+
+  const handleResend = async () => {
+    resetMessages();
+    setOtp('');
+    try {
+      await requestCode();
+      setNotice('New code sent. Use the latest email.');
+    } catch (err: any) {
+      setFormError(err.response?.data?.error || "We couldn't send a new code. Try again in a minute.");
     }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    resetMessages();
 
     if (otp.length !== 6) {
-      setError('Please enter a 6-digit OTP');
+      setFieldError('Enter all 6 digits from the email.');
       return;
     }
 
     try {
-      const result = await verifyOtp(email, otp);
-      if (result.isNewUser) {
-        router.push('/register');
-      } else {
-        router.push('/dashboard');
-      }
+      const result = await verifyOtp(email.trim(), otp);
+      router.push(result.isNewUser ? '/register' : '/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid or expired OTP');
+      setFieldError(err.response?.data?.error || 'That code is wrong or has expired. Check the email or send a new code.');
     }
   };
 
+  const changeEmail = () => {
+    setOtpSent(false);
+    setOtp('');
+    resetMessages();
+  };
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Background glow */}
-      <div
-        className="glow-primary"
-        style={{ top: '-200px', left: '50%', transform: 'translateX(-50%)', opacity: 0.3 }}
-      />
-
-      <div className="container animate-fade-in" style={{ maxWidth: '440px', padding: '2rem 1.5rem' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <Link href="/" aria-label="Sybrary home" className="inline-flex justify-center">
-            <Logo variant="full" height={52} />
-          </Link>
-          <p style={{ color: 'var(--muted)', marginTop: '0.5rem', fontSize: '0.9375rem' }}>
-            Sign in to your account
+    <AuthCard
+      title={otpSent ? 'Check your email' : 'Log in to Sybrary'}
+      description={
+        otpSent ? (
+          <p>
+            We sent a 6-digit code to <span className="font-bold text-foreground break-all">{email}</span>.
           </p>
-        </div>
-
-        {/* Card */}
-        <div className="card-premium" style={{ padding: '2.5rem' }}>
-          {error && (
-            <div
-              style={{
-                background: 'var(--accent-glow)',
-                color: 'var(--accent)',
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                marginBottom: '1.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div
-              style={{
-                background: 'var(--secondary-glow)',
-                color: 'var(--secondary)',
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                marginBottom: '1.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-              }}
-            >
-              {success}
-            </div>
-          )}
-
-          {!otpSent ? (
-            <form onSubmit={handleSendOtp}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label
-                  htmlFor="email"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    color: 'var(--foreground)',
-                    marginBottom: '0.5rem',
-                    letterSpacing: '0.02em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoFocus
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn btn-primary"
-                style={{
-                  width: '100%',
-                  opacity: isLoading ? 0.6 : 1,
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isLoading ? 'Sending...' : 'Send OTP'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp}>
-              <div
-                style={{
-                  marginBottom: '1.25rem',
-                  fontSize: '0.875rem',
-                  color: 'var(--muted)',
-                }}
-              >
-                OTP sent to <span style={{ fontWeight: 700, color: 'var(--foreground)' }}>{email}</span>
-              </div>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label
-                  htmlFor="otp"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    color: 'var(--foreground)',
-                    marginBottom: '0.5rem',
-                    letterSpacing: '0.02em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Enter 6-digit OTP
-                </label>
-                <input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="------"
-                  autoFocus
-                  style={{
-                    width: '100%',
-                    textAlign: 'center',
-                    fontSize: '1.75rem',
-                    letterSpacing: '0.5em',
-                    fontFamily: 'monospace',
-                  }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn btn-primary"
-                style={{
-                  width: '100%',
-                  opacity: isLoading ? 0.6 : 1,
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isLoading ? 'Verifying...' : 'Verify OTP'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtp('');
-                  setError('');
-                  setSuccess('');
-                }}
-                className="btn btn-outline"
-                style={{
-                  width: '100%',
-                  marginTop: '0.75rem',
-                  height: '44px',
-                  fontSize: '0.875rem',
-                }}
-              >
-                Change email address
-              </button>
-            </form>
-          )}
-        </div>
-
-        {/* Footer links */}
-        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
-            New here?{' '}
-            <Link
-              href="/register"
-              style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}
-            >
-              Register
+        ) : (
+          <p>We’ll email you a 6-digit code. No password to remember.</p>
+        )
+      }
+      footer={
+        <>
+          <p>
+            New to Sybrary?{' '}
+            <Link href="/register" className={textLinkClass}>
+              Create an account
             </Link>
           </p>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--muted-light)', marginTop: '0.75rem' }}>
-            <Link href="/" style={{ color: 'var(--muted-light)', textDecoration: 'none' }}>
+          <p className="mt-3">
+            <Link href="/" className="font-semibold text-muted hover:text-foreground hover:underline decoration-primary decoration-2 underline-offset-4">
               Back to home
             </Link>
           </p>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {formError && <FormAlert className="mb-5">{formError}</FormAlert>}
+      {notice && (
+        <FormAlert tone="success" className="mb-5">
+          {notice}
+        </FormAlert>
+      )}
+
+      {!otpSent ? (
+        <form onSubmit={handleSendOtp} noValidate>
+          <Field id="email" label="Email address" error={fieldError}>
+            <div className="relative">
+              <Mail size={18} strokeWidth={2.25} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+              <input
+                {...fieldA11y('email', { error: fieldError })}
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoFocus
+                className={`${controlClass} pl-11 ${fieldError ? invalidClass : ''}`}
+              />
+            </div>
+          </Field>
+          <button type="submit" disabled={isLoading} className="btn btn-primary btn-lg mt-6 w-full">
+            {isLoading ? 'Sending code…' : 'Send code'}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleVerifyOtp} noValidate>
+          <Field id="otp" label="6-digit code" error={fieldError} hint="It can take a minute to arrive. Check spam if you don’t see it.">
+            <input
+              {...fieldA11y('otp', { error: fieldError, hint: true })}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              autoFocus
+              className={`h-16 w-full text-center text-3xl font-extrabold tabular-nums tracking-[0.45em] placeholder:text-muted-light/50 ${fieldError ? invalidClass : ''}`}
+            />
+          </Field>
+          <button type="submit" disabled={isLoading} className="btn btn-primary btn-lg mt-6 w-full">
+            {isLoading ? 'Checking code…' : 'Log in'}
+          </button>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onClick={changeEmail} className="btn btn-ghost btn-sm -ml-3">
+              Use a different email
+            </button>
+            <button type="button" onClick={handleResend} disabled={isLoading} className="btn btn-ghost btn-sm -mr-3 text-primary">
+              Send a new code
+            </button>
+          </div>
+        </form>
+      )}
+    </AuthCard>
   );
 }
