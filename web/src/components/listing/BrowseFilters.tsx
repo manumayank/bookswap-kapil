@@ -1,6 +1,6 @@
 'use client';
 
-import { BOARD_OPTIONS, CATEGORY_OPTIONS, boardLabel } from '@/lib/labels';
+import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
 
 export interface BrowseFilterValues {
   board: string;
@@ -22,7 +22,6 @@ export const EMPTY_BROWSE_FILTERS: BrowseFilterValues = {
 
 export const CLASS_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 
-const CATEGORY_CHIP: Record<string, string> = { BOOK: 'Textbooks', STATIONERY: 'Stationery' };
 
 const PRICE_PRESETS = [
   { label: 'Under ₹200', max: '200' },
@@ -54,23 +53,6 @@ export default function BrowseFilters({ values, onChange, idPrefix }: Props) {
 
   return (
     <div className="space-y-7">
-      <fieldset>
-        <GroupLabel>What are you looking for?</GroupLabel>
-        <div className="flex flex-wrap gap-2">
-          {CATEGORY_OPTIONS.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className="chip"
-              aria-pressed={values.category === cat}
-              onClick={() => toggle('category', cat)}
-            >
-              {CATEGORY_CHIP[cat] ?? cat}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
       <fieldset>
         <GroupLabel>Class</GroupLabel>
         <div className="grid grid-cols-6 gap-2">

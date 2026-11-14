@@ -29,10 +29,6 @@ import Select from '@/components/ui/Select';
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
 const CLASS_OPTIONS = CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` }));
 const BOARD_SELECT_OPTIONS = BOARD_OPTIONS.map((b) => ({ value: b, label: boardLabel(b) }));
-const CATEGORIES = [
-  { label: 'Textbook', value: 'BOOK', icon: BookOpen },
-  { label: 'Stationery', value: 'STATIONERY', icon: PencilRuler },
-] as const;
 const CONDITIONS = ['HARDLY_USED', 'WELL_MAINTAINED', 'MARKER_USED', 'STAINS', 'TORN_PAGES'] as const;
 const PICKUP_OPTIONS = [
   { label: 'School gate', hint: 'Meet at drop-off or pickup time', value: 'SCHOOL_GATE', icon: SchoolIcon },
@@ -67,7 +63,8 @@ type Errors = Partial<Record<ErrorKey, string>>;
 
 const EMPTY: Values = {
   title: '',
-  category: '',
+  // textbooks only for now; stationery listings are switched off
+  category: 'BOOK',
   condition: '',
   board: '',
   class: '',
@@ -204,7 +201,6 @@ export default function SellPage() {
     }
     if (s === 1) {
       if (!values.title.trim()) e.title = 'Add a title, for example the book name and class.';
-      if (!values.category) e.category = 'Choose textbook or stationery.';
       if (!values.condition) e.condition = 'Choose the condition that fits best.';
       if (!values.subject.trim()) e.subject = 'Add the subject.';
       if (!values.description.trim()) e.description = 'Add a short description for buyers.';
@@ -534,19 +530,6 @@ export default function SellPage() {
                     className={`${controlClass} ${errors.title ? invalidClass : ''}`}
                   />
                 </Field>
-
-                <RadioGroup
-                  name="category"
-                  legend="Type"
-                  error={errors.category}
-                  value={values.category}
-                  onChange={(v) => {
-                    setValues((s) => ({ ...s, category: v }));
-                    setErrors((p) => ({ ...p, category: undefined }));
-                  }}
-                  options={CATEGORIES.map((c) => ({ value: c.value, label: c.label, icon: c.icon }))}
-                  idPrefix="sell-category"
-                />
 
                 <RadioGroup
                   name="condition"

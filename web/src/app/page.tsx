@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, ChevronDown, Leaf, Lock, PencilRuler, Recycle, Wallet } from 'lucide-react';
+import { BookOpen, ChevronDown, Leaf, Lock, Recycle, Wallet } from 'lucide-react';
 import BookCard from '@/components/BookCard';
 import ErrorState from '@/components/ui/ErrorState';
 import Reveal from '@/components/Reveal';
@@ -466,9 +466,9 @@ export default function HomePage() {
       {/* ---------- Shop by type ---------- */}
       <section className="container section-padding">
         <Reveal>
-          <h2 className="text-3xl md:text-4xl">What families pass on</h2>
+          <h2 className="text-3xl md:text-4xl">Textbooks for every board and class</h2>
         </Reveal>
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
+        <div className="mt-8 grid gap-5">
           {[
             {
               icon: BookOpen,
@@ -476,13 +476,6 @@ export default function HomePage() {
               body: 'NCERT, ICSE, State board, IB and IGCSE books, guides and workbooks.',
               href: '/browse?category=BOOK',
               tone: 'bg-primary text-on-primary',
-            },
-            {
-              icon: PencilRuler,
-              title: 'Stationery',
-              body: 'Geometry boxes, art kits, calculators and unused notebooks.',
-              href: '/browse?category=STATIONERY',
-              tone: 'bg-secondary text-ink',
             },
           ].map((c, i) => (
             <Reveal key={c.title} delay={i * 90}>

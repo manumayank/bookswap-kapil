@@ -116,21 +116,12 @@ export function createMachineSound(): MachineSound {
     click(strength = 1) {
       if (!ready()) return;
       const t = ctx!.currentTime;
-      const v = 0.9 + Math.random() * 0.2; // vary each pop a little
-      // bubbly pop: a short sine that drops fast in pitch
-      const o = ctx!.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(880 * v, t);
-      o.frequency.exponentialRampToValueAtTime(220 * v, t + 0.06);
-      const g = ctx!.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.55 * strength, t + 0.004);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
-      o.connect(g).connect(master!);
-      o.start(t);
-      o.stop(t + 0.11);
-      // tiny transient so it has a "p" at the start
-      hp(t, 0.006, 3000, 0.18 * strength);
+      const v = 0.94 + Math.random() * 0.12; // slight variation per press
+      // soft calculator-key tick: a muted plastic click...
+      burst(t, 0.022, 1900 * v, 3.2, 0.42 * strength);
+      hp(t, 0.005, 5200, 0.1 * strength);
+      // ...with a light low knock as the key lands
+      tone(t + 0.006, 0.035, 'sine', 160 * v, 110, 0.16 * strength);
     },
     printRun(seconds) {
       if (!ready()) return;

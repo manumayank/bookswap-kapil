@@ -231,7 +231,7 @@ function BrowseContent() {
         <div className="max-w-2xl">
           <h1 className="mb-3 text-4xl md:text-5xl">Browse books</h1>
           <p className="text-muted">
-            School textbooks and stationery from other parents, ready for another term. Seller contact details stay private
+            School textbooks from other parents, ready for another term. Seller contact details stay private
             until they accept your request.
           </p>
         </div>

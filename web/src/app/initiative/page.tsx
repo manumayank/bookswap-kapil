@@ -139,10 +139,6 @@ export default function InitiativePage() {
                 We can&apos;t count how many books Sybrary keeps from being printed, but the idea is simple:{' '}
                 <Highlight>every book that&apos;s reused is one less that needs printing.</Highlight>
               </p>
-              <p className={`mt-[32px] ${p}`}>
-                <strong>Stationery, too.</strong> Geometry boxes, art kits, calculators and notebooks with half
-                their pages still blank. They&apos;re made to last far longer than one school year.
-              </p>
             </div>
 
             <StickyNote tone="green" tilt={-2} className="mt-[32px] max-w-[360px]">
