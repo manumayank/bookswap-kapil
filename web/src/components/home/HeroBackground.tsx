@@ -96,7 +96,8 @@ export default function HeroBackground() {
     const p = { x: 0, y: 0, in: false };
     const sp = { x: 0, y: 0 };
     let amp = 0;
-    const items = ITEMS.map((it) => ({ ...it, ang: 0, av: 0, hot: false, glow: 0 }));
+    // alternate indigo and green so hovering lights some blue and some green
+    const items = ITEMS.map((it, i) => ({ ...it, tint: i % 2 ? 'g' : 'p', ang: 0, av: 0, hot: false, glow: 0 }));
     let books: { x: number; y: number; born: number; rot: number; c: string }[] = [];
     let lastSpawn = { x: -1e9, y: -1e9, t: 0 };
     let ci = 0;
@@ -136,7 +137,7 @@ export default function HeroBackground() {
         ctx!.rotate(it.rot + it.ang);
         ctx!.scale(1.1, 1.1);
         const base = dark ? 0.2 : 0.17;
-        ctx!.strokeStyle = it.glow > 0.01 ? rgba(C.p, base + 0.3 * it.glow) : rgba(C.ink, base);
+        ctx!.strokeStyle = it.glow > 0.01 ? rgba(C[it.tint], base + 0.45 * it.glow) : rgba(C.ink, base);
         ctx!.beginPath();
         SHAPES[it.s](ctx!);
         ctx!.stroke();
