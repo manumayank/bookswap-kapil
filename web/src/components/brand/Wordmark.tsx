@@ -10,17 +10,21 @@ type WordmarkProps = {
   className?: string;
 };
 
-// Draw-in timing (seconds): "Sybra" fades in, then the r, then the y.
-const T: Record<string, [delay: number, duration: number]> = {
-  rStem: [0.15, 0.28],
-  rArm: [0.4, 0.34],
-  yArm: [0.62, 0.22],
-  yBowl: [0.82, 0.26],
-  yStem: [1.02, 0.24],
-  yTail: [1.22, 0.42],
+// Draw-in timing (seconds). Both arrows are drawn at the same time:
+// the r from the left (stem up, arm sweeping right into its arrowhead) and the
+// y from the right (stem down, tail curling left into its arrowhead), while the
+// y's left arm and bowl are drawn back from the stem side so all of the y moves
+// right-to-left. [delay, duration, drawn end-to-start]
+const T: Record<string, [delay: number, duration: number, reverse?: boolean]> = {
+  rStem: [0.2, 0.26],
+  rArm: [0.46, 0.4],
+  yStem: [0.2, 0.26],
+  yTail: [0.46, 0.44],
+  yBowl: [0.34, 0.3, true],
+  yArm: [0.62, 0.18, true],
 };
-const R_HEAD = 0.72;
-const Y_HEAD = 1.62;
+const R_HEAD = 0.84;
+const Y_HEAD = 0.88;
 
 const [, , VW, VH] = WORDMARK.viewBox.split(' ').map(Number);
 
@@ -68,7 +72,7 @@ export default function Wordmark({ height = 40, animate = true, className = '' }
       {WORDMARK.y.map((s) => (
         <path
           key={s.id}
-          className="wm-st"
+          className={`wm-st ${T[s.id][2] ? 'wm-rev' : ''}`}
           pathLength={1}
           d={s.d}
           fill="none"
