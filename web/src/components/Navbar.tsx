@@ -12,6 +12,7 @@ import Logo from '@/components/Logo';
 // Each link is a sticker: its own fill and resting tilt. Fills are light in
 // both themes, so the text is always ink.
 const NAV_LINKS = [
+  { href: '/', label: 'Home', fill: 'bg-[#ffd8a8]', tilt: 'rotate-2' },
   { href: '/browse', label: 'Browse', fill: 'bg-sun', tilt: '-rotate-3' },
   { href: '/need', label: 'Requests', fill: 'bg-[#bfe9d6]', tilt: 'rotate-2' },
   { href: '/papers', label: 'Exam papers', fill: 'bg-[#ffd0d8]', tilt: '-rotate-2' },
@@ -19,7 +20,7 @@ const NAV_LINKS = [
 ] as const;
 
 const STICKER =
-  'inline-flex items-center h-10 px-3 xl:px-4 rounded-[10px] border-2 border-[#17153a] text-ink text-[0.9375rem] font-extrabold transition-[transform,box-shadow] duration-200 ease-pop hover:rotate-0 hover:scale-[1.06] active:scale-95';
+  'inline-flex items-center h-10 px-3 2xl:px-4 rounded-[10px] border-2 border-[#17153a] text-ink text-[0.9375rem] font-extrabold transition-[transform,box-shadow] duration-200 ease-pop hover:rotate-0 hover:scale-[1.06] active:scale-95';
 
 const MENU_ITEM =
   'flex items-center gap-3 px-3 h-11 text-[0.9375rem] font-semibold rounded-[10px] text-foreground hover:bg-muted-extra-light transition-colors';
@@ -61,7 +62,8 @@ export default function Navbar() {
     };
   }, [menuOpen, mobileOpen]);
 
-  const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
+  const isActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname?.startsWith(`${href}/`);
 
   const handleLogout = () => {
     setMenuOpen(false);
@@ -79,7 +81,7 @@ export default function Navbar() {
           <span className="flex sm:hidden"><Logo variant="short" height={40} /></span>
         </Link>
 
-        <ul className="hidden lg:flex items-center gap-2 xl:gap-3">
+        <ul className="hidden xl:flex items-center gap-2 2xl:gap-3">
           {NAV_LINKS.map((link) => {
             const active = isActive(link.href);
             return (
@@ -109,7 +111,7 @@ export default function Navbar() {
           ) : isAuthenticated && user ? (
             <>
               <NotificationBell />
-              <div ref={menuRef} className="relative hidden lg:block">
+              <div ref={menuRef} className="relative hidden xl:block">
                 <button
                   type="button"
                   onClick={() => setMenuOpen((v) => !v)}
@@ -171,7 +173,7 @@ export default function Navbar() {
 
           <button
             type="button"
-            className="btn btn-outline btn-sm btn-icon lg:hidden"
+            className="btn btn-outline btn-sm btn-icon xl:hidden"
             style={{ width: 40, height: 40 }}
             onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -184,7 +186,7 @@ export default function Navbar() {
       </nav>
 
       {mobileOpen && (
-        <div id="mobile-menu" className="lg:hidden border-t-2 border-edge bg-background animate-slide-down">
+        <div id="mobile-menu" className="xl:hidden border-t-2 border-edge bg-background animate-slide-down">
           <div className="container py-4 flex flex-col gap-2 max-h-[calc(100dvh-72px)] overflow-y-auto">
             <ul className="grid grid-cols-1 gap-2">
               {NAV_LINKS.map((link) => (
