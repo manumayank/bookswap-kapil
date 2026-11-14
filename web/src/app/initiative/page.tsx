@@ -35,9 +35,6 @@ const PHOTOS = {
   },
 };
 
-const SOURCE_TREES =
-  'http://conservatree.org/learn/EnviroIssues/TreeStats.shtml';
-
 const STEPS = [
   {
     title: 'List what your child has outgrown',
@@ -59,7 +56,7 @@ const h2 = 'text-2xl md:text-[1.75rem] leading-[30px] md:leading-[30px]';
 export default function InitiativePage() {
   return (
     <div className="container py-10 sm:py-16 animate-fade-in">
-      <article className="relative mx-auto max-w-[940px] rounded-xl border-2 border-edge bg-card shadow-pop-lg">
+      <article className="relative mx-auto max-w-[1060px] rounded-xl border-2 border-edge bg-card shadow-pop-lg">
         {/* Binder holes (tablet and up) */}
         <div aria-hidden className="hidden sm:flex absolute left-4 top-10 bottom-10 flex-col justify-between">
           {Array.from({ length: 9 }).map((_, i) => (
@@ -138,16 +135,7 @@ export default function InitiativePage() {
                 <strong>Paper, trees and ink.</strong> School textbooks are printed on new paper, and paper comes
                 from trees. One rough estimate puts it at about 24 trees for every ton of printing and writing
                 paper made from new (virgin) pulp.
-                <sup className="ml-0.5">
-                  <a
-                    href="#fn-1"
-                    id="ref-1"
-                    aria-label="Footnote 1"
-                    className="font-bold text-primary underline decoration-2 underline-offset-2"
-                  >
-                    1
-                  </a>
-                </sup>{' '}
+{' '}
                 We can&apos;t count how many books Sybrary keeps from being printed, but the idea is simple:{' '}
                 <Highlight>every book that&apos;s reused is one less that needs printing.</Highlight>
               </p>
@@ -247,44 +235,6 @@ export default function InitiativePage() {
         </div>
       </article>
 
-      {/* ---------- Footnotes and credits ---------- */}
-      <footer className="mx-auto max-w-[940px] mt-8 px-1 sm:px-2 text-sm leading-relaxed text-muted">
-        <ol className="space-y-1">
-          <li id="fn-1">
-            <span className="font-bold">1.</span>{' '}
-            Conservatree, &ldquo;Trees into paper&rdquo;: a rough average of 24 trees per ton of printing
-            and writing paper (kraft process, virgin fibre). The page itself calls all such figures
-            ballpark estimates.{' '}
-            <a
-              href={SOURCE_TREES}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-1 underline-offset-2 hover:decoration-primary"
-            >
-              Read the source
-            </a>{' '}
-            <a href="#ref-1" className="underline decoration-1 underline-offset-2 hover:decoration-primary">
-              Back to text
-            </a>
-          </li>
-        </ol>
-        <p className="mt-3 text-muted-light">
-          Photos from Unsplash by{' '}
-          {Object.values(PHOTOS).map((ph, i, arr) => (
-            <span key={ph.credit.name}>
-              <a
-                href={ph.credit.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline decoration-1 underline-offset-2 hover:decoration-primary"
-              >
-                {ph.credit.name}
-              </a>
-              {i < arr.length - 2 ? ', ' : i === arr.length - 2 ? ' and ' : '.'}
-            </span>
-          ))}
-        </p>
-      </footer>
     </div>
   );
 }
