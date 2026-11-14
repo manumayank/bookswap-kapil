@@ -10,12 +10,12 @@ type LogoProps = {
   className?: string;
 };
 
-const RATIO = { full: 282 / 88, short: 1 };
+const RATIO = { full: 218 / 88, short: 1 };
 
 export default function Logo({ variant = 'full', height = 40, theme = 'auto', className = '' }: LogoProps) {
   const width = Math.round(height * RATIO[variant]);
   const src = (t: 'light' | 'dark') => `/brand/logo-${variant}-${t}.svg`;
-  const alt = variant === 'full' ? 'Sybrary – School Book Exchange' : 'Sybrary';
+  const alt = 'Sybrary';
 
   if (theme !== 'auto') {
     return <img src={src(theme)} alt={alt} width={width} height={height} className={className} />;

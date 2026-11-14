@@ -23,7 +23,27 @@ const STICKER =
   'inline-flex items-center h-10 px-3 2xl:px-4 rounded-[10px] border-2 border-[#17153a] text-ink text-[0.9375rem] font-extrabold transition-[transform,box-shadow] duration-200 ease-pop hover:rotate-0 hover:scale-[1.06] active:scale-95';
 
 const MENU_ITEM =
-  'flex items-center gap-3 px-3 h-11 text-[0.9375rem] font-semibold rounded-[10px] text-foreground hover:bg-muted-extra-light transition-colors';
+  'group/item flex items-center gap-3 px-3 h-12 text-[0.9375rem] font-semibold rounded-[10px] text-foreground hover:bg-muted-extra-light transition-colors';
+
+/** Coloured icon tile for account menu rows (fills are light in both themes, so ink icons). */
+const MENU_TONES = {
+  sun: 'bg-sun',
+  mint: 'bg-[#bfe9d6]',
+  pink: 'bg-[#ffd0d8]',
+  lavender: 'bg-[#d9d7ff]',
+  rose: 'bg-[#ffb3c0]',
+} as const;
+
+function MenuIcon({ tone, children }: { tone: keyof typeof MENU_TONES; children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex w-8 h-8 shrink-0 items-center justify-center rounded-[8px] border-2 border-[#17153a] text-ink transition-transform duration-200 ease-pop group-hover/item:-rotate-6 group-hover/item:scale-105 ${MENU_TONES[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -131,17 +151,17 @@ export default function Navbar() {
                         <p className="text-sm text-muted truncate">{user.email}</p>
                       </div>
                       <Link role="menuitem" href="/dashboard" className={MENU_ITEM}>
-                        <LayoutDashboard size={18} aria-hidden /> Your dashboard
+                        <MenuIcon tone="sun"><LayoutDashboard size={16} strokeWidth={2.5} /></MenuIcon> Your dashboard
                       </Link>
                       <Link role="menuitem" href="/dashboard/deals" className={MENU_ITEM}>
-                        <ArrowLeftRight size={18} aria-hidden /> Your deals
+                        <MenuIcon tone="mint"><ArrowLeftRight size={16} strokeWidth={2.5} /></MenuIcon> Your deals
                       </Link>
                       <Link role="menuitem" href="/notifications" className={MENU_ITEM}>
-                        <Bell size={18} aria-hidden /> Notifications
+                        <MenuIcon tone="pink"><Bell size={16} strokeWidth={2.5} /></MenuIcon> Notifications
                       </Link>
                       {user.isAdmin && (
                         <Link role="menuitem" href="/admin/dashboard" className={MENU_ITEM}>
-                          <Shield size={18} aria-hidden /> Admin
+                          <MenuIcon tone="lavender"><Shield size={16} strokeWidth={2.5} /></MenuIcon> Admin
                         </Link>
                       )}
                       <button
@@ -150,7 +170,7 @@ export default function Navbar() {
                         onClick={handleLogout}
                         className={`${MENU_ITEM} w-full text-left !text-danger hover:!bg-accent/10`}
                       >
-                        <LogOut size={18} aria-hidden /> Log out
+                        <MenuIcon tone="rose"><LogOut size={16} strokeWidth={2.5} /></MenuIcon> Log out
                       </button>
                     </div>
                   </div>
@@ -207,14 +227,14 @@ export default function Navbar() {
             {isHydrated && isAuthenticated && user ? (
               <div className="card-flat p-2 mt-2">
                 <p className="px-3 pt-2 pb-2 text-sm text-muted truncate">Signed in as {user.name}</p>
-                <Link href="/dashboard" className={MENU_ITEM}><LayoutDashboard size={18} aria-hidden /> Your dashboard</Link>
-                <Link href="/dashboard/deals" className={MENU_ITEM}><ArrowLeftRight size={18} aria-hidden /> Your deals</Link>
-                <Link href="/notifications" className={MENU_ITEM}><Bell size={18} aria-hidden /> Notifications</Link>
+                <Link href="/dashboard" className={MENU_ITEM}><MenuIcon tone="sun"><LayoutDashboard size={16} strokeWidth={2.5} /></MenuIcon> Your dashboard</Link>
+                <Link href="/dashboard/deals" className={MENU_ITEM}><MenuIcon tone="mint"><ArrowLeftRight size={16} strokeWidth={2.5} /></MenuIcon> Your deals</Link>
+                <Link href="/notifications" className={MENU_ITEM}><MenuIcon tone="pink"><Bell size={16} strokeWidth={2.5} /></MenuIcon> Notifications</Link>
                 {user.isAdmin && (
-                  <Link href="/admin/dashboard" className={MENU_ITEM}><Shield size={18} aria-hidden /> Admin</Link>
+                  <Link href="/admin/dashboard" className={MENU_ITEM}><MenuIcon tone="lavender"><Shield size={16} strokeWidth={2.5} /></MenuIcon> Admin</Link>
                 )}
                 <button type="button" onClick={handleLogout} className={`${MENU_ITEM} w-full text-left !text-danger`}>
-                  <LogOut size={18} aria-hidden /> Log out
+                  <MenuIcon tone="rose"><LogOut size={16} strokeWidth={2.5} /></MenuIcon> Log out
                 </button>
               </div>
             ) : isHydrated ? (
