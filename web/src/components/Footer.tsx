@@ -65,12 +65,12 @@ export default function Footer() {
 
   return (
     <footer ref={ref} className="notebook-footer relative mt-24 overflow-hidden border-t-2 border-edge bg-card">
-      {/* punch holes down the right edge */}
-      <span aria-hidden className="notebook-holes hidden sm:block absolute right-4 top-10 bottom-10 w-[18px]" />
+      {/* punch holes down the left edge */}
+      <span aria-hidden className="notebook-holes hidden sm:block absolute left-3 top-10 bottom-10 w-[18px]" />
       {/* margin line */}
-      <span aria-hidden className="absolute top-0 bottom-0 left-[22px] sm:left-[30px] w-[2px] bg-accent/70" />
+      <span aria-hidden className="absolute top-0 bottom-0 left-[22px] sm:left-[46px] w-[2px] bg-accent/70" />
 
-      <div className="container relative pl-10 sm:pl-14 sm:pr-14 pt-10">
+      <div className="container relative pl-10 sm:pl-[72px] pt-10">
         <div className="grid gap-y-[40px] gap-x-12 xl:gap-x-16 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-start">
           {/* Left: sign-off */}
           <div>
@@ -126,7 +126,7 @@ export default function Footer() {
       </div>
 
       {/* Giant outlined watermark, left-aligned with the content */}
-      <div aria-hidden className="notebook-watermark container relative mt-[34px] pb-3 sm:pb-5 flex justify-start pl-8 sm:pl-12 select-none">
+      <div aria-hidden className="notebook-watermark container relative mt-[34px] pb-3 sm:pb-5 flex justify-start pl-8 sm:pl-[64px] select-none">
         {WORD.map((ch, i) => (
           <span key={i} style={{ transitionDelay: `${i * 60}ms` }}>
             {ch}
