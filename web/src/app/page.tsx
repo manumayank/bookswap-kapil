@@ -7,81 +7,6 @@ import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-const MOCK_LISTINGS = [
-  {
-    id: '1',
-    title: 'Mathematics Class 10 - NCERT',
-    sellingPrice: 150,
-    buyingPrice: 350,
-    condition: 'Like New',
-    category: 'Textbook',
-    city: 'Mumbai',
-  },
-  {
-    id: '2',
-    title: 'Evergreen Science Lab Manual Class 9',
-    sellingPrice: 200,
-    buyingPrice: 400,
-    condition: 'Good',
-    category: 'Textbook',
-    city: 'Delhi',
-  },
-  {
-    id: '3',
-    title: 'Oxford English Dictionary',
-    sellingPrice: 450,
-    buyingPrice: 850,
-    condition: 'New',
-    category: 'Textbook',
-    city: 'Bangalore',
-  },
-  {
-    id: '4',
-    title: 'RD Sharma Class 11 Vol 1 & 2',
-    sellingPrice: 600,
-    buyingPrice: 1100,
-    condition: 'Good',
-    category: 'Textbook',
-    city: 'Pune',
-  },
-  {
-    id: '5',
-    title: 'Complete Stationery Kit - Class 8',
-    sellingPrice: 320,
-    buyingPrice: 650,
-    condition: 'New',
-    category: 'Stationery',
-    city: 'Chennai',
-  },
-  {
-    id: '6',
-    title: 'HC Verma Concepts of Physics Vol 1',
-    sellingPrice: 280,
-    buyingPrice: 550,
-    condition: 'Like New',
-    category: 'Textbook',
-    city: 'Hyderabad',
-  },
-  {
-    id: '7',
-    title: 'Lakhmir Singh Biology Class 10',
-    sellingPrice: 180,
-    buyingPrice: 380,
-    condition: 'Good',
-    category: 'Textbook',
-    city: 'Kolkata',
-  },
-  {
-    id: '8',
-    title: 'Geometry Box + Art Supplies Set',
-    sellingPrice: 250,
-    buyingPrice: 500,
-    condition: 'Like New',
-    category: 'Stationery',
-    city: 'Jaipur',
-  },
-];
-
 interface ApiListing {
   id: string;
   title: string;
@@ -90,26 +15,30 @@ interface ApiListing {
   condition: string;
   category: string;
   city: string;
-  imageUrl?: string;
+  images?: { imageUrl: string }[];
 }
 
 export default function HomePage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: listings } = useQuery<ApiListing[]>({
+  const {
+    data: listings,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<ApiListing[]>({
     queryKey: ['listings', 'recent'],
     queryFn: async () => {
       const res = await api.get('/listings', {
-        params: { limit: 8, sort: 'createdAt:desc' },
+        params: { limit: 8, sortBy: 'newest' },
       });
-      return res.data?.data || res.data;
+      const data = res.data?.data;
+      return Array.isArray(data) ? data : [];
     },
     retry: false,
     staleTime: 60_000,
   });
-
-  const displayListings = listings && listings.length > 0 ? listings : MOCK_LISTINGS;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,10 +59,10 @@ export default function HomePage() {
       <section className="relative overflow-hidden pt-32 pb-48">
         <div className="container relative z-10 text-center">
           <div className="max-w-4xl mx-auto animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.2em] mb-10">
               The Smartest Way to Buy & Sell School Books
             </div>
-            <h1 className="text-7xl md:text-8xl font-black mb-10 tracking-tight leading-[0.9]">
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black mb-10 tracking-tight leading-[0.9]">
               Education made <br />
               <span className="text-primary italic">affordable.</span>
             </h1>
@@ -142,31 +71,33 @@ export default function HomePage() {
             </p>
 
             {/* Search Bar — single primary CTA for buyers */}
-            <form onSubmit={handleSearch} className="card-premium p-3 flex flex-col md:flex-row gap-3 max-w-3xl mx-auto shadow-2xl bg-white/50 backdrop-blur-xl">
-              <div className="flex-1 flex items-center px-6 gap-4 bg-muted-extra-light rounded-2xl transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20">
-                <span className="text-xl opacity-40">&#128269;</span>
+            <form onSubmit={handleSearch} className="card-premium p-3 flex flex-col md:flex-row gap-3 max-w-3xl mx-auto shadow-2xl bg-card/50 backdrop-blur-xl">
+              <div className="flex-1 flex items-center px-6 gap-4 bg-muted-extra-light rounded-2xl transition-all focus-within:bg-card focus-within:ring-2 focus-within:ring-primary/20">
+                <span className="text-xl opacity-40" aria-hidden>&#128269;</span>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by title, board, or school..."
+                  aria-label="Search books"
                   className="w-full py-5 bg-transparent border-none outline-none font-bold placeholder:text-muted-light text-base p-0"
                 />
               </div>
-              <button type="submit" className="btn btn-primary h-16 px-12 text-lg font-black shadow-2xl">
+              <button type="submit" className="btn btn-primary h-14 md:h-16 px-12 text-lg font-black shadow-2xl">
                 Find Books
               </button>
             </form>
 
             {/* Trending Tags */}
-            <div className="mt-12 flex items-center justify-center gap-8 text-[11px]">
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs">
               <span className="text-muted-light font-black uppercase tracking-widest">Trending:</span>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
                 {['CBSE', 'ICSE', 'NCERT', 'Stationery'].map((tag) => (
                   <button
                     key={tag}
                     onClick={() => handleTagClick(tag)}
-                    className="hover:text-primary cursor-pointer transition-colors font-extrabold uppercase tracking-widest underline decoration-primary/30 underline-offset-4 bg-transparent border-none text-foreground text-[11px]"
+                    type="button"
+                    className="min-h-10 px-3 rounded-lg hover:text-primary cursor-pointer transition-colors font-extrabold uppercase tracking-widest underline decoration-primary/30 underline-offset-4 bg-transparent border-none text-foreground text-xs"
                   >
                     {tag}
                   </button>
@@ -183,43 +114,86 @@ export default function HomePage() {
 
       {/* Stats / Social Proof */}
       <section className="container">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 text-center border-y border-card-border py-20">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12 text-center border-y border-card-border py-12 md:py-20">
           <div>
-            <p className="text-5xl font-black mb-2 tracking-tighter">8k+</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-light">Books Listed</p>
+            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">8k+</p>
+            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Books Listed</p>
           </div>
           <div>
-            <p className="text-5xl font-black mb-2 tracking-tighter">&#8377;35L+</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-light">Saved by Parents</p>
+            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">&#8377;35L+</p>
+            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Saved by Parents</p>
           </div>
           <div>
-            <p className="text-5xl font-black mb-2 tracking-tighter">5k+</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-light">Successful Swaps</p>
+            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">5k+</p>
+            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Successful Swaps</p>
           </div>
           <div>
-            <p className="text-5xl font-black mb-2 tracking-tighter">4.8/5</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-light">Parent Trust Score</p>
+            <p className="text-4xl md:text-5xl font-black mb-2 tracking-tighter">4.8/5</p>
+            <p className="text-xs font-black uppercase tracking-widest text-muted-light">Parent Trust Score</p>
           </div>
         </div>
       </section>
 
       {/* Recently Added Listings */}
       <section className="container">
-        <div className="flex items-end justify-between mb-16">
+        <div className="flex flex-wrap items-end justify-between gap-6 mb-16">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4 block">Marketplace</span>
+            <span className="text-xs font-black uppercase tracking-[0.3em] text-primary mb-4 block">Marketplace</span>
             <h2 className="text-4xl font-black tracking-tight">Recently Added</h2>
           </div>
-          <Link href="/browse" className="btn btn-outline h-12 text-[10px] font-black uppercase tracking-widest">
+          <Link href="/browse" className="btn btn-outline h-12 text-xs font-black uppercase tracking-widest">
             Browse All Books <span>&#8594;</span>
           </Link>
         </div>
 
-        <div className="grid-marketplace">
-          {displayListings.slice(0, 8).map((listing) => (
-            <BookCard key={listing.id} {...listing} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid-marketplace" aria-busy="true" aria-label="Loading listings">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card-flat overflow-hidden">
+                <div className="aspect-[4/5] skeleton rounded-none" />
+                <div className="p-6 space-y-3">
+                  <div className="h-4 skeleton" />
+                  <div className="h-4 skeleton w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="card-flat p-10 text-center">
+            <p className="font-bold mb-2">Couldn&apos;t load recent listings.</p>
+            <p className="text-sm text-muted mb-6">Check your connection and try again.</p>
+            <button type="button" onClick={() => refetch()} className="btn btn-outline h-11">
+              Try again
+            </button>
+          </div>
+        ) : !listings || listings.length === 0 ? (
+          <div className="card-flat p-10 md:p-16 text-center">
+            <div className="text-5xl mb-4" aria-hidden>&#128218;</div>
+            <h3 className="text-2xl font-black mb-3">No books listed yet</h3>
+            <p className="text-muted mb-8 max-w-md mx-auto">
+              Be the first parent in your area to list a textbook or stationery set.
+            </p>
+            <Link href="/sell" className="btn btn-primary">
+              List a Book
+            </Link>
+          </div>
+        ) : (
+          <div className="grid-marketplace">
+            {listings.slice(0, 8).map((listing) => (
+              <BookCard
+                key={listing.id}
+                id={listing.id}
+                title={listing.title}
+                sellingPrice={listing.sellingPrice}
+                buyingPrice={listing.buyingPrice}
+                condition={listing.condition}
+                category={listing.category}
+                city={listing.city}
+                imageUrl={listing.images?.[0]?.imageUrl}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Category Shortcuts */}
@@ -231,20 +205,20 @@ export default function HomePage() {
               title: 'Textbooks',
               desc: 'CBSE, ICSE, IB & State Boards',
               color: 'primary',
-              href: '/browse?category=Textbook',
+              href: '/browse?category=BOOK',
             },
             {
               emoji: '\u270F\uFE0F',
               title: 'Stationery',
               desc: 'Kits, Geometry Boxes, Art Supplies',
               color: 'secondary',
-              href: '/browse?category=Stationery',
+              href: '/browse?category=STATIONERY',
             },
           ].map((cat, i) => (
             <Link
               key={i}
               href={cat.href}
-              className="card-premium p-10 group cursor-pointer border-none shadow-none bg-muted-extra-light/50 hover:bg-white block"
+              className="card-premium card-interactive p-8 md:p-10 group cursor-pointer border-transparent shadow-none bg-muted-extra-light/50 hover:bg-card block"
             >
               <div
                 className={`w-16 h-16 rounded-2xl mb-8 flex items-center justify-center text-3xl shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${
@@ -255,8 +229,8 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-black mb-2">{cat.title}</h3>
               <p className="text-sm text-muted font-medium mb-6">{cat.desc}</p>
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-10px] group-hover:translate-x-0 group-hover:transition-all">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Explore Category</span>
+              <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100 transition-all md:translate-x-[-10px] md:group-hover:translate-x-0">
+                <span className="text-xs font-black uppercase tracking-widest text-primary">Explore Category</span>
                 <span className="text-primary text-lg">&#8594;</span>
               </div>
             </Link>
@@ -266,20 +240,20 @@ export default function HomePage() {
 
       {/* For Sellers — segmented seller entry point */}
       <section className="container">
-        <div className="relative rounded-[60px] bg-foreground p-16 md:p-32 overflow-hidden">
+        <div className="relative rounded-[40px] md:rounded-[60px] bg-surface-inverse p-8 sm:p-16 md:p-32 overflow-hidden">
           <div className="relative z-10 max-w-2xl">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6 block">For Sellers</span>
-            <h2 className="text-5xl md:text-7xl font-black text-white mb-10 tracking-tighter leading-none">
+            <span className="text-xs font-black uppercase tracking-[0.3em] text-primary-light mb-6 block">For Sellers</span>
+            <h2 className="text-4xl sm:text-5xl md:text-7xl font-black text-white mb-10 tracking-tighter leading-none">
               Turn your{' '}
-              <span className="text-primary">old books</span> into cash.
+              <span className="text-primary-light">old books</span> into cash.
             </h2>
-            <p className="text-white/60 text-xl mb-14 leading-relaxed font-medium">
+            <p className="text-white/70 text-lg md:text-xl mb-14 leading-relaxed font-medium">
               List your items in seconds. Help another student succeed and earn from books you no longer need.
             </p>
             <div className="flex flex-col sm:flex-row gap-6">
               <Link
                 href="/sell"
-                className="btn btn-primary h-20 px-16 text-xl font-black rounded-3xl"
+                className="btn btn-primary h-16 md:h-20 px-10 md:px-16 text-lg md:text-xl font-black rounded-3xl"
               >
                 List a Book
               </Link>

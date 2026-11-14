@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { boardLabel, conditionLabel, statusLabel } from '@/lib/labels';
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING_APPROVAL: 'background: rgba(234, 179, 8, 0.15); color: #a16207;',
@@ -32,7 +33,7 @@ function StatusBadge({ status, styleMap }: { status: string; styleMap: Record<st
       const camelKey = k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       return [camelKey, v];
     }))}>
-      {status.replace(/_/g, ' ')}
+      {statusLabel(status)}
     </span>
   );
 }
@@ -42,9 +43,12 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { user, isAuthenticated, hydrate } = useAuthStore();
 
+  const [actionError, setActionError] = useState('');
+  const [confirming, setConfirming] = useState<{ id: string; action: 'reject' | 'cancel' } | null>(null);
+
   useEffect(() => {
     hydrate();
-  }, []);
+  }, [hydrate]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -55,7 +59,7 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, router]);
 
-  const { data: listings, isLoading: listingsLoading } = useQuery({
+  const { data: listings, isLoading: listingsLoading, isError: listingsError, refetch: refetchListings } = useQuery({
     queryKey: ['myListings'],
     queryFn: async () => {
       const { data } = await api.get('/listings/my');
@@ -64,7 +68,7 @@ export default function DashboardPage() {
     retry: false,
   });
 
-  const { data: matches, isLoading: matchesLoading } = useQuery({
+  const { data: matches, isLoading: matchesLoading, isError: matchesError, refetch: refetchMatches } = useQuery({
     queryKey: ['myMatches'],
     queryFn: async () => {
       const { data } = await api.get('/matches');
@@ -82,14 +86,24 @@ export default function DashboardPage() {
     retry: false,
   });
 
+  const onActionError = (err: any) =>
+    setActionError(err?.response?.data?.error || 'That action failed. Please try again.');
+
   const acceptMutation = useMutation({
     mutationFn: (matchId: string) => api.post(`/matches/${matchId}/accept`),
+    onMutate: () => setActionError(''),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['myMatches'] }),
+    onError: onActionError,
   });
 
   const rejectMutation = useMutation({
     mutationFn: (matchId: string) => api.post(`/matches/${matchId}/reject`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['myMatches'] }),
+    onMutate: () => setActionError(''),
+    onSuccess: () => {
+      setConfirming(null);
+      queryClient.invalidateQueries({ queryKey: ['myMatches'] });
+    },
+    onError: onActionError,
   });
 
   const listingsArray = Array.isArray(listings) ? listings : [];
@@ -118,7 +132,7 @@ export default function DashboardPage() {
 
       {/* Quick Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-        <div className="card-premium" style={{ padding: '1.5rem' }}>
+        <div className="card-flat" style={{ padding: '1.5rem' }}>
           <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--primary)' }}>
             {myListingsCount}
           </div>
@@ -126,7 +140,7 @@ export default function DashboardPage() {
             My Listings
           </div>
         </div>
-        <div className="card-premium" style={{ padding: '1.5rem' }}>
+        <div className="card-flat" style={{ padding: '1.5rem' }}>
           <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--secondary)' }}>
             {activeDealsCount}
           </div>
@@ -134,7 +148,7 @@ export default function DashboardPage() {
             Active Deals
           </div>
         </div>
-        <div className="card-premium" style={{ padding: '1.5rem' }}>
+        <div className="card-flat" style={{ padding: '1.5rem' }}>
           <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--accent)' }}>
             {openRequestsCount}
           </div>
@@ -152,7 +166,7 @@ export default function DashboardPage() {
         <Link href="/browse" className="btn btn-outline">
           Browse Books
         </Link>
-        <Link href="/dashboard/requests/new" className="btn btn-outline">
+        <Link href="/need" className="btn btn-outline">
           Request a Book
         </Link>
       </div>
@@ -167,11 +181,18 @@ export default function DashboardPage() {
         </div>
 
         {listingsLoading ? (
-          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
             Loading listings...
           </div>
+        ) : listingsError ? (
+          <div role="alert" className="card-flat p-6 flex flex-wrap items-center justify-between gap-4 border-accent/30">
+            <p className="text-accent font-semibold">Couldn&apos;t load your listings.</p>
+            <button type="button" onClick={() => refetchListings()} className="btn btn-outline h-10 text-sm">
+              Try again
+            </button>
+          </div>
         ) : listingsArray.length === 0 ? (
-          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
             No listings yet.{' '}
             <Link href="/sell" style={{ color: 'var(--primary)', fontWeight: 600 }}>
               Create your first listing
@@ -185,21 +206,21 @@ export default function DashboardPage() {
                 listing.items?.map((i: any) => i.subject).join(', ') ||
                 'Book Set';
               return (
-                <div key={listing.id} className="card-premium" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div key={listing.id} className="card-flat" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, flex: 1, marginRight: '0.5rem' }}>
                       {title}
                     </h3>
                     <StatusBadge status={listing.status} styleMap={STATUS_STYLES} />
                   </div>
-                  {listing.price != null && (
+                  {listing.sellingPrice != null && (
                     <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--primary)' }}>
-                      ₹{listing.price}
+                      ₹{listing.sellingPrice}
                     </div>
                   )}
                   <div style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>
-                    {listing.condition?.replace(/_/g, ' ') || 'N/A'}
-                    {listing.board && ` · ${listing.board}`}
+                    {conditionLabel(listing.condition) || 'N/A'}
+                    {listing.board && ` · ${boardLabel(listing.board)}`}
                     {listing.class && ` · Class ${listing.class}`}
                   </div>
                 </div>
@@ -213,12 +234,28 @@ export default function DashboardPage() {
       <section style={{ marginBottom: '2.5rem' }}>
         <h2 style={{ fontSize: '1.35rem', marginBottom: '1.25rem' }}>My Deals</h2>
 
+        {actionError && (
+          <div role="alert" className="mb-4 p-4 rounded-xl bg-accent/10 text-accent font-medium flex items-start justify-between gap-4">
+            <span>{actionError}</span>
+            <button type="button" onClick={() => setActionError('')} aria-label="Dismiss error" className="font-black px-2">
+              &times;
+            </button>
+          </div>
+        )}
+
         {matchesLoading ? (
-          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
             Loading deals...
           </div>
+        ) : matchesError ? (
+          <div role="alert" className="card-flat p-6 flex flex-wrap items-center justify-between gap-4 border-accent/30">
+            <p className="text-accent font-semibold">Couldn&apos;t load your deals.</p>
+            <button type="button" onClick={() => refetchMatches()} className="btn btn-outline h-10 text-sm">
+              Try again
+            </button>
+          </div>
         ) : matchesArray.length === 0 ? (
-          <div className="card-premium" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
             No deals yet. Create listings or browse books to get matched!
           </div>
         ) : (
@@ -232,7 +269,7 @@ export default function DashboardPage() {
                 'Book Set';
 
               return (
-                <div key={match.id} className="card-premium" style={{ padding: '1.5rem' }}>
+                <div key={match.id} className="card-flat" style={{ padding: '1.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <div style={{ flex: 1, minWidth: '200px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -257,7 +294,32 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    {match.status === 'PENDING' && (
+                    {match.status === 'PENDING' && confirming?.id === match.id && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          {confirming?.action === 'reject' ? 'Reject this deal?' : 'Cancel this deal?'}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
+                          onClick={() => rejectMutation.mutate(match.id)}
+                          disabled={rejectMutation.isPending}
+                        >
+                          {rejectMutation.isPending ? 'Working...' : 'Yes, confirm'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px' }}
+                          onClick={() => setConfirming(null)}
+                          disabled={rejectMutation.isPending}
+                        >
+                          Keep
+                        </button>
+                      </div>
+                    )}
+                    {match.status === 'PENDING' && confirming?.id !== match.id && (
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         {isGiver ? (
                           <>
@@ -272,8 +334,7 @@ export default function DashboardPage() {
                             <button
                               className="btn btn-outline"
                               style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
-                              onClick={() => rejectMutation.mutate(match.id)}
-                              disabled={rejectMutation.isPending}
+                              onClick={() => setConfirming({ id: match.id, action: 'reject' })}
                             >
                               Reject
                             </button>
@@ -282,8 +343,7 @@ export default function DashboardPage() {
                           <button
                             className="btn btn-outline"
                             style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
-                            onClick={() => rejectMutation.mutate(match.id)}
-                            disabled={rejectMutation.isPending}
+                            onClick={() => setConfirming({ id: match.id, action: 'cancel' })}
                           >
                             Cancel
                           </button>

@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, ShieldCheck } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import ErrorState from '../_components/ErrorState';
+import { enumLabel } from '../_components/labels';
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -28,7 +30,7 @@ export default function AdminUsersPage() {
     }
   }, [user, router]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-users', page, search],
     queryFn: async () => {
       const params: Record<string, any> = { page, limit: 50 };
@@ -57,10 +59,11 @@ export default function AdminUsersPage() {
 
       {/* Search */}
       <div className="mb-6 relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-light)]" />
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
         <input
           type="text"
           placeholder="Search by name, email, or city..."
+          aria-label="Search users"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -70,20 +73,23 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      <div className="card-premium overflow-hidden">
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} title="Could not load users" />
+      ) : (
+      <div className="card-flat overflow-x-auto">
         {isLoading ? (
           <div className="p-12 text-center text-[var(--muted)]">Loading users...</div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Name</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Email</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">City</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Board</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Listings</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Verified</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Joined</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Name</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Email</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">City</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Board</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Listings</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Verified</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Joined</th>
               </tr>
             </thead>
             <tbody>
@@ -100,7 +106,7 @@ export default function AdminUsersPage() {
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm">{u.name}</span>
                         {u.isAdmin && (
-                          <span className="badge" style={{ background: 'var(--primary-glow)', color: 'var(--primary)' }}>
+                          <span className="badge badge-primary">
                             Admin
                           </span>
                         )}
@@ -108,9 +114,9 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-[var(--muted)]">{u.email}</td>
                     <td className="px-6 py-4 text-sm">{u.city || '-'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {u.board ? (
-                        <span className="badge badge-primary">{u.board}</span>
+                        <span className="badge badge-primary">{enumLabel(u.board)}</span>
                       ) : (
                         <span className="text-sm text-[var(--muted)]">-</span>
                       )}
@@ -118,12 +124,12 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 text-sm font-bold">{u._count?.listings ?? u.listingsCount ?? 0}</td>
                     <td className="px-6 py-4">
                       {u.isVerified ? (
-                        <ShieldCheck size={18} className="text-[var(--secondary)]" />
+                        <ShieldCheck size={18} className="text-[var(--secondary)]" aria-label="Verified" />
                       ) : (
-                        <span className="text-xs text-[var(--muted-light)]">No</span>
+                        <span className="text-xs text-[var(--muted)]">No</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                    <td className="px-6 py-4 text-sm text-[var(--muted)] whitespace-nowrap">
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -133,6 +139,7 @@ export default function AdminUsersPage() {
           </table>
         )}
       </div>
+      )}
 
       {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
@@ -140,8 +147,7 @@ export default function AdminUsersPage() {
           <button
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page === 1}
-            className="btn btn-outline disabled:opacity-40"
-            style={{ height: 40, fontSize: '0.875rem' }}
+            className="btn btn-outline h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Previous
           </button>
@@ -151,8 +157,7 @@ export default function AdminUsersPage() {
           <button
             onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
             disabled={page >= pagination.totalPages}
-            className="btn btn-outline disabled:opacity-40"
-            style={{ height: 40, fontSize: '0.875rem' }}
+            className="btn btn-outline h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next
           </button>

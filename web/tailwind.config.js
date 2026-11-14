@@ -1,4 +1,9 @@
 /** @type {import('tailwindcss').Config} */
+// Brand colours come from CSS custom properties in src/app/globals.css so they
+// follow light/dark mode. Colours used with opacity modifiers (bg-primary/10)
+// are declared as space-separated RGB channels (--*-rgb).
+const rgb = (name) => `rgb(var(--${name}-rgb) / <alpha-value>)`;
+
 module.exports = {
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
@@ -7,19 +12,33 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          DEFAULT: rgb('primary'),
+          dark: 'var(--primary-dark)',
+          light: 'var(--primary-light)',
+        },
+        secondary: {
+          DEFAULT: rgb('secondary'),
+          dark: 'var(--secondary-dark)',
+        },
+        accent: rgb('accent'),
+        foreground: rgb('foreground'),
+        background: rgb('background'),
+        card: rgb('card'),
+        'card-border': 'var(--card-border)',
+        border: 'var(--border)',
+        'surface-inverse': rgb('surface-inverse'),
+        muted: {
+          DEFAULT: rgb('muted'),
+          light: rgb('muted-light'),
+          'extra-light': rgb('muted-extra-light'),
         },
       },
     },
+  },
+  // `.container` is defined in globals.css (max-width 1400px); disable
+  // Tailwind's breakpoint-stepped container so it doesn't fight it.
+  corePlugins: {
+    container: false,
   },
   plugins: [],
 };

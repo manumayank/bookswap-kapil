@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { categoryLabel, conditionLabel } from '@/lib/labels';
 
 interface BookCardProps {
   id: string;
@@ -24,7 +25,7 @@ export default function BookCard({
   const savings = buyingPrice ? buyingPrice - sellingPrice : 0;
 
   return (
-    <Link href={`/listings/${id}`} className="group card-premium overflow-hidden">
+    <Link href={`/listings/${id}`} className="group card-premium card-interactive overflow-hidden block h-full">
       <div className="relative aspect-[4/5] bg-muted-extra-light overflow-hidden">
         {imageUrl ? (
           <img
@@ -34,14 +35,14 @@ export default function BookCard({
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-primary/5">
-            <div className="w-20 h-20 rounded-[28px] bg-white flex items-center justify-center text-primary text-3xl shadow-sm mb-4 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
-              {category === 'Stationery' ? '\u270F\uFE0F' : '\uD83D\uDCDA'}
+            <div className="w-20 h-20 rounded-[28px] bg-card flex items-center justify-center text-primary text-3xl shadow-sm mb-4 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
+              {category === 'STATIONERY' ? '\u270F\uFE0F' : '\uD83D\uDCDA'}
             </div>
-            <span className="text-muted-light text-[10px] font-black uppercase tracking-[0.2em]">{category}</span>
+            <span className="text-muted-light text-xs font-black uppercase tracking-[0.2em]">{categoryLabel(category)}</span>
           </div>
         )}
         <div className="absolute top-4 left-4">
-          <span className="badge badge-primary glass backdrop-blur-md">{condition}</span>
+          <span className="badge badge-primary glass backdrop-blur-md">{conditionLabel(condition)}</span>
         </div>
       </div>
 
@@ -57,7 +58,7 @@ export default function BookCard({
             <span className="font-black text-xl text-foreground">
               {'\u20B9'}{sellingPrice}
             </span>
-            {buyingPrice && buyingPrice > sellingPrice && (
+            {!!buyingPrice && buyingPrice > sellingPrice && (
               <span className="text-xs text-muted line-through">
                 {'\u20B9'}{buyingPrice}
               </span>
@@ -71,12 +72,12 @@ export default function BookCard({
         </div>
 
         <div className="flex items-center gap-3 pt-4 border-t border-card-border">
-          <div className="w-8 h-8 rounded-xl bg-muted-extra-light flex items-center justify-center text-[10px] font-black text-muted uppercase tracking-widest border border-card-border">
+          <div className="w-8 h-8 rounded-xl bg-muted-extra-light flex items-center justify-center text-xs font-black text-muted uppercase tracking-widest border border-card-border">
             {city?.charAt(0) || '?'}
           </div>
           <div>
             <p className="text-foreground text-xs font-bold leading-none mb-1">{city}</p>
-            <p className="text-muted-light text-[10px] font-medium uppercase tracking-tighter">Location</p>
+            <p className="text-muted-light text-xs font-medium uppercase tracking-tight">Location</p>
           </div>
         </div>
       </div>

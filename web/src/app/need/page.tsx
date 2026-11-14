@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
-import BookCard from '@/components/BookCard';
+import { boardLabel } from '@/lib/labels';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -64,6 +64,7 @@ export default function NeedPage() {
   // Results
   const [matches, setMatches] = useState<Listing[]>([]);
   const [requestCreated, setRequestCreated] = useState(false);
+  const [formError, setFormError] = useState('');
 
   // Search schools
   const searchSchools = useCallback(async (query: string, city: string, board: string) => {
@@ -125,10 +126,11 @@ export default function NeedPage() {
 
   const handleFindMatches = async () => {
     if (!filters.city) {
-      alert('Please enter your city');
+      setFormError('Please enter your city');
       return;
     }
 
+    setFormError('');
     setIsLoading(true);
     try {
       const { data } = await api.post('/requests/find-matches', {
@@ -143,7 +145,7 @@ export default function NeedPage() {
       setMatches(data.data?.listings || []);
       setStep('results');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to search');
+      setFormError(err.response?.data?.error || 'Search failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -151,10 +153,11 @@ export default function NeedPage() {
 
   const handleCreateRequest = async () => {
     if (!filters.board || !filters.class) {
-      alert('Please select board and class');
+      setFormError('Please select a board and class to raise a request. Use "Modify Search" to add them.');
       return;
     }
 
+    setFormError('');
     setIsSubmitting(true);
     try {
       await api.post('/requests', {
@@ -168,7 +171,7 @@ export default function NeedPage() {
       setRequestCreated(true);
       setStep('request');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to create request');
+      setFormError(err.response?.data?.error || 'Could not create your request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -194,8 +197,13 @@ export default function NeedPage() {
       <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--card-border)' }}>
         <div className="container" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link href="/" style={{ textDecoration: 'none' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>←</span>
+            <Link
+              href="/"
+              aria-label="Back"
+              className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center hover:bg-muted-extra-light transition-colors"
+              style={{ textDecoration: 'none' }}
+            >
+              <span aria-hidden style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>←</span>
             </Link>
             <div>
               <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
@@ -218,12 +226,13 @@ export default function NeedPage() {
       <div className="container" style={{ padding: '2rem 1.5rem' }}>
         {/* Step 1: Filters */}
         {step === 'filters' && (
-          <div className="card-premium" style={{ maxWidth: '640px', margin: '0 auto', padding: '2rem' }}>
+          <div className="card-flat" style={{ maxWidth: '640px', margin: '0 auto', padding: '2rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* City */}
               <div>
-                <label style={labelStyle}>Your City *</label>
+                <label htmlFor="need-city" style={labelStyle}>Your City *</label>
                 <input
+                  id="need-city"
                   type="text"
                   value={filters.city}
                   onChange={(e) => handleFilterChange('city', e.target.value)}
@@ -234,8 +243,9 @@ export default function NeedPage() {
 
               {/* Class */}
               <div>
-                <label style={labelStyle}>Class/Grade</label>
+                <label htmlFor="need-class" style={labelStyle}>Class/Grade</label>
                 <select
+                  id="need-class"
                   value={filters.class}
                   onChange={(e) => handleFilterChange('class', e.target.value)}
                   style={{ width: '100%' }}
@@ -249,23 +259,26 @@ export default function NeedPage() {
 
               {/* Board */}
               <div>
-                <label style={labelStyle}>School Board</label>
+                <label htmlFor="need-board" style={labelStyle}>School Board</label>
                 <select
+                  id="need-board"
                   value={filters.board}
                   onChange={(e) => handleFilterChange('board', e.target.value)}
                   style={{ width: '100%' }}
                 >
                   <option value="">Any Board</option>
                   {BOARDS.map(b => (
-                    <option key={b} value={b}>{b}</option>
+                    <option key={b} value={b}>{boardLabel(b)}</option>
                   ))}
                 </select>
               </div>
 
               {/* School Search */}
               <div style={{ position: 'relative' }}>
-                <label style={labelStyle}>School</label>
+                <label htmlFor="need-school" style={labelStyle}>School</label>
                 <input
+                  id="need-school"
+                  autoComplete="off"
                   type="text"
                   value={schoolSearch}
                   onChange={(e) => {
@@ -311,7 +324,7 @@ export default function NeedPage() {
                       >
                         <div style={{ fontWeight: 600 }}>{school.name}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                          {school.city} • {school.board}
+                          {school.city} • {boardLabel(school.board)}
                         </div>
                       </button>
                     ))}
@@ -321,12 +334,13 @@ export default function NeedPage() {
 
               {/* Subjects */}
               <div>
-                <label style={labelStyle}>Subjects Needed</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <p id="need-subjects" style={labelStyle}>Subjects Needed</p>
+                <div role="group" aria-labelledby="need-subjects" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {SUBJECTS.map(subject => (
                     <button
                       key={subject}
                       type="button"
+                      aria-pressed={filters.subjects.includes(subject)}
                       onClick={() => handleSubjectToggle(subject)}
                       style={{
                         padding: '8px 16px',
@@ -348,8 +362,10 @@ export default function NeedPage() {
 
               {/* Max Price */}
               <div>
-                <label style={labelStyle}>Maximum Budget (₹)</label>
+                <label htmlFor="need-max" style={labelStyle}>Maximum Budget (₹)</label>
                 <input
+                  id="need-max"
+                  min={0}
                   type="number"
                   value={filters.maxPrice}
                   onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
@@ -358,15 +374,21 @@ export default function NeedPage() {
                 />
               </div>
 
+              {formError && (
+                <p role="alert" className="p-3 rounded-xl bg-accent/10 text-accent text-sm font-medium">
+                  {formError}
+                </p>
+              )}
+
               {/* Action Button */}
               <button
+                type="button"
                 onClick={handleFindMatches}
                 disabled={isLoading || !filters.city}
                 className="btn btn-primary"
                 style={{
                   width: '100%',
                   marginTop: '1rem',
-                  opacity: isLoading || !filters.city ? 0.6 : 1,
                 }}
               >
                 {isLoading ? 'Searching...' : 'Find Books'}
@@ -380,7 +402,11 @@ export default function NeedPage() {
           <div>
             {/* Back button */}
             <button
-              onClick={() => setStep('filters')}
+              type="button"
+              onClick={() => {
+                setFormError('');
+                setStep('filters');
+              }}
               className="btn btn-outline"
               style={{ marginBottom: '1.5rem' }}
             >
@@ -391,7 +417,7 @@ export default function NeedPage() {
               <div>
                 <div className="grid-marketplace">
                   {matches.map(listing => (
-                    <div key={listing.id} className="card-premium" style={{ padding: '1.5rem' }}>
+                    <div key={listing.id} className="card-flat" style={{ padding: '1.5rem' }}>
                       {listing.images?.[0] && (
                         <img
                           src={listing.images[0].imageUrl}
@@ -407,7 +433,9 @@ export default function NeedPage() {
                       )}
                       <h3 style={{ fontSize: '1.125rem', margin: '0 0 0.5rem 0' }}>{listing.title}</h3>
                       <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: '0 0 0.5rem 0' }}>
-                        {listing.board} • Class {listing.class} • {listing.city}
+                        {[listing.board && boardLabel(listing.board), listing.class && `Class ${listing.class}`, listing.city]
+                          .filter(Boolean)
+                          .join(' • ')}
                       </p>
                       {listing.school && (
                         <p style={{ color: 'var(--muted)', fontSize: '0.75rem', margin: '0 0 0.5rem 0' }}>
@@ -424,6 +452,7 @@ export default function NeedPage() {
                           ₹{listing.sellingPrice}
                         </span>
                         <button
+                          type="button"
                           onClick={() => handleContactSeller(listing.id)}
                           className="btn btn-primary"
                           style={{ height: '40px', padding: '0 16px', fontSize: '0.875rem' }}
@@ -436,18 +465,24 @@ export default function NeedPage() {
                 </div>
               </div>
             ) : (
-              <div className="card-premium" style={{ maxWidth: '480px', margin: '0 auto', padding: '3rem', textAlign: 'center' }}>
+              <div className="card-flat" style={{ maxWidth: '480px', margin: '0 auto', padding: '3rem 1.5rem', textAlign: 'center' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
                 <h2 style={{ margin: '0 0 0.5rem 0' }}>No Books Found</h2>
                 <p style={{ color: 'var(--muted)', margin: '0 0 2rem 0' }}>
                   We could not find any books matching your criteria. 
                   Raise a request and we will notify you when someone lists matching books.
                 </p>
+                {formError && (
+                  <p role="alert" className="mb-4 p-3 rounded-xl bg-accent/10 text-accent text-sm font-medium text-left">
+                    {formError}
+                  </p>
+                )}
                 <button
+                  type="button"
                   onClick={handleCreateRequest}
                   disabled={isSubmitting}
                   className="btn btn-primary"
-                  style={{ width: '100%', opacity: isSubmitting ? 0.6 : 1 }}
+                  style={{ width: '100%' }}
                 >
                   {isSubmitting ? 'Creating Request...' : 'Raise Request'}
                 </button>
@@ -458,7 +493,7 @@ export default function NeedPage() {
 
         {/* Step 3: Request Created */}
         {step === 'request' && requestCreated && (
-          <div className="card-premium" style={{ maxWidth: '480px', margin: '0 auto', padding: '3rem', textAlign: 'center' }}>
+          <div className="card-flat" style={{ maxWidth: '480px', margin: '0 auto', padding: '3rem 1.5rem', textAlign: 'center' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
             <h2 style={{ margin: '0 0 0.5rem 0' }}>Request Raised!</h2>
             <p style={{ color: 'var(--muted)', margin: '0 0 2rem 0' }}>
@@ -470,6 +505,7 @@ export default function NeedPage() {
                 Go to Dashboard
               </Link>
               <button
+                type="button"
                 onClick={() => {
                   setStep('filters');
                   setMatches([]);

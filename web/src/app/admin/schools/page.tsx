@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, X, School, Search } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import ErrorState, { InlineError } from '../_components/ErrorState';
+import { enumLabel } from '../_components/labels';
 
 interface SchoolForm {
   name: string;
@@ -24,6 +26,7 @@ export default function AdminSchoolsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SchoolForm>(emptyForm);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     hydrate();
@@ -40,7 +43,7 @@ export default function AdminSchoolsPage() {
     }
   }, [user, router]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-schools', search],
     queryFn: async () => {
       const params: Record<string, any> = {};
@@ -85,6 +88,13 @@ export default function AdminSchoolsPage() {
     });
     setEditingId(school.id);
     setShowForm(true);
+    createMutation.reset();
+    updateMutation.reset();
+    // Wait for the form to render, then bring it into view.
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      formRef.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -102,7 +112,7 @@ export default function AdminSchoolsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight mb-2">Schools</h1>
           <p className="text-[var(--muted)]">Manage the school directory</p>
@@ -115,8 +125,7 @@ export default function AdminSchoolsPage() {
               setShowForm(true);
             }
           }}
-          className={`btn ${showForm ? 'btn-outline' : 'btn-primary'}`}
-          style={{ height: 42, fontSize: '0.875rem' }}
+          className={`btn h-10 px-4 text-sm self-start ${showForm ? 'btn-outline' : 'btn-primary'}`}
         >
           {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add School</>}
         </button>
@@ -124,7 +133,7 @@ export default function AdminSchoolsPage() {
 
       {/* Add/Edit Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="card-premium p-6 mb-8">
+        <form ref={formRef} onSubmit={handleSubmit} className="card-flat p-4 sm:p-6 mb-8 scroll-mt-40 md:scroll-mt-24">
           <h2 className="font-extrabold text-lg mb-5">
             {editingId ? 'Edit School' : 'Add New School'}
           </h2>
@@ -186,38 +195,34 @@ export default function AdminSchoolsPage() {
               />
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               type="submit"
               disabled={isSaving}
-              className="btn btn-primary disabled:opacity-50"
-              style={{ height: 42, fontSize: '0.875rem' }}
+              className="btn btn-primary h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isSaving ? 'Saving...' : editingId ? 'Update School' : 'Add School'}
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="btn btn-outline"
-              style={{ height: 42, fontSize: '0.875rem' }}
+              disabled={isSaving}
+              className="btn btn-outline h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
           </div>
-          {(createMutation.isError || updateMutation.isError) && (
-            <p className="text-[var(--accent)] text-sm mt-3">
-              Failed to save. Please try again.
-            </p>
-          )}
+          <InlineError error={createMutation.error || updateMutation.error} />
         </form>
       )}
 
       {/* Search */}
       <div className="mb-6 relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-light)]" />
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
         <input
           type="text"
           placeholder="Search schools..."
+          aria-label="Search schools"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-[420px] pl-11"
@@ -225,25 +230,28 @@ export default function AdminSchoolsPage() {
       </div>
 
       {/* Schools List */}
-      <div className="card-premium overflow-hidden">
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} title="Could not load schools" />
+      ) : (
+      <div className="card-flat overflow-x-auto">
         {isLoading ? (
           <div className="p-12 text-center text-[var(--muted)]">Loading schools...</div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">School</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">City</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Board</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Address</th>
-                <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Actions</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">School</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">City</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Board</th>
+                <th className="text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Address</th>
+                <th className="text-right px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
               {schools.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-12 text-[var(--muted)]">
-                    <School size={36} className="mx-auto mb-3 opacity-30" />
+                    <School size={36} className="mx-auto mb-3 opacity-30" aria-hidden="true" />
                     {search ? 'No schools match your search' : 'No schools yet. Add one above.'}
                   </td>
                 </tr>
@@ -254,9 +262,9 @@ export default function AdminSchoolsPage() {
                       <span className="font-bold text-sm">{school.name}</span>
                     </td>
                     <td className="px-6 py-4 text-sm">{school.city || '-'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {school.board ? (
-                        <span className="badge badge-primary">{school.board}</span>
+                        <span className="badge badge-primary">{enumLabel(school.board)}</span>
                       ) : (
                         <span className="text-sm text-[var(--muted)]">-</span>
                       )}
@@ -264,9 +272,10 @@ export default function AdminSchoolsPage() {
                     <td className="px-6 py-4 text-sm text-[var(--muted)]">{school.address || '-'}</td>
                     <td className="px-6 py-4 text-right">
                       <button
+                        type="button"
                         onClick={() => startEdit(school)}
-                        className="btn btn-outline"
-                        style={{ height: 34, fontSize: '0.75rem', padding: '0 12px' }}
+                        aria-label={`Edit ${school.name}`}
+                        className="btn btn-outline h-10 px-3 text-xs whitespace-nowrap"
                       >
                         <Pencil size={14} />
                         Edit
@@ -279,6 +288,7 @@ export default function AdminSchoolsPage() {
           </table>
         )}
       </div>
+      )}
     </div>
   );
 }

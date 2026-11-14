@@ -23,15 +23,23 @@ export default function NotificationBell() {
   const unread = data?.unreadCount ?? 0;
   const items = data?.notifications ?? [];
 
-  // Close on outside click
+  // Close on outside click / Escape
   useEffect(() => {
+    if (!open) return;
     function handle(e: MouseEvent) {
-      if (open && ref.current && !ref.current.contains(e.target as Node)) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
     document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', handle);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
   function handleClickItem(n: Notification) {
@@ -48,12 +56,14 @@ export default function NotificationBell() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
+        aria-haspopup="true"
+        aria-expanded={open}
         className="relative w-10 h-10 rounded-xl bg-primary/10 border border-card-border flex items-center justify-center text-primary transition-colors hover:bg-primary hover:text-white"
       >
         <span aria-hidden className="text-lg">🔔</span>
         {unread > 0 && (
           <span
-            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-accent text-white text-[10px] font-black flex items-center justify-center"
+            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-accent text-white text-[11px] font-black flex items-center justify-center"
             aria-label={`${unread} unread notifications`}
           >
             {badge}
@@ -62,13 +72,13 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 card-premium p-2 z-50">
+        <div className="fixed inset-x-4 top-20 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80 card-flat shadow-xl p-2 z-50">
           <div className="flex items-center justify-between px-3 py-2 border-b border-card-border mb-1">
             <p className="text-sm font-bold">Notifications</p>
             {unread > 0 && (
               <button
                 onClick={() => markAll.mutate()}
-                className="text-[10px] font-bold text-primary hover:underline"
+                className="text-xs font-bold text-primary hover:underline px-2 py-1.5 rounded-md"
                 disabled={markAll.isPending}
               >
                 Mark all as read
@@ -89,8 +99,8 @@ export default function NotificationBell() {
                     }`}
                   >
                     <p className="text-xs font-bold truncate">{n.title}</p>
-                    <p className="text-[11px] text-muted mt-0.5 line-clamp-2">{n.body}</p>
-                    <p className="text-[10px] text-muted mt-1">{formatRelativeTime(n.sentAt)}</p>
+                    <p className="text-xs text-muted mt-0.5 line-clamp-2">{n.body}</p>
+                    <p className="text-xs text-muted mt-1">{formatRelativeTime(n.sentAt)}</p>
                   </button>
                 </li>
               ))}
@@ -100,7 +110,7 @@ export default function NotificationBell() {
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
-            className="block mt-1 px-3 py-2 text-center text-[11px] font-bold text-primary hover:bg-muted-extra-light rounded-lg transition-colors"
+            className="block mt-1 px-3 py-2 text-center text-xs font-bold text-primary hover:bg-muted-extra-light rounded-lg transition-colors"
           >
             View all notifications
           </Link>

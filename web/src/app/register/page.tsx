@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
+import { boardLabel } from '@/lib/labels';
 import Logo from '@/components/Logo';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
@@ -351,7 +352,7 @@ export default function RegisterPage() {
                           color: 'var(--foreground)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--muted-lightest)';
+                          e.currentTarget.style.background = 'var(--muted-extra-light)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'transparent';
@@ -359,7 +360,7 @@ export default function RegisterPage() {
                       >
                         <div style={{ fontWeight: 600 }}>{school.name}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '2px' }}>
-                          {school.city} • {school.board}
+                          {school.city} • {boardLabel(school.board)}
                         </div>
                       </button>
                     ))}

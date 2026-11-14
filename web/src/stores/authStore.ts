@@ -22,6 +22,8 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** True once hydrate() has read localStorage on the client. */
+  isHydrated: boolean;
   verifiedEmail: string | null;
 
   sendOtp: (email: string) => Promise<void>;
@@ -36,11 +38,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: false,
+  isHydrated: false,
   verifiedEmail: null,
 
   hydrate: () => {
-    if (typeof window === 'undefined') return;
-    const token = localStorage.getItem('accessToken');
+    if (typeof window === 'undefined') return;    const token = localStorage.getItem('accessToken');
     const userStr = localStorage.getItem('user');
     if (token && userStr) {
       try {
@@ -52,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.removeItem('user');
       }
     }
+    set({ isHydrated: true });
   },
 
   sendOtp: async (email: string) => {

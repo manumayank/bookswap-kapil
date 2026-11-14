@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { boardLabel } from '@/lib/labels';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
@@ -44,6 +45,8 @@ export default function PapersPage() {
   const [activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse');
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [downloadError, setDownloadError] = useState('');
   const [filters, setFilters] = useState({
     board: '',
     class: '',
@@ -84,6 +87,7 @@ export default function PapersPage() {
 
   const fetchPapers = async () => {
     setIsLoading(true);
+    setFetchError('');
     try {
       const params = new URLSearchParams();
       if (filters.board) params.append('board', filters.board);
@@ -95,8 +99,9 @@ export default function PapersPage() {
 
       const { data } = await api.get(`/papers?${params.toString()}`);
       setPapers(data.data?.papers || []);
-    } catch (err) {
-      console.error('Failed to fetch papers:', err);
+    } catch (err: any) {
+      setPapers([]);
+      setFetchError(err?.response?.data?.error || 'Could not load papers.');
     } finally {
       setIsLoading(false);
     }
@@ -209,11 +214,12 @@ export default function PapersPage() {
   };
 
   const handleDownload = async (paper: Paper) => {
+    setDownloadError('');
     try {
       await api.post(`/papers/${paper.id}/download`);
       window.open(paper.fileUrl, '_blank');
-    } catch (err) {
-      console.error('Download failed:', err);
+    } catch (err: any) {
+      setDownloadError(err?.response?.data?.error || 'Download failed. Please try again.');
     }
   };
 
@@ -224,8 +230,13 @@ export default function PapersPage() {
         <div className="container" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <Link href="/" style={{ textDecoration: 'none' }}>
-                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>←</span>
+              <Link
+                href="/"
+                aria-label="Back"
+                className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center hover:bg-muted-extra-light transition-colors"
+                style={{ textDecoration: 'none' }}
+              >
+                <span aria-hidden style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>←</span>
               </Link>
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>Question Papers</h1>
@@ -236,8 +247,11 @@ export default function PapersPage() {
             </div>
             
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div role="tablist" aria-label="Papers" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'browse'}
                 onClick={() => setActiveTab('browse')}
                 style={{
                   padding: '0.75rem 1.5rem',
@@ -252,6 +266,9 @@ export default function PapersPage() {
                 Browse Papers
               </button>
               <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'upload'}
                 onClick={() => setActiveTab('upload')}
                 style={{
                   padding: '0.75rem 1.5rem',
@@ -274,7 +291,7 @@ export default function PapersPage() {
         {activeTab === 'browse' ? (
           <div>
             {/* Filters */}
-            <div className="card-premium" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+            <div className="card-flat" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <div>
                   <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Board</label>
@@ -284,7 +301,7 @@ export default function PapersPage() {
                     style={{ width: '100%', marginTop: '0.5rem' }}
                   >
                     <option value="">All Boards</option>
-                    {BOARDS.map(b => <option key={b} value={b}>{b}</option>)}
+                    {BOARDS.map(b => <option key={b} value={b}>{boardLabel(b)}</option>)}
                   </select>
                 </div>
                 <div>
@@ -393,17 +410,31 @@ export default function PapersPage() {
               </div>
             </div>
 
+            {downloadError && (
+              <p role="alert" className="mb-4 p-3 rounded-xl bg-accent/10 text-accent text-sm font-medium">
+                {downloadError}
+              </p>
+            )}
+
             {/* Papers List */}
             {isLoading ? (
               <div style={{ textAlign: 'center', padding: '4rem' }}>
                 <p>Loading papers...</p>
               </div>
+            ) : fetchError ? (
+              <div role="alert" className="card-flat p-8 text-center">
+                <p className="text-accent font-semibold mb-4">{fetchError}</p>
+                <button type="button" onClick={fetchPapers} className="btn btn-outline h-11">
+                  Try again
+                </button>
+              </div>
             ) : papers.length === 0 ? (
-              <div className="card-premium" style={{ padding: '4rem', textAlign: 'center' }}>
+              <div className="card-flat" style={{ padding: '4rem 1.5rem', textAlign: 'center' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
                 <h3>No papers found</h3>
                 <p style={{ color: 'var(--muted)' }}>Be the first to upload a question paper!</p>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('upload')}
                   className="btn btn-primary"
                   style={{ marginTop: '1.5rem' }}
@@ -414,13 +445,13 @@ export default function PapersPage() {
             ) : (
               <div style={{ display: 'grid', gap: '1rem' }}>
                 {papers.map((paper) => (
-                  <div key={paper.id} className="card-premium" style={{ padding: '1.5rem' }}>
+                  <div key={paper.id} className="card-flat" style={{ padding: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                       <div style={{ flex: 1 }}>
                         <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.125rem' }}>{paper.title}</h3>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                          <span style={{ padding: '4px 12px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
-                            {paper.board}
+                          <span className="badge badge-primary normal-case tracking-normal text-xs">
+                            {boardLabel(paper.board)}
                           </span>
                           <span style={{ padding: '4px 12px', background: 'var(--muted-extra-light)', borderRadius: '9999px', fontSize: '0.75rem' }}>
                             Class {paper.class}
@@ -431,11 +462,11 @@ export default function PapersPage() {
                           <span style={{ padding: '4px 12px', background: 'var(--muted-extra-light)', borderRadius: '9999px', fontSize: '0.75rem' }}>
                             {paper.year}
                           </span>
-                          <span style={{ padding: '4px 12px', background: 'var(--secondary-glow)', color: 'var(--secondary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                          <span className="badge badge-secondary normal-case tracking-normal text-xs font-semibold">
                             {TYPES.find(t => t.value === paper.type)?.label || paper.type}
                           </span>
                           {paper.school && (
-                            <span style={{ padding: '4px 12px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                            <span className="badge badge-primary normal-case tracking-normal text-xs font-semibold">
                               {paper.school.name}
                             </span>
                           )}
@@ -445,6 +476,7 @@ export default function PapersPage() {
                         </p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => handleDownload(paper)}
                         className="btn btn-primary"
                         style={{ height: '44px', padding: '0 24px', whiteSpace: 'nowrap' }}
@@ -459,11 +491,11 @@ export default function PapersPage() {
           </div>
         ) : (
           /* Upload Form */
-          <div className="card-premium" style={{ maxWidth: '640px', margin: '0 auto', padding: '2rem' }}>
+          <div className="card-flat" style={{ maxWidth: '640px', margin: '0 auto', padding: '2rem' }}>
             {!isAuthenticated ? (
               <div style={{ textAlign: 'center', padding: '2rem' }}>
                 <p>Please login to upload papers</p>
-                <Link href="/login" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
+                <Link href="/login" className="btn btn-primary" style={{ marginTop: '1rem' }}>
                   Go to Login
                 </Link>
               </div>
@@ -478,7 +510,7 @@ export default function PapersPage() {
                       borderRadius: 'var(--radius-md)',
                       marginBottom: '1.5rem',
                       background: uploadStatus.type === 'success' ? 'var(--secondary-glow)' : 'var(--accent-glow)',
-                      color: uploadStatus.type === 'success' ? 'var(--secondary)' : 'var(--accent)',
+                      color: uploadStatus.type === 'success' ? 'var(--badge-secondary-text)' : 'var(--accent)',
                       fontWeight: 600,
                     }}
                   >
@@ -562,7 +594,7 @@ export default function PapersPage() {
                         style={{ width: '100%', marginTop: '0.5rem' }}
                       >
                         <option value="">Select</option>
-                        {BOARDS.map(b => <option key={b} value={b}>{b}</option>)}
+                        {BOARDS.map(b => <option key={b} value={b}>{boardLabel(b)}</option>)}
                       </select>
                     </div>
                     <div>

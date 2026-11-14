@@ -29,7 +29,7 @@ export default function Footer() {
             <ul className="space-y-4 text-sm text-muted">
               <li><Link href="/sell" className="hover:text-primary transition-colors">List a Book</Link></li>
               <li><Link href="/dashboard" className="hover:text-primary transition-colors">Seller Dashboard</Link></li>
-              <li><Link href="/safety" className="hover:text-primary transition-colors">Safety Tips</Link></li>
+              <li><Link href="/dashboard/deals" className="hover:text-primary transition-colors">My Deals</Link></li>
             </ul>
           </div>
 
@@ -37,9 +37,7 @@ export default function Footer() {
             <h4 className="font-semibold mb-6">Support</h4>
             <ul className="space-y-4 text-sm text-muted">
               <li><Link href="/contact" className="hover:text-primary transition-colors">Report a problem</Link></li>
-              <li><Link href="/help" className="hover:text-primary transition-colors">Help Center</Link></li>
-              <li><Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link href="/notifications" className="hover:text-primary transition-colors">Notifications</Link></li>
             </ul>
           </div>
         </div>
@@ -47,8 +45,7 @@ export default function Footer() {
         <div className="mt-16 pt-8 border-t border-card-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-muted-light text-xs">&copy; 2026 Sybrary. Built for parents, by parents.</p>
           <div className="flex gap-6 text-xs text-muted-light">
-            <Link href="/safety" className="hover:text-primary transition-colors">Safety Guidelines</Link>
-            <Link href="/sitemap" className="hover:text-primary transition-colors">Sitemap</Link>
+            <Link href="/contact" className="hover:text-primary transition-colors">Contact us</Link>
           </div>
         </div>
       </div>

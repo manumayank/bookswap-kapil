@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Users, BookOpen, ClipboardList, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import ErrorState from '../_components/ErrorState';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
     }
   }, [user, router]);
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
       const { data } = await api.get('/admin/stats');
@@ -58,36 +59,36 @@ export default function AdminDashboard() {
       label: 'Pending Listings',
       value: stats?.pendingListings ?? '-',
       icon: Clock,
-      color: 'text-amber-500',
-      bg: 'bg-amber-500/10',
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-500/15',
     },
     {
       label: 'Pending Requests',
       value: stats?.pendingRequests ?? '-',
       icon: ClipboardList,
-      color: 'text-amber-500',
-      bg: 'bg-amber-500/10',
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-500/15',
     },
     {
       label: 'Open Requests',
       value: stats?.openRequests ?? '-',
       icon: ClipboardList,
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10',
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-500/15',
     },
     {
       label: 'Deals',
       value: stats?.deals ?? '-',
       icon: ShoppingBag,
-      color: 'text-purple-500',
-      bg: 'bg-purple-500/10',
+      color: 'text-purple-600 dark:text-purple-400',
+      bg: 'bg-purple-500/15',
     },
     {
       label: 'Completed Deals',
       value: stats?.completedDeals ?? '-',
       icon: CheckCircle,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-600/10',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bg: 'bg-emerald-500/15',
     },
   ];
 
@@ -100,15 +101,21 @@ export default function AdminDashboard() {
         <p className="text-[var(--muted)]">Overview of your Sybrary platform</p>
       </div>
 
+      {isError && (
+        <div className="mb-10">
+          <ErrorState error={error} onRetry={() => refetch()} title="Could not load stats" />
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="card-premium p-6">
+            <div key={stat.label} className="card-flat p-6">
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-[var(--radius-md)] ${stat.bg} flex items-center justify-center`}>
-                  <Icon size={22} className={stat.color} />
+                  <Icon size={22} className={stat.color} aria-hidden="true" />
                 </div>
                 <div>
                   <div className="text-2xl font-black">
@@ -130,16 +137,16 @@ export default function AdminDashboard() {
 
       {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link href="/admin/listings" className="card-premium p-8 group cursor-pointer">
+        <Link href="/admin/listings" className="card-premium card-interactive p-6 md:p-8 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]">
           <div className="flex items-center gap-4 mb-3">
-            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-amber-500/10 flex items-center justify-center">
-              <Clock size={20} className="text-amber-500" />
+            <div className="w-10 h-10 shrink-0 rounded-[var(--radius-md)] bg-amber-500/15 flex items-center justify-center">
+              <Clock size={20} className="text-amber-600 dark:text-amber-400" aria-hidden="true" />
             </div>
             <h2 className="text-lg font-extrabold group-hover:text-[var(--primary)] transition-colors">
               Moderation Queue
             </h2>
           </div>
-          <p className="text-sm text-[var(--muted)] ml-14">
+          <p className="text-sm text-[var(--muted)] md:ml-14">
             Review and approve pending listings before they go live.
             {stats?.pendingListings > 0 && (
               <span className="ml-2 badge badge-primary">{stats.pendingListings} pending</span>
@@ -147,16 +154,16 @@ export default function AdminDashboard() {
           </p>
         </Link>
 
-        <Link href="/admin/users" className="card-premium p-8 group cursor-pointer">
+        <Link href="/admin/users" className="card-premium card-interactive p-6 md:p-8 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]">
           <div className="flex items-center gap-4 mb-3">
-            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--primary)]/10 flex items-center justify-center">
+            <div className="w-10 h-10 shrink-0 rounded-[var(--radius-md)] bg-[var(--primary)]/10 flex items-center justify-center">
               <Users size={20} className="text-[var(--primary)]" />
             </div>
             <h2 className="text-lg font-extrabold group-hover:text-[var(--primary)] transition-colors">
               Manage Users
             </h2>
           </div>
-          <p className="text-sm text-[var(--muted)] ml-14">
+          <p className="text-sm text-[var(--muted)] md:ml-14">
             View registered users, their activity, and manage accounts.
           </p>
         </Link>

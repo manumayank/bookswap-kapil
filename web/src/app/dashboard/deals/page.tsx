@@ -33,74 +33,85 @@ interface Deal {
 }
 
 export default function DealsPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isHydrated, hydrate } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'buying' | 'selling'>('buying');
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
+  // Destructive actions (reject / cancel) need a second click to confirm
+  const [confirming, setConfirming] = useState<{ id: string; kind: 'reject' | 'cancelInterest' | 'cancelDeal' } | null>(null);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchDeals();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, activeTab]);
 
   async function fetchDeals() {
     setLoading(true);
+    setLoadError('');
     try {
       const endpoint = activeTab === 'buying' ? '/deals/my/buying' : '/deals/my/selling';
       const { data } = await api.get(endpoint);
       setDeals(data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch deals:', err);
+    } catch (err: any) {
+      setDeals([]);
+      setLoadError(err?.response?.data?.error || 'Could not load your deals.');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleRespond(dealId: string, status: 'ACCEPTED' | 'REJECTED') {
+  async function runAction(dealId: string, request: () => Promise<unknown>, failMessage: string) {
     setActionLoading(dealId);
+    setActionError('');
     try {
-      await api.post(`/deals/${dealId}/respond`, { status });
+      await request();
+      setConfirming(null);
       fetchDeals();
-    } catch (err) {
-      console.error('Failed to respond:', err);
+    } catch (err: any) {
+      setActionError(err?.response?.data?.error || failMessage);
     } finally {
       setActionLoading(null);
     }
   }
 
-  async function handleComplete(dealId: string, status: 'COMPLETED' | 'CANCELLED') {
-    setActionLoading(dealId);
-    try {
-      await api.post(`/deals/${dealId}/complete`, { status });
-      fetchDeals();
-    } catch (err) {
-      console.error('Failed to complete:', err);
-    } finally {
-      setActionLoading(null);
-    }
+  const handleRespond = (dealId: string, status: 'ACCEPTED' | 'REJECTED') =>
+    runAction(dealId, () => api.post(`/deals/${dealId}/respond`, { status }), 'Could not update the deal. Please try again.');
+
+  const handleComplete = (dealId: string, status: 'COMPLETED' | 'CANCELLED') =>
+    runAction(dealId, () => api.post(`/deals/${dealId}/complete`, { status }), 'Could not update the deal. Please try again.');
+
+  const handleCancel = (dealId: string) =>
+    runAction(dealId, () => api.post(`/deals/${dealId}/cancel`), 'Could not cancel your interest. Please try again.');
+
+  function confirmAction(deal: Deal) {
+    if (!confirming) return;
+    if (confirming.kind === 'reject') handleRespond(deal.id, 'REJECTED');
+    else if (confirming.kind === 'cancelInterest') handleCancel(deal.id);
+    else handleComplete(deal.id, 'CANCELLED');
   }
 
-  async function handleCancel(dealId: string) {
-    setActionLoading(dealId);
-    try {
-      await api.post(`/deals/${dealId}/cancel`);
-      fetchDeals();
-    } catch (err) {
-      console.error('Failed to cancel:', err);
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  const CONFIRM_TEXT = {
+    reject: 'Reject this buyer?',
+    cancelInterest: 'Withdraw your interest?',
+    cancelDeal: 'Cancel this accepted deal?',
+  } as const;
 
   function getStatusColor(status: string) {
     switch (status) {
-      case 'PENDING': return { bg: 'var(--primary-glow)', color: 'var(--primary)' };
-      case 'ACCEPTED': return { bg: 'var(--secondary-glow)', color: 'var(--secondary)' };
-      case 'COMPLETED': return { bg: '#dcfce7', color: '#166534' };
+      case 'PENDING': return { bg: 'rgb(var(--primary-rgb) / 0.12)', color: 'var(--badge-primary-text)' };
+      case 'ACCEPTED': return { bg: 'rgb(var(--secondary-rgb) / 0.12)', color: 'var(--badge-secondary-text)' };
+      case 'COMPLETED': return { bg: 'rgb(var(--secondary-rgb) / 0.15)', color: 'var(--badge-secondary-text)' };
       case 'REJECTED':
-      case 'CANCELLED': return { bg: 'var(--accent-glow)', color: 'var(--accent)' };
+      case 'CANCELLED': return { bg: 'rgb(var(--accent-rgb) / 0.12)', color: 'var(--accent)' };
       default: return { bg: 'var(--muted-extra-light)', color: 'var(--muted)' };
     }
   }
@@ -116,11 +127,21 @@ export default function DealsPage() {
     }
   }
 
+  if (!isHydrated) {
+    return (
+      <div aria-busy="true">
+        <div className="h-10 skeleton w-48 mb-3" />
+        <div className="h-5 skeleton w-64 mb-8" />
+        <div className="h-40 skeleton rounded-[28px]" />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
-      <div style={{ textAlign: 'center', padding: '4rem' }}>
+      <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
         <h2>Please login to view your deals</h2>
-        <Link href="/login" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
+        <Link href="/login" className="btn btn-primary" style={{ marginTop: '1rem' }}>
           Go to Login
         </Link>
       </div>
@@ -136,8 +157,11 @@ export default function DealsPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
+      <div role="tablist" aria-label="Deal type" style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'buying'}
           onClick={() => setActiveTab('buying')}
           style={{
             padding: '0.75rem 1.5rem',
@@ -152,6 +176,9 @@ export default function DealsPage() {
           I&apos;m Buying ({activeTab === 'buying' ? deals.length : '-'})
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'selling'}
           onClick={() => setActiveTab('selling')}
           style={{
             padding: '0.75rem 1.5rem',
@@ -167,13 +194,29 @@ export default function DealsPage() {
         </button>
       </div>
 
+      {actionError && (
+        <div role="alert" className="mb-4 p-4 rounded-xl bg-accent/10 text-accent font-medium flex items-start justify-between gap-4">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError('')} aria-label="Dismiss error" className="font-black px-2">
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Deals List */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem' }}>
           <p>Loading deals...</p>
         </div>
+      ) : loadError ? (
+        <div role="alert" className="card-flat p-8 text-center">
+          <p className="text-accent font-semibold mb-4">{loadError}</p>
+          <button type="button" onClick={fetchDeals} className="btn btn-outline h-11">
+            Try again
+          </button>
+        </div>
       ) : deals.length === 0 ? (
-        <div className="card-premium" style={{ padding: '4rem', textAlign: 'center' }}>
+        <div className="card-flat" style={{ padding: '4rem 1.5rem', textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤝</div>
           <h3>No deals yet</h3>
           <p style={{ color: 'var(--muted)' }}>
@@ -184,7 +227,7 @@ export default function DealsPage() {
           <Link 
             href={activeTab === 'buying' ? '/browse' : '/sell'} 
             className="btn btn-primary"
-            style={{ marginTop: '1.5rem', display: 'inline-block' }}
+            style={{ marginTop: '1.5rem' }}
           >
             {activeTab === 'buying' ? 'Browse Listings' : 'List an Item'}
           </Link>
@@ -198,7 +241,7 @@ export default function DealsPage() {
             const showContact = deal.status === 'ACCEPTED' || deal.status === 'COMPLETED';
 
             return (
-              <div key={deal.id} className="card-premium" style={{ padding: '1.5rem' }}>
+              <div key={deal.id} className="card-flat" style={{ padding: '1.5rem' }}>
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
                   {/* Listing Image */}
                   <Link href={`/listings/${deal.listing.id}`} style={{ textDecoration: 'none' }}>
@@ -222,7 +265,7 @@ export default function DealsPage() {
                   </Link>
 
                   {/* Deal Info */}
-                  <div style={{ flex: 1, minWidth: '250px' }}>
+                  <div style={{ flex: 1, minWidth: 'min(250px, 100%)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <Link href={`/listings/${deal.listing.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.125rem' }}>{deal.listing.title}</h3>
@@ -283,6 +326,29 @@ export default function DealsPage() {
                     </div>
 
                     {/* Actions */}
+                    {confirming?.id === deal.id ? (
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{CONFIRM_TEXT[confirming.kind]}</span>
+                      <button
+                        type="button"
+                        onClick={() => confirmAction(deal)}
+                        disabled={actionLoading === deal.id}
+                        className="btn btn-outline"
+                        style={{ height: '40px', padding: '0 16px', fontSize: '0.875rem', color: 'var(--accent)', borderColor: 'var(--accent)' }}
+                      >
+                        {actionLoading === deal.id ? 'Working...' : 'Yes, confirm'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirming(null)}
+                        disabled={actionLoading === deal.id}
+                        className="btn btn-outline"
+                        style={{ height: '40px', padding: '0 16px', fontSize: '0.875rem' }}
+                      >
+                        Go back
+                      </button>
+                    </div>
+                    ) : (
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       {deal.status === 'PENDING' && isSeller && (
                         <>
@@ -295,7 +361,8 @@ export default function DealsPage() {
                             {actionLoading === deal.id ? 'Processing...' : '✓ Accept'}
                           </button>
                           <button
-                            onClick={() => handleRespond(deal.id, 'REJECTED')}
+                            type="button"
+                            onClick={() => setConfirming({ id: deal.id, kind: 'reject' })}
                             disabled={actionLoading === deal.id}
                             className="btn btn-outline"
                             style={{ height: '40px', padding: '0 16px', fontSize: '0.875rem', color: 'var(--accent)', borderColor: 'var(--accent)' }}
@@ -307,7 +374,8 @@ export default function DealsPage() {
 
                       {deal.status === 'PENDING' && !isSeller && (
                         <button
-                          onClick={() => handleCancel(deal.id)}
+                          type="button"
+                          onClick={() => setConfirming({ id: deal.id, kind: 'cancelInterest' })}
                           disabled={actionLoading === deal.id}
                           className="btn btn-outline"
                           style={{ height: '40px', padding: '0 16px', fontSize: '0.875rem' }}
@@ -327,7 +395,8 @@ export default function DealsPage() {
                             ✓ Mark Complete
                           </button>
                           <button
-                            onClick={() => handleComplete(deal.id, 'CANCELLED')}
+                            type="button"
+                            onClick={() => setConfirming({ id: deal.id, kind: 'cancelDeal' })}
                             disabled={actionLoading === deal.id}
                             className="btn btn-outline"
                             style={{ height: '40px', padding: '0 16px', fontSize: '0.875rem', color: 'var(--accent)', borderColor: 'var(--accent)' }}
@@ -349,6 +418,7 @@ export default function DealsPage() {
                         </span>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
               </div>

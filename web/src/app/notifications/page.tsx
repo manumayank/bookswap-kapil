@@ -27,7 +27,7 @@ export default function NotificationsPage() {
     }
   }, [isAuthenticated, router]);
 
-  const { data, isLoading } = useNotifications({ page, limit: 20 });
+  const { data, isLoading, isError, refetch } = useNotifications({ page, limit: 20 });
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
 
@@ -42,12 +42,13 @@ export default function NotificationsPage() {
 
   return (
     <div className="container max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-black">Notifications</h1>
         {unread > 0 && (
           <button
+            type="button"
             onClick={() => markAll.mutate()}
-            className="text-xs font-bold text-primary hover:underline"
+            className="text-xs font-bold text-primary hover:underline px-3 py-2 rounded-lg hover:bg-primary/10"
             disabled={markAll.isPending}
           >
             Mark all as read
@@ -55,15 +56,29 @@ export default function NotificationsPage() {
         )}
       </div>
 
+      {markAll.isError && (
+        <p role="alert" className="mb-4 p-3 rounded-xl bg-accent/10 text-accent text-sm font-medium">
+          Couldn&apos;t mark notifications as read. Please try again.
+        </p>
+      )}
+
       {isLoading ? (
         <p className="text-sm text-muted">Loading…</p>
+      ) : isError ? (
+        <div role="alert" className="card-flat p-6 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-accent font-semibold text-sm">Couldn&apos;t load notifications.</p>
+          <button type="button" onClick={() => refetch()} className="btn btn-outline h-10 text-sm">
+            Try again
+          </button>
+        </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted">No notifications yet.</p>
       ) : (
-        <ul className="card-premium p-2 space-y-1">
+        <ul className="card-flat p-2 space-y-1">
           {items.map((n) => (
             <li key={n.id}>
               <button
+                type="button"
                 onClick={() => handleClickItem(n)}
                 className={`w-full text-left p-4 rounded-lg transition-colors hover:bg-muted-extra-light ${
                   !n.isRead ? 'bg-primary/5 border-l-2 border-primary' : ''
@@ -71,7 +86,7 @@ export default function NotificationsPage() {
               >
                 <p className="text-sm font-bold">{n.title}</p>
                 <p className="text-xs text-muted mt-1">{n.body}</p>
-                <p className="text-[10px] text-muted mt-2">{formatRelativeTime(n.sentAt)}</p>
+                <p className="text-xs text-muted mt-2">{formatRelativeTime(n.sentAt)}</p>
               </button>
             </li>
           ))}
@@ -83,7 +98,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="btn btn-secondary text-xs px-4 py-2 disabled:opacity-40"
+            className="btn btn-outline h-10 text-xs px-4"
           >
             Previous
           </button>
@@ -93,7 +108,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="btn btn-secondary text-xs px-4 py-2 disabled:opacity-40"
+            className="btn btn-outline h-10 text-xs px-4"
           >
             Next
           </button>

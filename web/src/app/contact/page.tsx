@@ -37,7 +37,7 @@ export default function ContactPage() {
   if (submitted) {
     return (
       <div className="container max-w-2xl px-6 py-16">
-        <h1 className="text-3xl font-black mb-4">Thanks — we've received your report</h1>
+        <h1 className="text-3xl font-black mb-4">Thanks — we&apos;ve received your report</h1>
         <p className="text-muted">Our team has been notified and will get back to you over email. Reference: <strong>{transactionCode || '(no transaction code provided)'}</strong></p>
       </div>
     );
@@ -53,45 +53,48 @@ export default function ContactPage() {
           if (!subject.trim() || !description.trim()) return;
           submit.mutate();
         }}
-        className="card-premium p-6 space-y-4"
+        className="card-flat p-6 space-y-4"
       >
         <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-muted mb-2">
+          <label htmlFor="contact-txn" className="block text-xs font-black uppercase tracking-wider text-muted mb-2">
             Transaction ID (optional)
           </label>
           <input
+            id="contact-txn"
             type="text"
             value={transactionCode}
             onChange={(e) => setTransactionCode(e.target.value)}
             placeholder="e.g. SY-2026-000142"
-            className="w-full px-4 py-3 rounded-lg border border-card-border bg-white"
+            className="w-full px-4 py-3 rounded-lg border border-card-border"
           />
-          <p className="text-[11px] text-muted mt-1">If your issue is about a specific deal, paste its transaction reference here.</p>
+          <p className="text-xs text-muted mt-1">If your issue is about a specific deal, paste its transaction reference here.</p>
         </div>
         <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-muted mb-2">Subject *</label>
+          <label htmlFor="contact-subject" className="block text-xs font-black uppercase tracking-wider text-muted mb-2">Subject *</label>
           <input
+            id="contact-subject"
             type="text"
             required
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="What's going wrong?"
-            className="w-full px-4 py-3 rounded-lg border border-card-border bg-white"
+            className="w-full px-4 py-3 rounded-lg border border-card-border"
           />
         </div>
         <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-muted mb-2">Description *</label>
+          <label htmlFor="contact-description" className="block text-xs font-black uppercase tracking-wider text-muted mb-2">Description *</label>
           <textarea
+            id="contact-description"
             required
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={6}
             placeholder="Tell us what happened in detail."
-            className="w-full px-4 py-3 rounded-lg border border-card-border bg-white"
+            className="w-full px-4 py-3 rounded-lg border border-card-border"
           />
         </div>
         {submit.isError && (
-          <p className="text-sm text-accent">Something went wrong sending your report. Please try again.</p>
+          <p role="alert" className="text-sm text-accent">Something went wrong sending your report. Please try again.</p>
         )}
         <button
           type="submit"
