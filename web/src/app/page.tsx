@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronDown, Leaf, Lock, PencilRuler, Recycle, Wallet } from 'lucide-react';
 import BookCard from '@/components/BookCard';
@@ -46,10 +46,42 @@ type SlotProps = {
   tone?: 'sun' | 'primary';
   flipKey: number;
   columns?: number;
+  /** Hold the slot at its first measured width (used while the intro cycles examples). */
+  locked?: boolean;
 };
 
-/** A yellow word in the hero sentence that opens a pencil-box dropdown. */
-function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey, columns }: SlotProps) {
+/**
+ * A yellow word in the hero sentence that opens a pencil-box dropdown.
+ * Its width is set explicitly and eased, so changing the word glides instead of
+ * snapping, and while `locked` it keeps its starting width so the headline never
+ * re-wraps during the intro.
+ */
+function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey, columns, locked }: SlotProps) {
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
+  const [natural, setNatural] = useState<number | null>(null);
+  // Last width measured while unlocked: what the slot holds during the intro.
+  const [stable, setStable] = useState<number | null>(null);
+
+  // Track the natural width of the current word (and re-measure when the font
+  // loads or the breakpoint changes the font size).
+  useLayoutEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.offsetWidth;
+      setNatural(w);
+      if (!lockedRef.current) setStable(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [display]);
+
+  const width = locked ? stable ?? natural : natural;
+
   return (
     <Select
       aria-label={label}
@@ -64,8 +96,17 @@ function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey,
       }`}
       renderTrigger={({ open }) => (
         <>
-          <span key={flipKey} className="inline-block animate-[slotFlip_.35s_cubic-bezier(.34,1.56,.64,1)]">
-            {display}
+          <span
+            className="relative inline-block whitespace-nowrap text-center overflow-hidden align-bottom transition-[width] duration-300 ease-out"
+            style={width != null ? { width } : undefined}
+          >
+            <span key={flipKey} className="inline-block animate-[slotFlip_.35s_cubic-bezier(.34,1.56,.64,1)]">
+              {display}
+            </span>
+            {/* invisible copy used only to measure the word's natural width */}
+            <span ref={measureRef} aria-hidden className="absolute left-0 top-0 invisible whitespace-nowrap">
+              {display}
+            </span>
           </span>
           <ChevronDown
             aria-hidden
@@ -78,6 +119,20 @@ function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey,
   );
 }
 
+type Demo = { intent: Intent; cls: string; board: string; city: string };
+
+/*
+ * Intro: the slots flip through a couple of examples, like a worksheet being
+ * filled in, then settle on the real (default) choice. Display-only: the real
+ * state, the text below and the receipt never change. Every example is no
+ * wider than the final word, and slots are width-locked meanwhile, so the
+ * headline never re-wraps.
+ */
+const INTRO: Demo[] = [
+  { intent: 'sell', cls: '8', board: 'ICSE', city: 'Mumbai' },
+  { intent: 'buy', cls: '4', board: 'IB', city: 'Pune' },
+];
+
 function HeroSentence() {
   const router = useRouter();
   const [intent, setIntent] = useState<Intent>('buy');
@@ -85,32 +140,42 @@ function HeroSentence() {
   const [board, setBoard] = useState('CBSE');
   const [city, setCity] = useState('Bangalore');
   const [flips, setFlips] = useState({ intent: 0, cls: 0, board: 0, city: 0 });
+  const [demo, setDemo] = useState<Demo | null>(null);
   const touched = useRef(false);
 
   const bump = (k: keyof typeof flips) => setFlips((f) => ({ ...f, [k]: f[k] + 1 }));
+  const bumpAll = () =>
+    setFlips((f) => ({ intent: f.intent + 1, cls: f.cls + 1, board: f.board + 1, city: f.city + 1 }));
 
-  // On first load the blanks flip through a few examples, like a worksheet being filled in.
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const seq: [string, string, string][] = [
-      ['3', 'ICSE', 'Mumbai'],
-      ['10', 'STATE', 'Pune'],
-      ['6', 'CBSE', 'Bangalore'],
-    ];
     let i = 0;
-    const id = window.setInterval(() => {
-      if (touched.current || i >= seq.length) return window.clearInterval(id);
-      const [c, b, ci] = seq[i++];
-      setCls(c);
-      setBoard(b);
-      setCity(ci);
-      setFlips((f) => ({ ...f, cls: f.cls + 1, board: f.board + 1, city: f.city + 1 }));
-    }, 700);
-    return () => window.clearInterval(id);
+    let id = 0;
+    const start = window.setTimeout(() => {
+      id = window.setInterval(() => {
+        if (touched.current) {
+          window.clearInterval(id);
+          setDemo(null);
+          return;
+        }
+        if (i < INTRO.length) {
+          setDemo(INTRO[i++]);
+        } else {
+          window.clearInterval(id);
+          setDemo(null);
+        }
+        bumpAll();
+      }, 750);
+    }, 450);
+    return () => {
+      window.clearTimeout(start);
+      window.clearInterval(id);
+    };
   }, []);
 
   const change = (k: keyof typeof flips, set: (v: string) => void) => (v: string) => {
     touched.current = true;
+    setDemo(null);
     set(v);
     bump(k);
   };
@@ -126,7 +191,9 @@ function HeroSentence() {
     router.push(`/browse?${q.toString()}`);
   };
 
-  const cityDisplay = city || 'any city';
+  const shown = demo ?? { intent, cls, board, city };
+  const cityDisplay = shown.city || 'any city';
+  const locked = demo !== null;
 
   return (
     <div className="grid gap-12 lg:gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
@@ -136,7 +203,8 @@ function HeroSentence() {
         <Slot
           label="I want to"
           value={intent}
-          display={intent === 'buy' ? 'looking for' : 'passing on'}
+          display={shown.intent === 'buy' ? 'looking for' : 'passing on'}
+          locked={locked}
           onChange={change('intent', (v) => setIntent(v as Intent))}
           options={[
             { value: 'buy', label: 'looking for' },
@@ -148,7 +216,8 @@ function HeroSentence() {
         <Slot
           label="Class"
           value={cls}
-          display={`Class ${cls}`}
+          display={`Class ${shown.cls}`}
+          locked={locked}
           onChange={change('cls', setCls)}
           options={CLASSES.map((c) => ({ value: c, label: c }))}
           columns={4}
@@ -157,7 +226,8 @@ function HeroSentence() {
         <Slot
           label="Board"
           value={board}
-          display={boardLabel(board) || board}
+          display={boardLabel(shown.board) || shown.board}
+          locked={locked}
           onChange={change('board', setBoard)}
           options={BOARDS.map((b) => ({ value: b, label: boardLabel(b) || b }))}
           flipKey={flips.board}
@@ -167,6 +237,7 @@ function HeroSentence() {
           label="City"
           value={city}
           display={cityDisplay}
+          locked={locked}
           onChange={change('city', setCity)}
           options={[...CITIES.map((c) => ({ value: c, label: c })), { value: '', label: 'any city' }]}
           flipKey={flips.city}
@@ -188,6 +259,7 @@ function HeroSentence() {
           type="button"
           onClick={() => {
             touched.current = true;
+            setDemo(null);
             setIntent((i) => (i === 'buy' ? 'sell' : 'buy'));
             bump('intent');
           }}
