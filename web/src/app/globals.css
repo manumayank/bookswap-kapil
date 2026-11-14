@@ -624,13 +624,13 @@ input[type='checkbox'], input[type='radio'] {
 }
 
 .notebook-footer.is-in .notebook-watermark span {
-  transform: translateY(0);
+  transform: translateY(12%);
 }
 
 .notebook-watermark span:hover {
   color: var(--sun);
   -webkit-text-stroke-color: var(--edge);
-  transform: translateY(-4%) !important;
+  transform: translateY(0) !important;
 }
 
 /* ---------- Home hero receipt ---------- */

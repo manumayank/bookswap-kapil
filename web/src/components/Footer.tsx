@@ -75,12 +75,14 @@ export default function Footer() {
             <p className={`${hand} text-[2.1rem] sm:text-[2.6rem] leading-[40px] sm:leading-[80px] text-foreground max-w-[22ch]`}>
               See you at the school gate.
             </p>
-            <p className="max-w-[44ch] text-muted leading-[40px]">
-              A second life for school books. Your phone number stays private until you accept a request.
-            </p>
-            <Link href="/sell" className="btn btn-sun mt-[20px] -rotate-2 hover:rotate-0">
-              List your books
-            </Link>
+            <div className="mt-[20px] flex flex-wrap gap-3">
+              <Link href="/sell" className="btn btn-sun -rotate-2 hover:rotate-0">
+                List your books
+              </Link>
+              <Link href="/browse" className="btn btn-outline rotate-1 hover:rotate-0">
+                Find books
+              </Link>
+            </div>
           </div>
 
           {/* Right: links */}
@@ -122,7 +124,7 @@ export default function Footer() {
       </div>
 
       {/* Giant outlined watermark, left-aligned with the content */}
-      <div aria-hidden className="notebook-watermark container relative mt-[40px] pb-12 sm:pb-16 flex justify-start pl-8 sm:pl-12 select-none">
+      <div aria-hidden className="notebook-watermark container relative mt-[34px] flex justify-start pl-8 sm:pl-12 select-none">
         {WORD.map((ch, i) => (
           <span key={i} style={{ transitionDelay: `${i * 60}ms` }}>
             {ch}
