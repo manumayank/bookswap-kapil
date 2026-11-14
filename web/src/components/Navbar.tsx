@@ -1,23 +1,25 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { Menu, X, LayoutDashboard, ArrowLeftRight, Bell, Shield, LogOut, PlusCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import NotificationBell from './NotificationBell';
+import ThemeToggle from './ThemeToggle';
 import Logo from '@/components/Logo';
 
 const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
   { href: '/need', label: 'Requests' },
-  { href: '/papers', label: 'Papers' },
+  { href: '/papers', label: 'Exam papers' },
 ] as const;
 
 const MENU_ITEM =
-  'block px-3 py-2.5 text-sm font-semibold rounded-lg hover:bg-muted-extra-light transition-colors';
-const MOBILE_ITEM =
-  'text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors';
+  'flex items-center gap-3 px-3 h-11 text-[0.9375rem] font-semibold rounded-[10px] text-foreground hover:bg-muted-extra-light transition-colors';
 
 export default function Navbar() {
+  const pathname = usePathname();
   const { user, isAuthenticated, isHydrated, logout, hydrate } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,14 +29,23 @@ export default function Navbar() {
     hydrate();
   }, [hydrate]);
 
+  // Close menus on navigation
+  useEffect(() => {
+    setMenuOpen(false);
+    setMobileOpen(false);
+  }, [pathname]);
+
   // Close avatar menu on outside click / Escape
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !mobileOpen) return;
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setMobileOpen(false);
+      }
     }
     document.addEventListener('mousedown', onClick);
     document.addEventListener('keydown', onKey);
@@ -42,157 +53,172 @@ export default function Navbar() {
       document.removeEventListener('mousedown', onClick);
       document.removeEventListener('keydown', onKey);
     };
-  }, [menuOpen]);
+  }, [menuOpen, mobileOpen]);
 
-  const closeAll = () => {
-    setMenuOpen(false);
-    setMobileOpen(false);
-  };
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   const handleLogout = () => {
-    closeAll();
+    setMenuOpen(false);
+    setMobileOpen(false);
     logout();
   };
 
+  const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() || 'U';
+
   return (
-    <nav className="glass sticky top-0 z-50 w-full animate-slide-down">
-      <div className="container flex h-20 items-center justify-between gap-3">
-        <Link href="/" aria-label="Sybrary home" className="flex items-center shrink-0 transition-opacity hover:opacity-85">
-          <span className="hidden sm:flex"><Logo variant="full" height={44} /></span>
-          <span className="flex sm:hidden"><Logo variant="short" height={36} /></span>
+    <header className="glass sticky top-0 z-50 w-full">
+      <nav aria-label="Main" className="container flex h-[72px] items-center justify-between gap-3">
+        <Link href="/" aria-label="Sybrary home" className="flex items-center shrink-0 rounded-lg">
+          <span className="hidden sm:flex"><Logo variant="full" height={46} /></span>
+          <span className="flex sm:hidden"><Logo variant="short" height={40} /></span>
         </Link>
 
-        <div className="hidden lg:flex items-center gap-10">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        <ul className="hidden lg:flex items-center gap-1">
+          {NAV_LINKS.map((link) => {
+            const active = isActive(link.href);
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`inline-flex items-center h-10 px-4 rounded-full text-[0.9375rem] font-semibold border-2 transition-colors ${
+                    active
+                      ? 'bg-sun text-ink border-edge'
+                      : 'border-transparent text-foreground hover:bg-muted-extra-light'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+
           {!isHydrated ? (
-            <div className="flex items-center gap-3" aria-hidden>
-              <div className="skeleton w-10 h-10 rounded-xl" />
-              <div className="skeleton hidden sm:block w-28 h-10 rounded-xl" />
+            <div className="flex items-center gap-2" aria-hidden>
+              <div className="skeleton w-10 h-10" />
+              <div className="skeleton hidden sm:block w-36 h-10" />
             </div>
           ) : isAuthenticated && user ? (
             <>
               <NotificationBell />
-              <div ref={menuRef} className="relative">
+              <div ref={menuRef} className="relative hidden lg:block">
                 <button
                   type="button"
                   onClick={() => setMenuOpen((v) => !v)}
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
                   aria-label="Account menu"
-                  className="w-10 h-10 rounded-xl bg-primary/10 border border-card-border flex items-center justify-center text-sm font-black text-primary transition-colors hover:bg-primary hover:text-white"
+                  className="btn btn-sun btn-sm btn-icon rounded-full text-base font-extrabold"
+                  style={{ width: 40, height: 40, borderRadius: 999 }}
                 >
-                  {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                  {initial}
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 top-full pt-2 w-56 z-50">
-                    <div role="menu" className="card-flat p-2 shadow-xl">
-                      <div className="px-3 py-2 border-b border-card-border mb-1">
-                        <p className="text-sm font-bold truncate">{user.name}</p>
-                        <p className="text-xs text-muted truncate">{user.email}</p>
+                  <div className="absolute right-0 top-full pt-3 w-64 z-50">
+                    <div role="menu" className="card-premium p-2 animate-menu">
+                      <div className="px-3 pt-2 pb-3 mb-1 border-b-2 border-card-border">
+                        <p className="font-bold truncate">{user.name}</p>
+                        <p className="text-sm text-muted truncate">{user.email}</p>
                       </div>
-                      <Link role="menuitem" href="/dashboard" onClick={closeAll} className={MENU_ITEM}>
-                        My Dashboard
+                      <Link role="menuitem" href="/dashboard" className={MENU_ITEM}>
+                        <LayoutDashboard size={18} aria-hidden /> Your dashboard
                       </Link>
-                      <Link role="menuitem" href="/dashboard/deals" onClick={closeAll} className={MENU_ITEM}>
-                        My Deals
+                      <Link role="menuitem" href="/dashboard/deals" className={MENU_ITEM}>
+                        <ArrowLeftRight size={18} aria-hidden /> Your deals
                       </Link>
-                      <Link role="menuitem" href="/sell" onClick={closeAll} className={MENU_ITEM}>
-                        List a Book
-                      </Link>
-                      <Link role="menuitem" href="/notifications" onClick={closeAll} className={MENU_ITEM}>
-                        Notifications
+                      <Link role="menuitem" href="/notifications" className={MENU_ITEM}>
+                        <Bell size={18} aria-hidden /> Notifications
                       </Link>
                       {user.isAdmin && (
-                        <Link role="menuitem" href="/admin/dashboard" onClick={closeAll} className={MENU_ITEM}>
-                          Admin Panel
+                        <Link role="menuitem" href="/admin/dashboard" className={MENU_ITEM}>
+                          <Shield size={18} aria-hidden /> Admin
                         </Link>
                       )}
                       <button
                         role="menuitem"
                         type="button"
                         onClick={handleLogout}
-                        className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-lg hover:bg-accent/10 text-accent transition-colors"
+                        className={`${MENU_ITEM} w-full text-left !text-accent hover:!bg-accent/10`}
                       >
-                        Log out
+                        <LogOut size={18} aria-hidden /> Log out
                       </button>
                     </div>
                   </div>
                 )}
               </div>
+              <Link href="/sell" className="btn btn-primary btn-sm hidden sm:inline-flex">
+                <PlusCircle size={18} aria-hidden /> Sell books
+              </Link>
             </>
           ) : (
             <>
-              <Link href="/login" className="hidden sm:inline text-sm font-bold px-4 py-2 hover:text-primary transition-colors">
+              <Link href="/login" className="btn btn-ghost btn-sm hidden sm:inline-flex">
                 Log in
               </Link>
-              <Link
-                href="/sell"
-                className="btn btn-primary hidden sm:inline-flex h-11 px-6 text-xs font-black uppercase tracking-widest shadow-xl shadow-primary/20"
-              >
-                List a Book
+              <Link href="/sell" className="btn btn-primary btn-sm hidden sm:inline-flex">
+                Sell your books
               </Link>
             </>
           )}
 
-          {/* Mobile menu toggle */}
           <button
             type="button"
-            className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl border border-card-border"
-            onClick={() => setMobileOpen(!mobileOpen)}
+            className="btn btn-outline btn-sm btn-icon lg:hidden"
+            style={{ width: 40, height: 40 }}
+            onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
           >
-            <span className="text-lg" aria-hidden>{mobileOpen ? '✕' : '☰'}</span>
+            {mobileOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
           </button>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div className="lg:hidden glass border-t border-card-border animate-slide-down">
-          <div className="container flex flex-col gap-1 py-4">
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} onClick={closeAll} className={MOBILE_ITEM}>
-                {link.label}
-              </Link>
-            ))}
-            {isAuthenticated ? (
-              <>
-                <Link href="/dashboard" onClick={closeAll} className={MOBILE_ITEM}>Dashboard</Link>
-                <Link href="/dashboard/deals" onClick={closeAll} className={MOBILE_ITEM}>My Deals</Link>
-                <Link href="/notifications" onClick={closeAll} className={MOBILE_ITEM}>Notifications</Link>
-                {user?.isAdmin && (
-                  <Link href="/admin/dashboard" onClick={closeAll} className={MOBILE_ITEM}>Admin Panel</Link>
+        <div id="mobile-menu" className="lg:hidden border-t-2 border-edge bg-background animate-slide-down">
+          <div className="container py-4 flex flex-col gap-2 max-h-[calc(100dvh-72px)] overflow-y-auto">
+            <ul className="grid grid-cols-1 gap-2">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    aria-current={isActive(link.href) ? 'page' : undefined}
+                    className={`flex items-center h-12 px-4 rounded-md border-2 border-edge font-bold text-lg ${
+                      isActive(link.href) ? 'bg-sun text-ink' : 'bg-card'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            {isHydrated && isAuthenticated && user ? (
+              <div className="card-flat p-2 mt-2">
+                <p className="px-3 pt-2 pb-2 text-sm text-muted truncate">Signed in as {user.name}</p>
+                <Link href="/dashboard" className={MENU_ITEM}><LayoutDashboard size={18} aria-hidden /> Your dashboard</Link>
+                <Link href="/dashboard/deals" className={MENU_ITEM}><ArrowLeftRight size={18} aria-hidden /> Your deals</Link>
+                <Link href="/notifications" className={MENU_ITEM}><Bell size={18} aria-hidden /> Notifications</Link>
+                {user.isAdmin && (
+                  <Link href="/admin/dashboard" className={MENU_ITEM}><Shield size={18} aria-hidden /> Admin</Link>
                 )}
-                <Link href="/sell" onClick={closeAll} className={`${MOBILE_ITEM} !text-primary`}>List a Book</Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-left text-xs font-black uppercase tracking-widest text-accent py-3"
-                >
-                  Log out
+                <button type="button" onClick={handleLogout} className={`${MENU_ITEM} w-full text-left !text-accent`}>
+                  <LogOut size={18} aria-hidden /> Log out
                 </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" onClick={closeAll} className={MOBILE_ITEM}>Log in</Link>
-                <Link href="/sell" onClick={closeAll} className={`${MOBILE_ITEM} !text-primary`}>List a Book</Link>
-              </>
-            )}
+              </div>
+            ) : isHydrated ? (
+              <Link href="/login" className="btn btn-outline w-full mt-2">Log in</Link>
+            ) : null}
+
+            <Link href="/sell" className="btn btn-primary w-full">Sell your books</Link>
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

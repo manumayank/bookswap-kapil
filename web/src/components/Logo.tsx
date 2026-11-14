@@ -10,7 +10,7 @@ type LogoProps = {
   className?: string;
 };
 
-const RATIO = { full: 290 / 80, short: 1 };
+const RATIO = { full: 282 / 88, short: 1 };
 
 export default function Logo({ variant = 'full', height = 40, theme = 'auto', className = '' }: LogoProps) {
   const width = Math.round(height * RATIO[variant]);

@@ -1,52 +1,73 @@
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 
+const COLUMNS = [
+  {
+    title: 'Find books',
+    links: [
+      { href: '/browse', label: 'Browse listings' },
+      { href: '/need', label: 'Request a book' },
+      { href: '/papers', label: 'Exam papers' },
+    ],
+  },
+  {
+    title: 'Sell books',
+    links: [
+      { href: '/sell', label: 'List your books' },
+      { href: '/dashboard', label: 'Your dashboard' },
+      { href: '/dashboard/deals', label: 'Your deals' },
+    ],
+  },
+  {
+    title: 'Help',
+    links: [
+      { href: '/contact', label: 'Report a problem' },
+      { href: '/notifications', label: 'Notifications' },
+    ],
+  },
+];
+
 export default function Footer() {
   return (
-    <footer className="w-full bg-card border-t border-card-border py-16 mt-20">
-      <div className="container">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-12">
-          <div className="md:col-span-2">
-            <Link href="/" aria-label="Sybrary home" className="inline-flex items-center mb-6">
-              <Logo variant="full" height={40} />
+    <footer className="mt-24 border-t-2 border-edge bg-muted-extra-light">
+      <div className="pencil-stripe" aria-hidden />
+      <div className="container py-14">
+        <div className="grid gap-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+          <div className="max-w-sm">
+            <Link href="/" aria-label="Sybrary home" className="inline-flex rounded-lg">
+              <Logo variant="full" height={48} />
             </Link>
-            <p className="text-muted text-sm leading-relaxed max-w-sm">
-              Making education accessible and sustainable for parents through effortless local book exchanges.
+            <p className="mt-4 text-muted leading-relaxed">
+              Parents selling last year&apos;s school books to parents who need them this year. Your phone number
+              stays private until you agree to a deal.
             </p>
+            <Link href="/sell" className="btn btn-sun mt-6">
+              List your books
+            </Link>
           </div>
 
-          <div>
-            <h4 className="font-semibold mb-6">For Buyers</h4>
-            <ul className="space-y-4 text-sm text-muted">
-              <li><Link href="/browse" className="hover:text-primary transition-colors">Browse Books</Link></li>
-              <li><Link href="/need" className="hover:text-primary transition-colors">Post a Request</Link></li>
-              <li><Link href="/papers" className="hover:text-primary transition-colors">Question Papers</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-6">For Sellers</h4>
-            <ul className="space-y-4 text-sm text-muted">
-              <li><Link href="/sell" className="hover:text-primary transition-colors">List a Book</Link></li>
-              <li><Link href="/dashboard" className="hover:text-primary transition-colors">Seller Dashboard</Link></li>
-              <li><Link href="/dashboard/deals" className="hover:text-primary transition-colors">My Deals</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-6">Support</h4>
-            <ul className="space-y-4 text-sm text-muted">
-              <li><Link href="/contact" className="hover:text-primary transition-colors">Report a problem</Link></li>
-              <li><Link href="/notifications" className="hover:text-primary transition-colors">Notifications</Link></li>
-            </ul>
-          </div>
+          {COLUMNS.map((col) => (
+            <div key={col.title}>
+              <h2 className="text-base font-extrabold mb-4">{col.title}</h2>
+              <ul className="space-y-1">
+                {col.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="inline-flex items-center min-h-10 text-muted font-medium hover:text-foreground underline-offset-4 hover:underline decoration-2 decoration-primary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-16 pt-8 border-t border-card-border flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-muted-light text-xs">&copy; 2026 Sybrary. Built for parents, by parents.</p>
-          <div className="flex gap-6 text-xs text-muted-light">
-            <Link href="/contact" className="hover:text-primary transition-colors">Contact us</Link>
-          </div>
+        <div className="mt-12 pt-6 border-t-2 border-card-border flex flex-col sm:flex-row gap-3 justify-between text-sm text-muted">
+          <p>&copy; {new Date().getFullYear()} Sybrary</p>
+          <p>Textbooks and stationery only. Every listing is checked before it goes live.</p>
         </div>
       </div>
     </footer>
