@@ -94,7 +94,7 @@ export default function DashboardPage() {
   });
 
   const onActionError = (err: any) =>
-    setActionError(err?.response?.data?.error || 'That action didn’t go through. Please try again.');
+    setActionError(err?.response?.data?.error || 'That didn’t go through. Try again.');
 
   const acceptMutation = useMutation({
     mutationFn: (matchId: string) => api.post(`/matches/${matchId}/accept`),
@@ -105,6 +105,17 @@ export default function DashboardPage() {
 
   const rejectMutation = useMutation({
     mutationFn: (matchId: string) => api.post(`/matches/${matchId}/reject`),
+    onMutate: () => setActionError(''),
+    onSuccess: () => {
+      setConfirming(null);
+      queryClient.invalidateQueries({ queryKey: ['myMatches'] });
+    },
+    onError: onActionError,
+  });
+
+  // Buyers withdraw with cancel; reject is seller-only on the API.
+  const cancelMutation = useMutation({
+    mutationFn: (matchId: string) => api.post(`/matches/${matchId}/cancel`),
     onMutate: () => setActionError(''),
     onSuccess: () => {
       setConfirming(null);
@@ -199,7 +210,7 @@ export default function DashboardPage() {
             id="needs-reply"
             title="Needs your reply"
             count={incoming.length}
-            description="Parents who want to buy your books. Accept to share contact details with them."
+            description="Parents who want your books. Accept a request to share contact details with that parent."
           />
           {matchesLoading ? (
             <RowsSkeleton />
@@ -222,7 +233,7 @@ export default function DashboardPage() {
                       <div className="min-w-0">
                         <p className="truncate font-bold">{listingTitle(match.listing)}</p>
                         <p className="text-sm text-muted">
-                          {match.buyer?.name || 'A parent'} offered{' '}
+                          {match.buyer?.name || 'A parent'} requested it at{' '}
                           <span className="font-bold text-foreground">
                             {rupees(match.agreedPrice ?? match.listing?.sellingPrice) || 'your price'}
                           </span>
@@ -233,14 +244,14 @@ export default function DashboardPage() {
 
                     {isConfirming ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold">Reject this buyer?</span>
+                        <span className="text-sm font-semibold">Reject this request? The buyer will be told.</span>
                         <button
                           type="button"
                           className="btn btn-outline btn-sm text-danger"
                           onClick={() => rejectMutation.mutate(match.id)}
                           disabled={rejecting}
                         >
-                          {rejecting ? 'Rejecting…' : 'Yes, reject'}
+                          {rejecting ? 'Rejecting…' : 'Reject request'}
                         </button>
                         <button
                           type="button"
@@ -259,7 +270,7 @@ export default function DashboardPage() {
                           onClick={() => acceptMutation.mutate(match.id)}
                           disabled={accepting || rejecting}
                         >
-                          {accepting ? 'Accepting…' : 'Accept'}
+                          {accepting ? 'Accepting…' : 'Accept request'}
                         </button>
                         <button
                           type="button"
@@ -267,7 +278,7 @@ export default function DashboardPage() {
                           onClick={() => setConfirming({ id: match.id, action: 'reject' })}
                           disabled={accepting || rejecting}
                         >
-                          Reject
+                          Reject request
                         </button>
                       </div>
                     )}
@@ -320,7 +331,7 @@ export default function DashboardPage() {
             size="md"
             icon={BookOpen}
             title="You haven’t listed any books yet"
-            description="Give your child’s old textbooks a second life. We check each listing before it goes live."
+            description="List the books your child has outgrown so another family can use them next term. We check each listing before it goes live."
             actions={
               <Link href="/sell" className="btn btn-primary">
                 List your books
@@ -377,7 +388,7 @@ export default function DashboardPage() {
               size="md"
               icon={Inbox}
               title="No requests waiting"
-              description="When you ask to buy a listing, it shows here until the seller replies."
+              description="When you request a book, it shows here until the seller replies."
               actions={
                 <Link href="/browse" className="btn btn-outline">
                   Find books
@@ -388,7 +399,7 @@ export default function DashboardPage() {
             <ul className="card-flat divide-y divide-card-border overflow-hidden">
               {outgoing.map((match) => {
                 const isConfirming = confirming?.id === match.id;
-                const cancelling = rejectMutation.isPending && rejectMutation.variables === match.id;
+                const cancelling = cancelMutation.isPending && cancelMutation.variables === match.id;
                 return (
                   <li key={match.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
                     <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -400,7 +411,7 @@ export default function DashboardPage() {
                       <div className="min-w-0">
                         <p className="truncate font-bold">{listingTitle(match.listing)}</p>
                         <p className="text-sm text-muted">
-                          Your offer{' '}
+                          Your request at{' '}
                           <span className="font-bold text-foreground">
                             {rupees(match.agreedPrice ?? match.listing?.sellingPrice) || '-'}
                           </span>
@@ -413,14 +424,14 @@ export default function DashboardPage() {
                     </span>
                     {isConfirming ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold">Cancel this request?</span>
+                        <span className="text-sm font-semibold">Withdraw this request?</span>
                         <button
                           type="button"
                           className="btn btn-outline btn-sm text-danger"
-                          onClick={() => rejectMutation.mutate(match.id)}
+                          onClick={() => cancelMutation.mutate(match.id)}
                           disabled={cancelling}
                         >
-                          {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+                          {cancelling ? 'Withdrawing…' : 'Withdraw request'}
                         </button>
                         <button
                           type="button"
@@ -437,7 +448,7 @@ export default function DashboardPage() {
                         className="btn btn-outline btn-sm"
                         onClick={() => setConfirming({ id: match.id, action: 'cancel' })}
                       >
-                        Cancel request
+                        Withdraw request
                       </button>
                     )}
                   </li>

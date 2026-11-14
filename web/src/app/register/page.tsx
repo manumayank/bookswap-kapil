@@ -193,7 +193,7 @@ export default function RegisterPage() {
           hint={
             <span className="inline-flex items-start gap-1.5">
               <Lock size={14} strokeWidth={2.5} className="mt-[3px] shrink-0" aria-hidden />
-              Buyers and sellers only see it after you accept a deal.
+              Other parents only see it once a request is accepted.
             </span>
           }
         >

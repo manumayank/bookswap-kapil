@@ -171,7 +171,7 @@ function HeroSentence() {
       <p className="mt-7 text-lg sm:text-xl text-muted max-w-[46ch] leading-relaxed animate-pop" style={{ '--delay': '140ms' } as React.CSSProperties}>
         {intent === 'buy'
           ? 'Give a school book its second term. Families save money, and every book reused is one less printed.'
-          : 'Books your child has outgrown can teach another child. List them in a couple of minutes and get paid at hand-over.'}
+          : 'List the books your child has outgrown. A family nearby uses them next term, and you get paid at hand-over.'}
       </p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3 animate-pop" style={{ '--delay': '220ms' } as React.CSSProperties}>
@@ -226,7 +226,7 @@ const REASONS = [
     icon: Leaf,
     tone: 'bg-secondary text-ink',
     title: 'Fewer books printed',
-    body: 'Textbooks barely change between years. Reusing them saves paper, ink and the trip to the shop.',
+    body: 'Every reused textbook is one less to print, which saves paper and ink.',
   },
   {
     icon: Lock,
@@ -286,7 +286,7 @@ export default function HomePage() {
         <Reveal className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-3xl md:text-4xl">Ready for their next term</h2>
-            <p className="mt-2 text-muted">Newest listings from families near you.</p>
+            <p className="mt-2 text-muted">The newest listings from parents, checked by our team.</p>
           </div>
           <Link href="/browse" className="btn btn-outline">
             Browse all books
@@ -314,7 +314,7 @@ export default function HomePage() {
             </span>
             <h3 className="mt-5 text-2xl">Be the first to pass books on</h3>
             <p className="mt-2 text-muted max-w-md mx-auto">
-              No listings in your area yet. Add the books your child has outgrown and they&apos;ll show up here.
+              No listings yet. Add the books your child has outgrown and they&apos;ll show up here.
             </p>
             <Link href="/sell" className="btn btn-primary mt-6">
               List your books

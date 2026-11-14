@@ -84,10 +84,10 @@ export default function ListingDetailPage() {
       if (data.success) {
         setListing(data.data);
       } else {
-        setError('Listing not found');
+        setError('We couldn’t find this listing.');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load listing');
+      setError(err.response?.data?.error || 'This listing didn’t load. Try again in a moment.');
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function ListingDetailPage() {
         }, 2000);
       }
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Your request did not go through. Please try again.';
+      const message = err.response?.data?.error || 'Your request didn’t go through. Try again.';
       setDealError(message);
     } finally {
       setCreatingDeal(false);
@@ -378,7 +378,7 @@ export default function ListingDetailPage() {
                     Listed by {seller} in {listing.user.city || listing.city}
                   </h2>
                   <p className="mt-1 text-sm text-muted">
-                    {seller}&apos;s phone number and pickup address unlock once they accept your request. Until
+                    {seller}&apos;s phone number and pickup address are shared once they accept your request. Until
                     then, neither of you sees the other&apos;s contact details.
                   </p>
                 </div>

@@ -16,7 +16,7 @@ const CATEGORY: Record<string, string> = {
 const BOARD: Record<string, string> = {
   CBSE: 'CBSE',
   ICSE: 'ICSE',
-  STATE: 'State Board',
+  STATE: 'State board',
   IB: 'IB',
   IGCSE: 'IGCSE',
 };

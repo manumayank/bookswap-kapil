@@ -452,7 +452,7 @@ export default function PapersPage() {
                 <p>
                   {hasFilters
                     ? 'Try fewer filters, or share a paper from your child’s school.'
-                    : 'Have last year’s exam papers at home? Upload one and help other parents prepare.'}
+                    : 'Have past exam papers at home? Upload one so other parents can use it to prepare.'}
                 </p>
               </EmptyState>
             ) : (
@@ -581,7 +581,7 @@ export default function PapersPage() {
                   type="text"
                   value={uploadForm.title}
                   onChange={(e) => setUpload('title', e.target.value)}
-                  placeholder="DPS Whitefield Class 10 Maths annual exam 2025"
+                  placeholder="Class 10 Maths annual exam 2025"
                   className={`${controlClass} ${uploadErrors.title ? invalidClass : ''}`}
                 />
               </Field>

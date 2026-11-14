@@ -141,7 +141,7 @@ function BrowseContent() {
         setListings(data.data || []);
         setTotal(data.pagination?.total || 0);
       } else {
-        setError(data.error || 'We could not load listings.');
+        setError(data.error || 'Listings didn’t load. Try again in a moment.');
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'We could not reach Sybrary. Check your connection and try again.');
@@ -224,7 +224,7 @@ function BrowseContent() {
         <div className="max-w-2xl">
           <h1 className="mb-3 text-4xl md:text-5xl">Browse books</h1>
           <p className="text-muted">
-            School textbooks and stationery from parents near you, ready for a second life. Seller contact details stay private
+            School textbooks and stationery from other parents, ready for another term. Seller contact details stay private
             until they accept your request.
           </p>
         </div>
@@ -369,11 +369,11 @@ function BrowseContent() {
             <EmptyState
               icon={BookOpen}
               title={activeCount > 0 ? emptyHeadline(filters, debouncedSearch) : 'No books listed yet'}
-              description="Tell us what you need and we’ll let you know as soon as a parent lists it."
+              description="Tell us what you need and we’ll let you know when a parent lists it."
               actions={
                 <>
                   <Link href="/need" className="btn btn-primary">
-                    Request this book
+                    Request a book
                   </Link>
                   {activeCount > 0 && (
                     <button type="button" onClick={resetFilters} className="btn btn-outline">

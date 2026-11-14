@@ -353,7 +353,7 @@ export default function SellPage() {
             </>
           }
         >
-          <p>Listing takes about two minutes. You’ll need a photo of the front cover and your price.</p>
+          <p>You’ll need a photo of the front cover and your price.</p>
         </EmptyState>
       </div>
     );
@@ -403,7 +403,7 @@ export default function SellPage() {
       <PageHeader
         back={{ href: '/', label: 'Home' }}
         title="List your books"
-        description="Three quick steps. Buyers see your listing once our team has checked it."
+        description="Add photos, details and your price. Buyers see your listing once our team has checked it."
       />
 
       <Stepper step={step} onJump={(i) => i < step && setStep(i)} />
@@ -826,11 +826,6 @@ export default function SellPage() {
               {isLast ? (isSubmitting ? 'Submitting…' : 'Submit for review') : 'Continue'}
             </button>
           </div>
-          {isLast && (
-            <p className="mt-3 text-[13px] text-muted md:text-right">
-              By submitting, you agree to follow our community guidelines.
-            </p>
-          )}
         </form>
 
         <aside className="hidden lg:sticky lg:top-28 lg:block" aria-label="Listing preview">

@@ -321,7 +321,7 @@ export default function NeedPage() {
                 </div>
               </fieldset>
 
-              <Field id="need-max" label="Budget" optional hint="The most you’d pay for the set.">
+              <Field id="need-max" label="Highest price" optional hint="The most you’d pay for the set, in rupees.">
                 <div className="max-w-[240px]">
                   <PriceInput
                     {...fieldA11y('need-max', { hint: true })}
@@ -416,7 +416,7 @@ export default function NeedPage() {
                   </>
                 }
               >
-                <p>No parent has listed books for this search yet. Save a request and we’ll notify you as soon as one does.</p>
+                <p>No parent has listed books for this search yet. Save a request and we’ll let you know when one does.</p>
                 {formError && <FormAlert className="mt-5 text-left">{formError}</FormAlert>}
               </EmptyState>
             </div>

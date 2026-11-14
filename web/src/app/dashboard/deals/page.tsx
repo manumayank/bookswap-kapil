@@ -43,9 +43,9 @@ type RoleDeal = Deal & { isSeller: boolean };
 type ConfirmKind = 'reject' | 'cancelInterest' | 'cancelDeal';
 
 const CONFIRM_TEXT: Record<ConfirmKind, { question: string; yes: string }> = {
-  reject: { question: 'Reject this buyer?', yes: 'Yes, reject' },
-  cancelInterest: { question: 'Withdraw your request?', yes: 'Yes, withdraw' },
-  cancelDeal: { question: 'Cancel this accepted deal?', yes: 'Yes, cancel deal' },
+  reject: { question: 'Reject this request? The buyer will be told.', yes: 'Reject request' },
+  cancelInterest: { question: 'Withdraw your request?', yes: 'Withdraw request' },
+  cancelDeal: { question: 'Cancel this deal? The other parent will be told.', yes: 'Cancel deal' },
 };
 
 const STATUS_TEXT: Record<Deal['status'], string> = {
@@ -112,13 +112,13 @@ export default function DealsPage() {
   }
 
   const handleRespond = (dealId: string, status: 'ACCEPTED' | 'REJECTED') =>
-    runAction(dealId, () => api.post(`/deals/${dealId}/respond`, { status }), 'Couldn’t update the deal. Please try again.');
+    runAction(dealId, () => api.post(`/deals/${dealId}/respond`, { status }), 'This deal didn’t update. Try again.');
 
   const handleComplete = (dealId: string, status: 'COMPLETED' | 'CANCELLED') =>
-    runAction(dealId, () => api.post(`/deals/${dealId}/complete`, { status }), 'Couldn’t update the deal. Please try again.');
+    runAction(dealId, () => api.post(`/deals/${dealId}/complete`, { status }), 'This deal didn’t update. Try again.');
 
   const handleCancel = (dealId: string) =>
-    runAction(dealId, () => api.post(`/deals/${dealId}/cancel`), 'Couldn’t withdraw your request. Please try again.');
+    runAction(dealId, () => api.post(`/deals/${dealId}/cancel`), 'Your request wasn’t withdrawn. Try again.');
 
   function confirmAction(deal: Deal) {
     if (!confirming) return;
@@ -165,7 +165,7 @@ export default function DealsPage() {
     ? 'Loading your deals.'
     : summaryParts.length
       ? `${summaryParts.join(', ')}.`.replace(/^./, (c) => c.toUpperCase())
-      : 'Every deal you buy or sell shows here, grouped by what happens next.';
+      : 'Requests you send and receive show here, grouped by what happens next.';
 
   function renderDeal(deal: RoleDeal) {
     const otherParty = deal.isSeller ? deal.buyer : deal.seller;
@@ -270,7 +270,7 @@ export default function DealsPage() {
                   {busy ? 'Working…' : CONFIRM_TEXT[confirming.kind].yes}
                 </button>
                 <button type="button" onClick={() => setConfirming(null)} disabled={busy} className="btn btn-ghost btn-sm">
-                  Go back
+                  Keep it
                 </button>
               </div>
             ) : (
@@ -292,7 +292,7 @@ export default function DealsPage() {
                         disabled={busy}
                         className="btn btn-secondary btn-sm"
                       >
-                        {busy ? 'Accepting…' : 'Accept buyer'}
+                        {busy ? 'Accepting…' : 'Accept request'}
                       </button>
                       <button
                         type="button"
@@ -300,7 +300,7 @@ export default function DealsPage() {
                         disabled={busy}
                         className="btn btn-outline btn-sm text-danger"
                       >
-                        Reject
+                        Reject request
                       </button>
                     </>
                   )}
@@ -382,7 +382,7 @@ export default function DealsPage() {
         <EmptyState
           icon={ArrowLeftRight}
           title="No deals yet"
-          description="Ask to buy a listing, or list your own books. Deals show up here as soon as someone replies."
+          description="Request a book from a listing, or list your own. Requests you send or receive show up here."
           actions={
             <>
               <Link href="/browse" className="btn btn-primary">

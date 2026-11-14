@@ -232,8 +232,7 @@ export default function InitiativePage() {
           <section className="mt-[60px] pt-[30px] border-t-2 border-dashed border-edge/40 clear-both">
             <h2 className="text-2xl md:text-3xl max-w-[22ch]">Pass this year&apos;s books on</h2>
             <p className="mt-3 max-w-[52ch] text-[17px] leading-[30px] text-muted">
-              List what your child has outgrown in a couple of minutes, or find the books for next year from
-              families nearby.
+              List what your child has outgrown, or find next year&apos;s books from families nearby.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link href="/sell" className="btn btn-primary btn-lg">

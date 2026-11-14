@@ -155,7 +155,7 @@ export default function Navbar() {
                 )}
               </div>
               <Link href="/sell" className="btn btn-primary btn-sm hidden sm:inline-flex">
-                <PlusCircle size={18} aria-hidden /> Sell books
+                <PlusCircle size={18} aria-hidden /> List your books
               </Link>
             </>
           ) : (
@@ -164,7 +164,7 @@ export default function Navbar() {
                 Log in
               </Link>
               <Link href="/sell" className="btn btn-primary btn-sm hidden sm:inline-flex">
-                Sell your books
+                List your books
               </Link>
             </>
           )}
@@ -219,7 +219,7 @@ export default function Navbar() {
               <Link href="/login" className="btn btn-outline w-full mt-2">Log in</Link>
             ) : null}
 
-            <Link href="/sell" className="btn btn-primary w-full">Sell your books</Link>
+            <Link href="/sell" className="btn btn-primary w-full">List your books</Link>
           </div>
         </div>
       )}

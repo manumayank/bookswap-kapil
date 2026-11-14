@@ -22,7 +22,7 @@ const LABELS: Record<string, string> = {
   // Board
   CBSE: 'CBSE',
   ICSE: 'ICSE',
-  STATE: 'State Board',
+  STATE: 'State board',
   IB: 'IB',
   IGCSE: 'IGCSE',
   // Category
@@ -42,7 +42,7 @@ export function enumLabel(value: string | null | undefined): string {
 export { statusBadgeClass } from '@/components/app/status';
 
 /** Extracts the API error message from an axios error. */
-export function errorMessage(err: unknown, fallback = 'Something went wrong. Please try again.'): string {
+export function errorMessage(err: unknown, fallback = 'That didn’t work. Try again.'): string {
   const e = err as { response?: { data?: { error?: string } }; message?: string } | null;
   return e?.response?.data?.error || e?.message || fallback;
 }

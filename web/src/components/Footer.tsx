@@ -76,7 +76,7 @@ export default function Footer() {
               See you at the school gate.
             </p>
             <p className="max-w-[44ch] text-muted leading-[40px]">
-              A second life for school books. Your phone number stays private until you agree to a deal.
+              A second life for school books. Your phone number stays private until you accept a request.
             </p>
             <Link href="/sell" className="btn btn-sun mt-[20px] -rotate-2 hover:rotate-0">
               List your books
@@ -110,18 +110,19 @@ export default function Footer() {
             viewBox="0 0 140 110"
             className="notebook-doodle hidden lg:block w-[120px] xl:w-[140px] h-auto self-center text-primary"
           >
-            <path pathLength={1} d="M22 58 A34 34 0 0 1 88 34" />
-            <path pathLength={1} d="M88 34 l-11 -3 M88 34 l-5 10" />
-            <path pathLength={1} d="M100 54 A34 34 0 0 1 34 82" />
-            <path pathLength={1} d="M34 82 l11 2 M34 82 l4 -10" />
-            <path pathLength={1} d="M52 48 q8 -4 13 1 v20 q-6 -4 -13 -1 z" />
-            <path pathLength={1} d="M78 48 q-8 -4 -13 1 v20 q6 -4 13 -1 z" />
+            {/* circle centre (70,55) r=36; arrowheads follow the tangent at each arc's end */}
+            <path pathLength={1} d="M35.2 45.7 A36 36 0 0 1 104.8 45.7" />
+            <path pathLength={1} d="M104.8 64.3 A36 36 0 0 1 35.2 64.3" className="text-secondary" stroke="currentColor" />
+            <path pathLength={1} d="M104.8 45.7 l2.6 -9.7 M104.8 45.7 l-7.1 -7.1" />
+            <path pathLength={1} d="M35.2 64.3 l-2.6 9.7 M35.2 64.3 l7.1 7.1" className="text-secondary" stroke="currentColor" />
+            <path pathLength={1} d="M57 47 q8 -3 13 1 v18 q-6 -4 -13 -1 z" />
+            <path pathLength={1} d="M83 47 q-8 -3 -13 1 v18 q6 -4 13 -1 z" />
           </svg>
         </div>
       </div>
 
       {/* Giant outlined watermark, left-aligned with the content */}
-      <div aria-hidden className="notebook-watermark container relative mt-[40px] flex justify-start pl-8 sm:pl-12 select-none">
+      <div aria-hidden className="notebook-watermark container relative mt-[40px] pb-12 sm:pb-16 flex justify-start pl-8 sm:pl-12 select-none">
         {WORD.map((ch, i) => (
           <span key={i} style={{ transitionDelay: `${i * 60}ms` }}>
             {ch}

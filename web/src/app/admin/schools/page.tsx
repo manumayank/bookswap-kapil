@@ -165,7 +165,7 @@ export default function AdminSchoolsPage() {
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Delhi Public School"
+                placeholder="Full school name, as on the ID card"
                 required
                 className="w-full"
               />
@@ -198,7 +198,7 @@ export default function AdminSchoolsPage() {
                 <option value="">Select board</option>
                 <option value="CBSE">CBSE</option>
                 <option value="ICSE">ICSE</option>
-                <option value="STATE">State Board</option>
+                <option value="STATE">State board</option>
                 <option value="IB">IB</option>
                 <option value="IGCSE">IGCSE</option>
               </select>
