@@ -10,8 +10,8 @@ import ConfirmDialog from '../_components/ConfirmDialog';
 import ErrorState, { InlineError } from '../_components/ErrorState';
 import StatusBadge from '../_components/StatusBadge';
 import { enumLabel } from '../_components/labels';
-import PageHeader from '@/components/app/PageHeader';
-import EmptyState from '@/components/app/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/app/Pagination';
 import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
 import { shortDate } from '@/components/app/status';
@@ -115,7 +115,7 @@ export default function AdminRequestsPage() {
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted">Loading requests…</div>
           ) : requests.length === 0 ? (
-            <EmptyState
+            <EmptyState size="md"
               bare
               icon={ClipboardList}
               title={search ? 'No requests match your search' : 'No requests yet'}
@@ -165,7 +165,7 @@ export default function AdminRequestsPage() {
                             </button>
                             <button
                               type="button"
-                              className="btn btn-outline btn-sm text-accent"
+                              className="btn btn-outline btn-sm text-danger"
                               onClick={() => {
                                 reject.reset();
                                 setRejectTarget({ id: req.id, name: req.user?.name || 'this parent' });

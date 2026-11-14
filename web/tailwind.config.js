@@ -27,6 +27,8 @@ module.exports = {
         },
         accent: rgb('accent'),
         'on-accent': rgb('on-accent'),
+        // Text-safe accent: error text, destructive actions, alert borders
+        danger: rgb('danger'),
         sun: rgb('sun'),
         ink: '#17153a',
         edge: rgb('edge'),

@@ -6,7 +6,7 @@ export default function InlineAlert({ children, onDismiss }: { children: ReactNo
   return (
     <div
       role="alert"
-      className="mb-4 flex items-start gap-3 rounded-md border-2 border-accent bg-accent/10 p-3 pl-4 text-sm font-semibold text-accent"
+      className="mb-4 flex items-start gap-3 rounded-md border-2 border-danger bg-accent/10 p-3 pl-4 text-sm font-semibold text-danger"
     >
       <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
       <span className="flex-1 pt-px">{children}</span>

@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 type Tone = 'error' | 'success' | 'info';
 
 const STYLES: Record<Tone, { box: string; icon: string }> = {
-  error: { box: 'border-accent bg-accent/10', icon: 'text-accent' },
+  error: { box: 'border-danger bg-accent/10', icon: 'text-danger' },
   success: { box: 'border-secondary bg-secondary/10', icon: 'text-secondary-dark' },
   info: { box: 'border-card-border bg-muted-extra-light', icon: 'text-primary' },
 };

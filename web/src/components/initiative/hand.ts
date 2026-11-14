@@ -1,6 +1,6 @@
 import { Caveat } from 'next/font/google';
 
-// Handwriting face for notebook annotations on /initiative only.
+// Handwriting face for notebook-style touches (/initiative, footer).
 const caveat = Caveat({
   subsets: ['latin'],
   weight: ['500', '700'],

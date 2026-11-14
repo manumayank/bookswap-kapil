@@ -3,8 +3,10 @@
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertCircle, BookOpen, ChevronLeft, ChevronRight, RotateCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from 'lucide-react';
 import BookCard from '@/components/BookCard';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
 import BrowseFilters, {
   EMPTY_BROWSE_FILTERS,
   type BrowseFilterValues,
@@ -222,7 +224,7 @@ function BrowseContent() {
         <div className="max-w-2xl">
           <h1 className="mb-3 text-4xl md:text-5xl">Browse books</h1>
           <p className="text-muted">
-            Last year&apos;s textbooks and stationery from parents near you. Seller contact details stay private
+            School textbooks and stationery from parents near you, ready for a second life. Seller contact details stay private
             until they accept your request.
           </p>
         </div>
@@ -362,39 +364,25 @@ function BrowseContent() {
               ))}
             </div>
           ) : error ? (
-            <div role="alert" className="card-flat flex flex-col items-center px-6 py-12 text-center">
-              <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-edge bg-accent/15 text-accent">
-                <AlertCircle className="h-7 w-7" aria-hidden />
-              </span>
-              <h3 className="mb-2 text-2xl">Listings didn&apos;t load</h3>
-              <p className="mb-6 max-w-md text-muted">{error}</p>
-              <button type="button" onClick={fetchListings} className="btn btn-primary">
-                <RotateCw className="h-4 w-4" aria-hidden />
-                Try again
-              </button>
-            </div>
+            <ErrorState size="lg" title="Listings didn’t load" message={error} onRetry={fetchListings} />
           ) : listings.length === 0 ? (
-            <div className="card-flat flex flex-col items-center px-6 py-12 text-center md:py-16">
-              <span className="mb-5 flex h-16 w-16 -rotate-3 items-center justify-center rounded-lg border-2 border-edge bg-sun text-ink shadow-pop-sm">
-                <BookOpen className="h-8 w-8" strokeWidth={1.75} aria-hidden />
-              </span>
-              <h3 className="mb-2 max-w-lg text-2xl">
-                {activeCount > 0 ? emptyHeadline(filters, debouncedSearch) : 'No books listed yet'}
-              </h3>
-              <p className="mb-7 max-w-md text-muted">
-                Tell us what you need and we&apos;ll let you know as soon as a parent lists it.
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Link href="/need" className="btn btn-primary">
-                  Request this book
-                </Link>
-                {activeCount > 0 && (
-                  <button type="button" onClick={resetFilters} className="btn btn-outline">
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            </div>
+            <EmptyState
+              icon={BookOpen}
+              title={activeCount > 0 ? emptyHeadline(filters, debouncedSearch) : 'No books listed yet'}
+              description="Tell us what you need and we’ll let you know as soon as a parent lists it."
+              actions={
+                <>
+                  <Link href="/need" className="btn btn-primary">
+                    Request this book
+                  </Link>
+                  {activeCount > 0 && (
+                    <button type="button" onClick={resetFilters} className="btn btn-outline">
+                      Clear filters
+                    </button>
+                  )}
+                </>
+              }
+            />
           ) : (
             <>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">

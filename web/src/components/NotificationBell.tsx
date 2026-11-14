@@ -64,7 +64,7 @@ export default function NotificationBell() {
         {unread > 0 && (
           <span
             aria-hidden
-            className="absolute -top-2 -right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-accent text-on-accent border-2 border-edge text-[11px] font-extrabold flex items-center justify-center"
+            className="absolute -top-2 -right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-danger text-on-accent border-2 border-edge text-[11px] font-extrabold flex items-center justify-center"
           >
             {badge}
           </span>
@@ -80,7 +80,7 @@ export default function NotificationBell() {
                 <button
                   type="button"
                   onClick={() => markAll.mutate()}
-                  className="text-sm font-semibold text-primary hover:underline underline-offset-4 px-2 h-9 rounded-md"
+                  className="text-sm font-semibold text-primary hover:underline underline-offset-4 px-2 h-10 rounded-md"
                   disabled={markAll.isPending}
                 >
                   Mark all as read

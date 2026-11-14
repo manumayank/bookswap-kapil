@@ -18,13 +18,13 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#eeecf6' },
-    { media: '(prefers-color-scheme: dark)', color: '#25224c' },
+    { media: '(prefers-color-scheme: light)', color: '#ebeaf0' },
+    { media: '(prefers-color-scheme: dark)', color: '#14141e' },
   ],
 };
 
 // Runs before paint so the saved (or system) theme never flashes the wrong colours.
-const themeScript = `(function(){try{var t=localStorage.getItem('sybrary-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;var r=document.documentElement;if(d)r.classList.add('dark');r.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+const themeScript = `(function(){try{var t=localStorage.getItem('sybrary-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;var r=document.documentElement;if(d)r.classList.add('dark');r.style.colorScheme=d?'dark':'light';try{localStorage.removeItem('sybrary-paper')}catch(e){}}catch(e){}})();`;
 
 export default function RootLayout({
   children,

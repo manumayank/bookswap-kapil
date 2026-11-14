@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, BellRing, BookCheck, CheckCheck, ChevronLeft, ChevronRight, RotateCcw, ShoppingBag, XCircle } from 'lucide-react';
+import { Bell, BellRing, BookCheck, CheckCheck, ChevronLeft, ChevronRight, ShoppingBag, XCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -13,9 +13,10 @@ import {
   Notification,
 } from '@/hooks/useNotifications';
 import { getNotificationLink, formatRelativeTime } from '@/lib/notificationLinks';
-import PageHeader from '@/components/forms/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
 import FormAlert from '@/components/forms/FormAlert';
-import EmptyState from '@/components/forms/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
 
 function iconFor(type: string): LucideIcon {
   if (type === 'NEW_MATCH_FOR_REQUEST') return BellRing;
@@ -97,17 +98,7 @@ export default function NotificationsPage() {
           ))}
         </ul>
       ) : isError ? (
-        <FormAlert
-          title="Notifications didn’t load"
-          action={
-            <button type="button" onClick={() => refetch()} className="btn btn-outline btn-sm">
-              <RotateCcw size={16} strokeWidth={2.5} aria-hidden />
-              Try again
-            </button>
-          }
-        >
-          Check your connection and try again.
-        </FormAlert>
+        <ErrorState size="lg" title="Notifications didn’t load" onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={Bell}

@@ -4,15 +4,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Hourglass, ArrowLeftRight, Wallet, Search, Inbox, Plus, Phone, RotateCw } from 'lucide-react';
+import { BookOpen, Hourglass, ArrowLeftRight, Wallet, Search, Inbox, Plus, Phone } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { boardLabel, statusLabel } from '@/lib/labels';
-import PageHeader from '@/components/app/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
 import StatTile from '@/components/app/StatTile';
 import SectionHeader from '@/components/app/SectionHeader';
 import ListingThumb from '@/components/app/ListingThumb';
-import EmptyState from '@/components/app/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
 import InlineAlert from '@/components/app/InlineAlert';
 import { rupees, statusBadgeClass } from '@/components/app/status';
 
@@ -25,15 +26,7 @@ function plural(n: number, one: string, many: string) {
 }
 
 function LoadError({ what, onRetry }: { what: string; onRetry: () => void }) {
-  return (
-    <div role="alert" className="card-flat flex flex-wrap items-center justify-between gap-4 p-5">
-      <p className="font-semibold text-accent">Couldn&apos;t load {what}. Check your connection and try again.</p>
-      <button type="button" onClick={onRetry} className="btn btn-outline btn-sm">
-        <RotateCw size={16} aria-hidden="true" />
-        Try again
-      </button>
-    </div>
-  );
+  return <ErrorState title={`Couldn’t load ${what}`} onRetry={onRetry} />;
 }
 
 function RowsSkeleton({ rows = 2 }: { rows?: number }) {
@@ -243,7 +236,7 @@ export default function DashboardPage() {
                         <span className="text-sm font-semibold">Reject this buyer?</span>
                         <button
                           type="button"
-                          className="btn btn-outline btn-sm text-accent"
+                          className="btn btn-outline btn-sm text-danger"
                           onClick={() => rejectMutation.mutate(match.id)}
                           disabled={rejecting}
                         >
@@ -270,7 +263,7 @@ export default function DashboardPage() {
                         </button>
                         <button
                           type="button"
-                          className="btn btn-outline btn-sm flex-1 text-accent sm:flex-none"
+                          className="btn btn-outline btn-sm flex-1 text-danger sm:flex-none"
                           onClick={() => setConfirming({ id: match.id, action: 'reject' })}
                           disabled={accepting || rejecting}
                         >
@@ -324,10 +317,11 @@ export default function DashboardPage() {
           <LoadError what="your listings" onRetry={() => refetchListings()} />
         ) : listingsArray.length === 0 ? (
           <EmptyState
+            size="md"
             icon={BookOpen}
             title="You haven’t listed any books yet"
-            description="Add last year’s textbooks with a price. We check each listing before it goes live."
-            action={
+            description="Give your child’s old textbooks a second life. We check each listing before it goes live."
+            actions={
               <Link href="/sell" className="btn btn-primary">
                 List your books
               </Link>
@@ -380,10 +374,11 @@ export default function DashboardPage() {
           />
           {outgoing.length === 0 ? (
             <EmptyState
+              size="md"
               icon={Inbox}
               title="No requests waiting"
               description="When you ask to buy a listing, it shows here until the seller replies."
-              action={
+              actions={
                 <Link href="/browse" className="btn btn-outline">
                   Find books
                 </Link>
@@ -421,7 +416,7 @@ export default function DashboardPage() {
                         <span className="text-sm font-semibold">Cancel this request?</span>
                         <button
                           type="button"
-                          className="btn btn-outline btn-sm text-accent"
+                          className="btn btn-outline btn-sm text-danger"
                           onClick={() => rejectMutation.mutate(match.id)}
                           disabled={cancelling}
                         >

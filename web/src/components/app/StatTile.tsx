@@ -6,7 +6,7 @@ type Tone = 'primary' | 'secondary' | 'accent' | 'muted';
 const ICON_TONE: Record<Tone, string> = {
   primary: 'bg-primary/10 text-primary',
   secondary: 'bg-secondary/15 text-secondary-dark',
-  accent: 'bg-accent/10 text-accent',
+  accent: 'bg-accent/10 text-danger',
   muted: 'bg-muted-extra-light text-muted',
 };
 

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   CheckCircle2,
@@ -23,7 +22,8 @@ import { Field, FieldError, fieldA11y, controlClass, invalidClass } from '@/comp
 import FormAlert from '@/components/forms/FormAlert';
 import PriceInput from '@/components/forms/PriceInput';
 import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
-import EmptyState from '@/components/forms/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
 
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
 const CATEGORIES = [
@@ -400,19 +400,11 @@ export default function SellPage() {
 
   return (
     <div ref={topRef} className="container max-w-6xl scroll-mt-24 py-10 md:py-14">
-      <header className="mb-8">
-        <Link
-          href="/"
-          className="-ml-2 mb-4 inline-flex min-h-[40px] items-center gap-1.5 rounded-sm px-2 text-sm font-semibold text-muted hover:text-foreground hover:underline decoration-primary decoration-2 underline-offset-4"
-        >
-          <ArrowLeft size={16} strokeWidth={2.5} aria-hidden />
-          Home
-        </Link>
-        <h1 className="text-4xl md:text-5xl">List your books</h1>
-        <p className="mt-3 max-w-xl text-base text-muted md:text-lg">
-          Three quick steps. Buyers see your listing once our team has checked it.
-        </p>
-      </header>
+      <PageHeader
+        back={{ href: '/', label: 'Home' }}
+        title="List your books"
+        description="Three quick steps. Buyers see your listing once our team has checked it."
+      />
 
       <Stepper step={step} onJump={(i) => i < step && setStep(i)} />
 
@@ -449,7 +441,7 @@ export default function SellPage() {
                             aria-label={`Remove ${isMain ? 'front cover' : `photo ${i + 1}`}`}
                             className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-edge bg-card text-foreground shadow-pop-sm hover:bg-muted-extra-light"
                           >
-                            <X size={18} strokeWidth={2.75} aria-hidden />
+                            <X size={18} strokeWidth={2.5} aria-hidden />
                           </button>
                           {isMain && <span className="badge badge-sun absolute bottom-2 left-2">Cover</span>}
                         </div>
@@ -477,7 +469,7 @@ export default function SellPage() {
                           className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-3 text-center transition-colors peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
                             isNextSlot
                               ? `cursor-pointer bg-muted-extra-light text-foreground hover:border-solid hover:border-edge ${
-                                  errors.photos ? 'border-accent' : 'border-edge'
+                                  errors.photos ? 'border-danger' : 'border-edge'
                                 }`
                               : 'cursor-default border-card-border text-muted-light'
                           }`}
@@ -747,7 +739,7 @@ export default function SellPage() {
                           />
                           <span
                             className={`flex h-full min-h-[64px] items-start gap-3 rounded-md border-2 bg-card p-3.5 transition-colors hover:border-edge peer-checked:border-edge peer-checked:bg-sun peer-checked:text-ink peer-checked:shadow-pop-sm peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary peer-checked:[&_.hint]:text-ink ${
-                              errors.pickupLocation ? 'border-accent' : 'border-border'
+                              errors.pickupLocation ? 'border-danger' : 'border-border'
                             }`}
                           >
                             <Icon size={20} strokeWidth={2.25} className="mt-0.5 shrink-0" aria-hidden />
@@ -954,7 +946,7 @@ function RadioGroup({
               />
               <span
                 className={`inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted-extra-light peer-checked:border-edge peer-checked:bg-sun peer-checked:text-ink peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
-                  error ? 'border-accent' : 'border-edge'
+                  error ? 'border-danger' : 'border-edge'
                 }`}
               >
                 {Icon && <Icon size={16} strokeWidth={2.25} aria-hidden />}

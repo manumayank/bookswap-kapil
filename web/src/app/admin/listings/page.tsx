@@ -11,8 +11,8 @@ import ConfirmDialog from '../_components/ConfirmDialog';
 import ErrorState, { InlineError } from '../_components/ErrorState';
 import StatusBadge from '../_components/StatusBadge';
 import { enumLabel } from '../_components/labels';
-import PageHeader from '@/components/app/PageHeader';
-import EmptyState from '@/components/app/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/app/Pagination';
 import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
 import { rupees } from '@/components/app/status';
@@ -162,7 +162,7 @@ export default function AdminListingsPage() {
           ) : pendingIsError ? (
             <ErrorState error={pendingError} onRetry={() => refetchPending()} title="Couldn’t load the review queue" />
           ) : pendingListings.length === 0 ? (
-            <EmptyState
+            <EmptyState size="md"
               icon={CheckCircle2}
               title="All caught up"
               description="No listings are waiting for review. New ones appear here as parents submit them."
@@ -198,7 +198,7 @@ export default function AdminListingsPage() {
                 {allLoading ? (
                   <div className="p-12 text-center text-sm text-muted">Loading listings…</div>
                 ) : allListings.length === 0 ? (
-                  <EmptyState bare icon={BookOpen} title="No listings yet" description="Listings appear here once parents add them." />
+                  <EmptyState size="md" bare icon={BookOpen} title="No listings yet" description="Listings appear here once parents add them." />
                 ) : (
                   <table className={TABLE}>
                     <thead>
@@ -304,7 +304,7 @@ function PendingListingCard({
       <div className="flex flex-1 flex-col p-4 sm:p-5">
         <div className="flex-1">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-lg font-bold leading-snug">{listing.title}</h3>
+            <h2 className="text-lg font-bold leading-snug">{listing.title}</h2>
             {listing.sellingPrice != null && (
               <span className="shrink-0 text-lg font-extrabold">{rupees(listing.sellingPrice)}</span>
             )}
@@ -328,7 +328,7 @@ function PendingListingCard({
             <CheckCircle2 size={16} aria-hidden="true" />
             {isApproving ? 'Approving…' : 'Approve listing'}
           </button>
-          <button type="button" onClick={onReject} disabled={busy} className="btn btn-outline btn-sm flex-1 text-accent">
+          <button type="button" onClick={onReject} disabled={busy} className="btn btn-outline btn-sm flex-1 text-danger">
             <XCircle size={16} aria-hidden="true" />
             {isRejecting ? 'Rejecting…' : 'Reject listing'}
           </button>

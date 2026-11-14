@@ -146,7 +146,7 @@ export default function Navbar() {
                         role="menuitem"
                         type="button"
                         onClick={handleLogout}
-                        className={`${MENU_ITEM} w-full text-left !text-accent hover:!bg-accent/10`}
+                        className={`${MENU_ITEM} w-full text-left !text-danger hover:!bg-accent/10`}
                       >
                         <LogOut size={18} aria-hidden /> Log out
                       </button>
@@ -211,7 +211,7 @@ export default function Navbar() {
                 {user.isAdmin && (
                   <Link href="/admin/dashboard" className={MENU_ITEM}><Shield size={18} aria-hidden /> Admin</Link>
                 )}
-                <button type="button" onClick={handleLogout} className={`${MENU_ITEM} w-full text-left !text-accent`}>
+                <button type="button" onClick={handleLogout} className={`${MENU_ITEM} w-full text-left !text-danger`}>
                   <LogOut size={18} aria-hidden /> Log out
                 </button>
               </div>

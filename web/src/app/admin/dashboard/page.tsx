@@ -20,7 +20,8 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import ErrorState from '../_components/ErrorState';
 import { enumLabel } from '../_components/labels';
-import PageHeader from '@/components/app/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import StatTile from '@/components/app/StatTile';
 import SectionHeader from '@/components/app/SectionHeader';
 import ListingThumb from '@/components/app/ListingThumb';
@@ -167,13 +168,12 @@ export default function AdminDashboard() {
           ) : pendingIsError ? (
             <ErrorState error={pendingError} onRetry={() => refetchPending()} title="Couldn’t load the review queue" />
           ) : pending.length === 0 ? (
-            <div className="card-flat flex items-center gap-3 p-5">
-              <CheckCircle2 size={22} className="shrink-0 text-secondary-dark" aria-hidden="true" />
-              <p className="text-sm">
-                <span className="font-semibold">All caught up.</span>{' '}
-                <span className="text-muted">New listings appear here before they go live.</span>
-              </p>
-            </div>
+            <EmptyState
+              size="md"
+              icon={CheckCircle2}
+              title="All caught up"
+              description="New listings appear here before they go live."
+            />
           ) : (
             <ul className="card-flat divide-y divide-card-border overflow-hidden">
               {pending.slice(0, QUEUE_PREVIEW).map((listing) => {

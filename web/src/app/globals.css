@@ -29,23 +29,27 @@
   --accent: #e83657;
   --accent-glow: rgba(232, 54, 87, 0.25);
   --on-accent-rgb: 255 255 255;
+  /* Accent dark enough for text, error messages and filled danger buttons
+     (the bright --accent is for decorative fills only: < 4.5:1 as text) */
+  --danger-rgb: 179 25 58;
+  --danger: #b3193a;
 
   --sun-rgb: 255 201 60;
   --sun: #ffc93c;
 
   /* Ink + paper */
-  --background-rgb: 238 236 246;
-  --background: #eeecf6;
+  --background-rgb: 235 234 240;
+  --background: #ebeaf0;
   --foreground-rgb: 23 21 58;
   --foreground: #17153a;
-  --card-rgb: 248 247 252;
-  --card: #f8f7fc;
+  --card-rgb: 247 247 250;
+  --card: #f7f7fa;
   --muted-rgb: 77 74 114;
   --muted: #4d4a72;
-  --muted-light-rgb: 98 95 136;
-  --muted-light: #625f88;
-  --muted-extra-light-rgb: 226 223 241;
-  --muted-extra-light: #e2dff1;
+  --muted-light-rgb: 90 87 128;
+  --muted-light: #5a5780; /* 4.6:1 on the darker lavender fills */
+  --muted-extra-light-rgb: 223 222 231;
+  --muted-extra-light: #dfdee7;
 
   /* Lines and depth: thick ink outlines with hard offset shadows */
   --edge-rgb: 23 21 58;
@@ -60,7 +64,7 @@
   --badge-primary-text: #3730a3;
   --badge-secondary-text: #0b6b4a;
 
-  --glass-bg: rgba(238, 236, 246, 0.9);
+  --glass-bg: rgba(235, 234, 240, 0.9);
   --glass-border: var(--edge);
   --glass-shadow: none;
 
@@ -95,35 +99,37 @@ html.dark {
   --accent: #ff7a91;
   --accent-glow: rgba(255, 122, 145, 0.25);
   --on-accent-rgb: 20 18 58;
+  --danger-rgb: 255 122 145;
+  --danger: #ff7a91;
 
   --sun-rgb: 255 214 102;
   --sun: #ffd666;
 
-  --background-rgb: 37 34 76;
-  --background: #25224c;
-  --foreground-rgb: 255 253 246;
-  --foreground: #fffdf6;
-  --card-rgb: 47 43 92;
-  --card: #2f2b5c;
-  --muted-rgb: 206 202 240;
-  --muted: #cecaf0;
-  --muted-light-rgb: 172 167 218;
-  --muted-light: #aca7da;
-  --muted-extra-light-rgb: 58 53 108;
-  --muted-extra-light: #3a356c;
+  --background-rgb: 20 20 30;
+  --background: #14141e;
+  --foreground-rgb: 244 243 250;
+  --foreground: #f4f3fa;
+  --card-rgb: 29 29 42;
+  --card: #1d1d2a;
+  --muted-rgb: 198 197 214;
+  --muted: #c6c5d6;
+  --muted-light-rgb: 156 155 178;
+  --muted-light: #9c9bb2;
+  --muted-extra-light-rgb: 39 39 56;
+  --muted-extra-light: #272738;
 
-  --edge-rgb: 217 213 255;
-  --edge: #d9d5ff;
-  --drop: #13112f;
-  --card-border: rgba(217, 213, 255, 0.16);
-  --border: rgba(217, 213, 255, 0.3);
+  --edge-rgb: 214 213 228;
+  --edge: #d6d5e4;
+  --drop: #07070c;
+  --card-border: rgba(214, 213, 228, 0.14);
+  --border: rgba(214, 213, 228, 0.28);
 
-  --surface-inverse-rgb: 22 20 52;
+  --surface-inverse-rgb: 12 12 20;
 
   --badge-primary-text: #c7c9ff;
   --badge-secondary-text: #7cf0c6;
 
-  --glass-bg: rgba(37, 34, 76, 0.9);
+  --glass-bg: rgba(20, 20, 30, 0.9);
 }
 
 * {
@@ -353,7 +359,7 @@ input[type='checkbox'], input[type='radio'] {
   }
 
   .btn-danger {
-    background: var(--accent);
+    background: var(--danger);
     color: rgb(var(--on-accent-rgb));
   }
 
@@ -475,7 +481,7 @@ input[type='checkbox'], input[type='radio'] {
 
   .badge-accent {
     background: rgb(var(--accent-rgb) / 0.12);
-    color: var(--accent);
+    color: var(--danger);
   }
 
   .badge-muted {
@@ -547,6 +553,80 @@ input[type='checkbox'], input[type='radio'] {
 @keyframes pageIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* ---------- Footer: last page of the notebook ---------- */
+.notebook-footer {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 39px,
+    rgb(var(--primary-rgb) / 0.16) 39px 40px
+  );
+  background-position: 0 0;
+}
+
+.notebook-holes {
+  background: radial-gradient(circle, var(--background) 6px, var(--edge) 7px, transparent 8px) 0 0 / 18px 80px repeat-y;
+}
+
+.notebook-doodle path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  transition: stroke-dashoffset 1.4s ease;
+}
+
+.notebook-footer.is-in .notebook-doodle path {
+  stroke-dashoffset: 0;
+}
+
+.notebook-doodle path:nth-child(2), .notebook-doodle path:nth-child(4) { transition-delay: 0.9s; }
+.notebook-doodle path:nth-child(3) { transition-delay: 0.4s; }
+.notebook-doodle path:nth-child(5) { transition-delay: 0.7s; }
+.notebook-doodle path:nth-child(6) { transition-delay: 1.1s; }
+
+.notebook-link {
+  background-image: linear-gradient(var(--primary), var(--primary));
+  background-size: 0 3px;
+  background-repeat: no-repeat;
+  background-position: 0 82%;
+  transition: background-size 0.25s var(--ease-out), color 0.15s ease;
+}
+
+.notebook-link:hover,
+.notebook-link:focus-visible {
+  background-size: 100% 3px;
+  color: var(--primary);
+}
+
+.notebook-watermark {
+  font-size: clamp(5rem, 19vw, 16rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.78;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 2px rgb(var(--foreground-rgb) / 0.22);
+}
+
+.notebook-watermark span {
+  display: inline-block;
+  transform: translateY(70%);
+  transition: transform 0.75s var(--ease-pop), color 0.25s ease, -webkit-text-stroke-color 0.25s ease;
+}
+
+.notebook-footer.is-in .notebook-watermark span {
+  transform: translateY(16%);
+}
+
+.notebook-watermark span:hover {
+  color: var(--sun);
+  -webkit-text-stroke-color: var(--edge);
+  transform: translateY(4%) !important;
 }
 
 /* ---------- Home hero receipt ---------- */
@@ -674,5 +754,13 @@ input[type='checkbox'], input[type='radio'] {
   .reveal {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* A page with a fixed phone action bar (listing detail) reserves room for it
+   so the bar never covers the last of the page or the footer. */
+@media (max-width: 1023.98px) {
+  body:has([data-phone-action-bar]) {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
   }
 }

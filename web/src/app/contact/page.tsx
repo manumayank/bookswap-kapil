@@ -7,10 +7,10 @@ import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Send } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import PageHeader from '@/components/forms/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
 import { Field, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
 import FormAlert from '@/components/forms/FormAlert';
-import EmptyState from '@/components/forms/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function ContactPage() {
   const router = useRouter();

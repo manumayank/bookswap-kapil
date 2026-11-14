@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronDown, Leaf, Lock, PencilRuler, Recycle, Wallet } from 'lucide-react';
 import BookCard from '@/components/BookCard';
+import ErrorState from '@/components/ui/ErrorState';
 import Reveal from '@/components/Reveal';
 import ReceiptArt from '@/components/home/ReceiptArt';
 import api from '@/lib/api';
@@ -305,17 +306,11 @@ export default function HomePage() {
             ))}
           </div>
         ) : isError ? (
-          <div className="card-flat p-8 sm:p-10 text-center">
-            <p className="font-bold text-lg">We couldn&apos;t load the newest listings.</p>
-            <p className="mt-1 text-muted">Check your connection and try again.</p>
-            <button type="button" onClick={() => refetch()} className="btn btn-outline mt-6">
-              Try again
-            </button>
-          </div>
+          <ErrorState title="We couldn’t load the newest listings" onRetry={() => refetch()} />
         ) : !listings || listings.length === 0 ? (
           <div className="card-flat p-8 sm:p-12 text-center">
             <span className="inline-flex w-14 h-14 items-center justify-center rounded-md bg-sun text-ink border-2 border-edge shadow-pop-sm -rotate-3">
-              <BookOpen aria-hidden size={26} strokeWidth={2.4} />
+              <BookOpen aria-hidden size={26} strokeWidth={2.25} />
             </span>
             <h3 className="mt-5 text-2xl">Be the first to pass books on</h3>
             <p className="mt-2 text-muted max-w-md mx-auto">
@@ -357,7 +352,7 @@ export default function HomePage() {
             {REASONS.map((r, i) => (
               <Reveal key={r.title} delay={i * 90} className="card-flat p-6 md:p-7">
                 <span className={`inline-flex w-12 h-12 items-center justify-center rounded-md border-2 border-edge shadow-pop-sm ${r.tone}`}>
-                  <r.icon aria-hidden size={22} strokeWidth={2.4} />
+                  <r.icon aria-hidden size={22} strokeWidth={2.25} />
                 </span>
                 <h3 className="mt-5 text-xl">{r.title}</h3>
                 <p className="mt-2 text-muted leading-relaxed">{r.body}</p>
@@ -397,7 +392,7 @@ export default function HomePage() {
                 <span
                   className={`inline-flex w-16 h-16 shrink-0 items-center justify-center rounded-lg border-2 border-edge transition-transform duration-300 ease-pop group-hover:-rotate-6 group-hover:scale-105 ${c.tone}`}
                 >
-                  <c.icon aria-hidden size={30} strokeWidth={2.2} />
+                  <c.icon aria-hidden size={30} strokeWidth={2.25} />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-2xl font-extrabold tracking-tight">{c.title}</span>

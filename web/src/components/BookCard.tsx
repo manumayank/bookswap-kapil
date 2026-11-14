@@ -8,7 +8,7 @@ interface BookCardProps {
   title: string;
   sellingPrice: number;
   buyingPrice?: number | null;
-  condition: string;
+  condition?: string | null;
   category: string;
   city: string;
   imageUrl?: string;
@@ -66,7 +66,7 @@ export default function BookCard({
           {classLevel ? <span className="badge badge-primary">Class {classLevel}</span> : null}
           {board ? <span className="badge badge-muted">{boardLabel(board)}</span> : null}
           {isStationery && !classLevel ? <span className="badge badge-muted">{categoryLabel(category)}</span> : null}
-          <span className="badge badge-muted">{conditionLabel(condition)}</span>
+          {condition ? <span className="badge badge-muted">{conditionLabel(condition)}</span> : null}
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-1">

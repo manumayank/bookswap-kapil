@@ -244,7 +244,7 @@ export default function ListingDetailPage() {
   }
 
   return (
-    <div className="container pb-32 pt-6 md:pt-10 lg:pb-16">
+    <div className="container pb-16 pt-6 md:pt-10">
       <Link
         href="/browse"
         className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-muted decoration-primary decoration-2 underline-offset-4 hover:text-foreground hover:underline"
@@ -315,7 +315,7 @@ export default function ListingDetailPage() {
             {listing.subject ? <span className="badge badge-muted">{listing.subject}</span> : null}
           </div>
 
-          <h1 className="mb-2 text-4xl md:text-5xl">{listing.title}</h1>
+          <h1 className="mb-2 break-words text-4xl md:text-5xl">{listing.title}</h1>
           {listedOn && <p className="mb-6 text-sm text-muted">Listed on {listedOn}</p>}
 
           {/* Price block */}
@@ -354,7 +354,7 @@ export default function ListingDetailPage() {
           </div>
 
           {dealError && (
-            <div role="alert" className="mb-4 rounded-md border-2 border-accent bg-accent/10 px-4 py-3 text-sm font-semibold text-accent">
+            <div role="alert" className="mb-4 rounded-md border-2 border-danger bg-accent/10 px-4 py-3 text-sm font-semibold text-danger">
               {dealError}
             </div>
           )}
@@ -418,7 +418,7 @@ export default function ListingDetailPage() {
       </section>
 
       {/* Phone action bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-edge bg-card px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 lg:hidden">
+      <div data-phone-action-bar className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-edge bg-card px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 lg:hidden">
         <div className="mx-auto flex max-w-xl items-center gap-4">
           <div className="shrink-0">
             <p className="text-2xl font-extrabold leading-none">{formatRupees(listing.sellingPrice)}</p>

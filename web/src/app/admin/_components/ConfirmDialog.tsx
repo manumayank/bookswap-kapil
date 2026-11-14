@@ -88,7 +88,7 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-surface-inverse/60 p-4 sm:items-center"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !isPending) onCancel();
       }}

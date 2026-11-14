@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Download, FilePlus, FileText, Paperclip, RotateCcw, Upload } from 'lucide-react';
+import { Download, FilePlus, FileText, Paperclip, Upload } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
-import PageHeader from '@/components/forms/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
 import { Field, FieldError, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
 import FormAlert from '@/components/forms/FormAlert';
-import EmptyState from '@/components/forms/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
 import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
 
 const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
@@ -429,17 +430,7 @@ export default function PapersPage() {
                 ))}
               </ul>
             ) : fetchError ? (
-              <FormAlert
-                title="Papers didn’t load"
-                action={
-                  <button type="button" onClick={fetchPapers} className="btn btn-outline btn-sm">
-                    <RotateCcw size={16} strokeWidth={2.5} aria-hidden />
-                    Try again
-                  </button>
-                }
-              >
-                {fetchError}
-              </FormAlert>
+              <ErrorState size="lg" title="Papers didn’t load" message={fetchError} onRetry={fetchPapers} />
             ) : papers.length === 0 ? (
               <EmptyState
                 icon={FileText}
@@ -556,7 +547,7 @@ export default function PapersPage() {
                     htmlFor="paper-file"
                     className={`flex cursor-pointer items-center gap-4 rounded-md border-2 p-5 transition-colors hover:border-solid hover:bg-muted-extra-light peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
                       selectedFile ? 'border-solid border-edge bg-muted-extra-light' : 'border-dashed'
-                    } ${uploadErrors.file ? 'border-accent' : 'border-edge'}`}
+                    } ${uploadErrors.file ? 'border-danger' : 'border-edge'}`}
                   >
                     <span
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-edge ${

@@ -8,8 +8,8 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import ErrorState, { InlineError } from '../_components/ErrorState';
 import { enumLabel } from '../_components/labels';
-import PageHeader from '@/components/app/PageHeader';
-import EmptyState from '@/components/app/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
 
 interface SchoolForm {
@@ -250,7 +250,7 @@ export default function AdminSchoolsPage() {
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted">Loading schools…</div>
           ) : schools.length === 0 ? (
-            <EmptyState
+            <EmptyState size="md"
               bare
               icon={School}
               title={search ? 'No schools match your search' : 'No schools yet'}

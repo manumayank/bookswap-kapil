@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { BellRing, BookOpen, CheckCircle2, Loader2, PencilRuler, Search, SlidersHorizontal } from 'lucide-react';
+import { BellRing, CheckCircle2, Loader2, Search, SlidersHorizontal } from 'lucide-react';
 import api from '@/lib/api';
 import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
-import PageHeader from '@/components/forms/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
 import { Field, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
 import FormAlert from '@/components/forms/FormAlert';
 import PriceInput from '@/components/forms/PriceInput';
-import EmptyState from '@/components/forms/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
+import BookCard from '@/components/BookCard';
 import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
 
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -28,6 +29,8 @@ interface Listing {
   class?: number;
   subject?: string;
   sellingPrice: number;
+  buyingPrice?: number | null;
+  condition?: string;
   city: string;
   status: string;
   images: { imageUrl: string }[];
@@ -368,7 +371,19 @@ export default function NeedPage() {
               <ul className="grid-marketplace">
                 {matches.map((listing) => (
                   <li key={listing.id}>
-                    <MatchCard listing={listing} />
+                    <BookCard
+                      id={listing.id}
+                      title={listing.title}
+                      sellingPrice={listing.sellingPrice}
+                      buyingPrice={listing.buyingPrice}
+                      condition={listing.condition}
+                      category={listing.category}
+                      city={listing.city}
+                      imageUrl={listing.images?.[0]?.imageUrl}
+                      board={listing.board}
+                      classLevel={listing.class}
+                      schoolName={listing.school?.name}
+                    />
                   </li>
                 ))}
               </ul>
@@ -445,46 +460,5 @@ export default function NeedPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function MatchCard({ listing }: { listing: Listing }) {
-  const photo = listing.images?.[0]?.imageUrl;
-  const Glyph = listing.category === 'STATIONERY' ? PencilRuler : BookOpen;
-  const subjects = listing.items?.map((i) => i.subject).filter(Boolean) ?? [];
-
-  return (
-    <Link
-      href={`/listings/${listing.id}`}
-      className="card-premium card-interactive block h-full overflow-hidden"
-    >
-      <div className="relative aspect-[4/3] border-b-2 border-edge bg-sun">
-        {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-ink" aria-hidden>
-            <Glyph size={56} strokeWidth={1.75} />
-          </div>
-        )}
-        <span className="sticker absolute left-3 top-3 text-lg">₹{listing.sellingPrice.toLocaleString('en-IN')}</span>
-      </div>
-      <div className="p-4">
-        <h3 className="line-clamp-2 text-lg font-bold leading-snug">{listing.title}</h3>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {listing.class && <span className="badge badge-primary">Class {listing.class}</span>}
-          {listing.board && <span className="badge badge-muted">{boardLabel(listing.board)}</span>}
-          {subjects.slice(0, 2).map((s) => (
-            <span key={s} className="badge badge-muted">
-              {s}
-            </span>
-          ))}
-        </div>
-        <div className="mt-3 text-sm text-muted">
-          {listing.school && <p className="truncate">{listing.school.name}</p>}
-          <p className="truncate">{listing.city}</p>
-        </div>
-      </div>
-    </Link>
   );
 }

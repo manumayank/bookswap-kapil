@@ -1,6 +1,7 @@
-import { AlertTriangle, RotateCw } from 'lucide-react';
+import UiErrorState from '@/components/ui/ErrorState';
 import { errorMessage } from './labels';
 
+/** Admin wrapper: turns an API error into the shared ErrorState's message. */
 export default function ErrorState({
   error,
   onRetry,
@@ -13,25 +14,13 @@ export default function ErrorState({
   /** Render without the card wrapper (when already inside a card). */
   bare?: boolean;
 }) {
-  return (
-    <div role="alert" className={`${bare ? '' : 'card-flat '}px-6 py-10 text-center`}>
-      <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md border-2 border-accent bg-accent/10 text-accent">
-        <AlertTriangle size={22} aria-hidden="true" />
-      </span>
-      <p className="text-lg font-bold">{title}</p>
-      <p className="mx-auto mb-5 mt-1 max-w-[52ch] text-sm text-muted">{errorMessage(error)}</p>
-      <button type="button" onClick={onRetry} className="btn btn-outline btn-sm">
-        <RotateCw size={16} aria-hidden="true" />
-        Try again
-      </button>
-    </div>
-  );
+  return <UiErrorState title={title} message={errorMessage(error)} onRetry={onRetry} bare={bare} />;
 }
 
 export function InlineError({ error }: { error: unknown }) {
   if (!error) return null;
   return (
-    <p role="alert" className="mt-2 text-sm font-semibold text-accent">
+    <p role="alert" className="mt-2 text-sm font-semibold text-danger">
       {errorMessage(error)}
     </p>
   );

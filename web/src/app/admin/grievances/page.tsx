@@ -10,8 +10,8 @@ import ConfirmDialog from '../_components/ConfirmDialog';
 import ErrorState, { InlineError } from '../_components/ErrorState';
 import StatusBadge from '../_components/StatusBadge';
 import { enumLabel } from '../_components/labels';
-import PageHeader from '@/components/app/PageHeader';
-import EmptyState from '@/components/app/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 
 const STATUS_OPTIONS = ['OPEN', 'RESOLVED', 'DISMISSED'] as const;
 
@@ -124,7 +124,7 @@ export default function AdminGrievancesPage() {
       ) : isError ? (
         <ErrorState error={error} onRetry={() => refetch()} title="Couldn’t load grievances" />
       ) : grievances.length === 0 ? (
-        <EmptyState
+        <EmptyState size="md"
           icon={CheckCircle2}
           title={filterName ? `No ${filterName} grievances` : 'No grievances yet'}
           description="Reports from parents show up here."

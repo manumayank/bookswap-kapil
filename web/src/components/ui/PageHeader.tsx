@@ -3,20 +3,23 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 /**
- * Non-home page header: back link, h1, one-line description, actions on the
- * right (stacked under the text on phones).
+ * The one page header for every non-home page: optional back link, h1, one
+ * line of context in text-muted, actions on the right (stacked under the
+ * text on phones). `size="md"` is the denser admin variant.
  */
 export default function PageHeader({
   title,
   description,
   back,
   actions,
+  size = 'lg',
   className = '',
 }: {
   title: ReactNode;
   description?: ReactNode;
   back?: { href: string; label: string };
   actions?: ReactNode;
+  size?: 'lg' | 'md';
   className?: string;
 }) {
   return (
@@ -30,12 +33,12 @@ export default function PageHeader({
           {back.label}
         </Link>
       )}
-      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl md:text-5xl">{title}</h1>
-          {description && <p className="mt-3 text-base text-muted md:text-lg">{description}</p>}
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
+        <div className="min-w-0 max-w-3xl">
+          <h1 className={`break-words ${size === 'lg' ? 'text-4xl md:text-5xl' : 'text-3xl md:text-4xl'}`}>{title}</h1>
+          {description && <p className="mt-3 max-w-[70ch] text-base text-muted md:text-lg">{description}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-3 md:shrink-0">{actions}</div>}
       </div>
     </header>
   );

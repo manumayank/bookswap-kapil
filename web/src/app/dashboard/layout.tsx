@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
   { href: '/dashboard/deals', label: 'Deals', icon: ArrowLeftRight },
-  { href: '/sell', label: 'Sell books', icon: Plus },
+  { href: '/sell', label: 'List your books', icon: Plus },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -57,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
       </div>
 
-      <main className="container pb-16 pt-8">{children}</main>
+      <div className="container pb-16 pt-8">{children}</div>
     </div>
   );
 }

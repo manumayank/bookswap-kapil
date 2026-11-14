@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeftRight, Phone, Mail, MapPin, RotateCw, CheckCircle2, Lock, ChevronRight } from 'lucide-react';
+import { ArrowLeftRight, Phone, Mail, MapPin, CheckCircle2, Lock, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
-import PageHeader from '@/components/app/PageHeader';
+import PageHeader from '@/components/ui/PageHeader';
 import SectionHeader from '@/components/app/SectionHeader';
 import ListingThumb from '@/components/app/ListingThumb';
-import EmptyState from '@/components/app/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
 import InlineAlert from '@/components/app/InlineAlert';
 import { rupees, shortDate, statusBadgeClass } from '@/components/app/status';
 
@@ -90,7 +91,7 @@ export default function DealsPage() {
       setDeals([...asSeller, ...asBuyer].sort(byNewest));
     } catch (err: any) {
       setDeals([]);
-      setLoadError(err?.response?.data?.error || 'Couldn’t load your deals. Check your connection and try again.');
+      setLoadError(err?.response?.data?.error || 'Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -142,7 +143,7 @@ export default function DealsPage() {
         icon={Lock}
         title="Log in to see your deals"
         description="Your deals with other parents are private to your account."
-        action={
+        actions={
           <Link href="/login" className="btn btn-primary">
             Log in
           </Link>
@@ -264,7 +265,7 @@ export default function DealsPage() {
                   type="button"
                   onClick={() => confirmAction(deal)}
                   disabled={busy}
-                  className="btn btn-outline btn-sm text-accent"
+                  className="btn btn-outline btn-sm text-danger"
                 >
                   {busy ? 'Working…' : CONFIRM_TEXT[confirming.kind].yes}
                 </button>
@@ -297,7 +298,7 @@ export default function DealsPage() {
                         type="button"
                         onClick={() => setConfirming({ id: deal.id, kind: 'reject' })}
                         disabled={busy}
-                        className="btn btn-outline btn-sm text-accent"
+                        className="btn btn-outline btn-sm text-danger"
                       >
                         Reject
                       </button>
@@ -329,7 +330,7 @@ export default function DealsPage() {
                         type="button"
                         onClick={() => setConfirming({ id: deal.id, kind: 'cancelDeal' })}
                         disabled={busy}
-                        className="btn btn-outline btn-sm text-accent"
+                        className="btn btn-outline btn-sm text-danger"
                       >
                         Cancel deal
                       </button>
@@ -376,27 +377,21 @@ export default function DealsPage() {
           ))}
         </div>
       ) : loadError ? (
-        <div role="alert" className="card-flat flex flex-wrap items-center justify-between gap-4 p-5">
-          <p className="font-semibold text-accent">{loadError}</p>
-          <button type="button" onClick={fetchDeals} className="btn btn-outline btn-sm">
-            <RotateCw size={16} aria-hidden="true" />
-            Try again
-          </button>
-        </div>
+        <ErrorState title="Couldn’t load your deals" message={loadError} onRetry={fetchDeals} />
       ) : deals.length === 0 ? (
         <EmptyState
           icon={ArrowLeftRight}
           title="No deals yet"
           description="Ask to buy a listing, or list your own books. Deals show up here as soon as someone replies."
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
+          actions={
+            <>
               <Link href="/browse" className="btn btn-primary">
                 Find books
               </Link>
               <Link href="/sell" className="btn btn-outline">
                 List your books
               </Link>
-            </div>
+            </>
           }
         />
       ) : (

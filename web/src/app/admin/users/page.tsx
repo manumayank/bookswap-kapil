@@ -8,8 +8,8 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import ErrorState from '../_components/ErrorState';
 import { enumLabel } from '../_components/labels';
-import PageHeader from '@/components/app/PageHeader';
-import EmptyState from '@/components/app/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/app/Pagination';
 import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
 import { shortDate } from '@/components/app/status';
@@ -88,7 +88,7 @@ export default function AdminUsersPage() {
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted">Loading users…</div>
           ) : users.length === 0 ? (
-            <EmptyState
+            <EmptyState size="md"
               bare
               icon={Users}
               title={search ? 'No users match your search' : 'No users yet'}

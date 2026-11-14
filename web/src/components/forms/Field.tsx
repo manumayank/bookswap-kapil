@@ -38,7 +38,7 @@ export function Field({ id, label, hint, error, optional, className = '', childr
 export function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="mt-2 flex items-start gap-1.5 text-sm font-semibold text-accent">
+    <p id={id} className="mt-2 flex items-start gap-1.5 text-sm font-semibold text-danger">
       <AlertCircle size={16} strokeWidth={2.5} className="mt-[3px] shrink-0" aria-hidden />
       <span>{message}</span>
     </p>
@@ -57,4 +57,4 @@ export function fieldA11y(id: string, opts: { hint?: unknown; error?: string } =
 
 /** Shared class for full-width inputs/selects in forms (styling itself is global). */
 export const controlClass = 'w-full min-h-[48px]';
-export const invalidClass = '!border-accent';
+export const invalidClass = '!border-danger';
