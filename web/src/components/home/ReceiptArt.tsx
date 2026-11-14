@@ -245,10 +245,15 @@ export default function ReceiptArt({
             {Array.from({ length: 9 }).map((_, i) => (
               <span
                 key={`${i}-${run}`}
-                className={`${ready ? 'receipt-key' : ''} block w-[22px] h-[18px] rounded-[5px] border-2 border-edge ${
+                className={`${ready ? 'receipt-key' : 'receipt-key-typing'} block w-[22px] h-[18px] rounded-[5px] border-2 border-edge ${
                   i === 8 ? 'bg-secondary' : i % 4 === 0 ? 'bg-sun' : 'bg-muted-extra-light'
                 }`}
-                style={{ animationDelay: `${80 + ((i * 5) % 9) * 55}ms` }}
+                style={
+                  ready
+                    ? { animationDelay: `${80 + ((i * 5) % 9) * 55}ms` }
+                    : // irregular offsets so it reads like someone punching in an order
+                      { animationDelay: `${[0, 470, 220, 690, 120, 560, 340, 810, 260][i]}ms` }
+                }
               />
             ))}
           </div>
