@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
+import { useInViewOnce } from './useInViewOnce';
 
 type Kind = 'underline' | 'circle';
 
@@ -21,31 +22,11 @@ const PATHS: Record<Kind, { d: string; viewBox: string; box: string; stroke: str
 
 /**
  * A pencil mark (underline or loose circle) that draws itself once, the first
- * time the words scroll into view. Reduced motion shows it already drawn.
+ * time the words scroll into the middle of the screen. Reduced motion shows it already drawn.
  */
 export default function Scribble({ children, kind = 'underline' }: { children: ReactNode; kind?: Kind }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [drawn, setDrawn] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDrawn(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setDrawn(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: '0px 0px -15% 0px', threshold: 1 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  const drawn = useInViewOnce(ref);
 
   const p = PATHS[kind];
 
@@ -70,7 +51,7 @@ export default function Scribble({ children, kind = 'underline' }: { children: R
           style={{
             strokeDasharray: 1,
             strokeDashoffset: drawn ? 0 : 1,
-            transition: 'stroke-dashoffset 900ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+            transition: 'stroke-dashoffset 1000ms cubic-bezier(0.2, 0.8, 0.2, 1)',
           }}
         />
       </svg>
