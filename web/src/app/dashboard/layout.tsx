@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import Logo from '@/components/Logo';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
@@ -41,8 +42,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/dashboard" className="text-2xl font-bold text-green-600">
-            Sybrary
+          <Link href="/dashboard" aria-label="Sybrary dashboard" className="flex items-center">
+            <Logo variant="full" height={40} />
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import NotificationBell from './NotificationBell';
+import Logo from '@/components/Logo';
 
 const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
@@ -22,13 +23,9 @@ export default function Navbar() {
   return (
     <nav className="glass sticky top-0 z-50 w-full animate-slide-down">
       <div className="container flex h-20 items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
-            S
-          </div>
-          <span className="text-xl font-black tracking-tight text-foreground">
-            Sybrary
-          </span>
+        <Link href="/" aria-label="Sybrary home" className="flex items-center shrink-0 transition-opacity hover:opacity-85">
+          <span className="hidden sm:flex"><Logo variant="full" height={44} /></span>
+          <span className="flex sm:hidden"><Logo variant="short" height={36} /></span>
         </Link>
 
         <div className="hidden lg:flex items-center gap-10">

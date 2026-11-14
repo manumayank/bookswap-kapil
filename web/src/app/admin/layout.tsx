@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Logo from '@/components/Logo';
 import {
   LayoutDashboard,
   Users,
@@ -30,8 +31,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="p-4 border-b border-gray-800">
-          <Link href="/admin/dashboard" className="text-xl font-bold">
-            📚 Sybrary Admin
+          <Link href="/admin/dashboard" aria-label="Sybrary admin" className="flex items-center gap-2">
+            <Logo variant="short" height={32} theme="dark" />
+            <span className="text-lg font-bold">Sybrary <span className="text-gray-400 font-semibold">Admin</span></span>
           </Link>
         </div>
         

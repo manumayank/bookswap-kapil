@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
+import Logo from '@/components/Logo';
 
 const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 
@@ -163,17 +164,8 @@ export default function RegisterPage() {
       >
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <Link
-            href="/"
-            style={{
-              fontSize: '2rem',
-              fontWeight: 800,
-              letterSpacing: '-0.04em',
-              color: 'var(--primary)',
-              textDecoration: 'none',
-            }}
-          >
-            Sybrary
+          <Link href="/" aria-label="Sybrary home" className="inline-flex justify-center">
+            <Logo variant="full" height={52} />
           </Link>
           <p style={{ color: 'var(--muted)', marginTop: '0.5rem', fontSize: '0.9375rem' }}>
             Create your account

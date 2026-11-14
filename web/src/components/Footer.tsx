@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 
 export default function Footer() {
   return (
@@ -6,9 +7,8 @@ export default function Footer() {
       <div className="container">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-12">
           <div className="md:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-6">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold">S</div>
-              <span className="text-xl font-bold tracking-tight">Sybrary</span>
+            <Link href="/" aria-label="Sybrary home" className="inline-flex items-center mb-6">
+              <Logo variant="full" height={40} />
             </Link>
             <p className="text-muted text-sm leading-relaxed max-w-sm">
               Making education accessible and sustainable for parents through effortless local book exchanges.
