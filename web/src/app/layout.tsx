@@ -13,7 +13,7 @@ const sans = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   title: 'Sybrary – give school books a second life',
-  description: 'Reuse school textbooks and stationery. Buy and sell with families from your child's school and board, save money and save paper.',
+  description: "Reuse school textbooks and stationery. Buy and sell with families from your child's school and board, save money and save paper.",
 };
 
 export const viewport: Viewport = {
