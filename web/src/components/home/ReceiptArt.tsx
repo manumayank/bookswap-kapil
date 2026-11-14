@@ -57,7 +57,16 @@ function useCountUp(target: number, run: number, delay: number, reduce: boolean)
   return val;
 }
 
-export default function ReceiptArt({ classLevel, board: boardProp }: { classLevel: string; board: string }) {
+export default function ReceiptArt({
+  classLevel,
+  board: boardProp,
+  ready = true,
+}: {
+  classLevel: string;
+  board: string;
+  /** Hold the print until the hero sentence has settled; the machine waits idle. */
+  ready?: boolean;
+}) {
   const reduce = useReducedMotion();
 
   // What's on the bill. Updated only once the sentence settles (debounced past
@@ -85,7 +94,7 @@ export default function ReceiptArt({ classLevel, board: boardProp }: { classLeve
   const saved = totalNew - totalReuse;
   const pct = Math.round((saved / totalNew) * 100);
 
-  const display = useCountUp(totalReuse, run, 250, reduce);
+  const display = useCountUp(ready ? totalReuse : 0, run, 250, reduce);
 
   const today = useMemo(
     () => new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -172,7 +181,7 @@ export default function ReceiptArt({ classLevel, board: boardProp }: { classLeve
   ];
 
   const LINE_MS = 170;
-  const PRINT_START = 650; // after the keys are tapped
+  const PRINT_START = 450; // after the keys are tapped
   const stampAt = PRINT_START + lines.length * LINE_MS + 250;
 
   return (
@@ -182,6 +191,7 @@ export default function ReceiptArt({ classLevel, board: boardProp }: { classLeve
     >
       {/* Paper feeding out of the machine (wrapper clips at the slot) */}
       <div className="relative h-[440px] overflow-hidden px-6" aria-hidden>
+        {ready && (
         <div
           key={`paper-${run}`}
           className="receipt-paper absolute left-6 right-6 bottom-0"
@@ -215,10 +225,11 @@ export default function ReceiptArt({ classLevel, board: boardProp }: { classLeve
             <span className="block text-[30px]">{pct}%</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* The billing machine */}
-      <div aria-hidden className="relative -mt-1 rounded-[22px] border-2 border-edge bg-card shadow-pop-lg px-5 pt-4 pb-5">
+      <div aria-hidden className="relative -mt-1 rounded-[22px] border-2 border-edge bg-card shadow-pop-lg px-5 pt-4 pb-5 animate-pop" style={{ '--delay': '60ms' } as React.CSSProperties}>
         {/* paper slot */}
         <div className="absolute left-5 right-5 -top-[9px] h-[18px] rounded-full border-2 border-edge bg-foreground/90" />
         <div className="mt-3 flex items-stretch gap-4">
@@ -234,7 +245,7 @@ export default function ReceiptArt({ classLevel, board: boardProp }: { classLeve
             {Array.from({ length: 9 }).map((_, i) => (
               <span
                 key={`${i}-${run}`}
-                className={`receipt-key block w-[22px] h-[18px] rounded-[5px] border-2 border-edge ${
+                className={`${ready ? 'receipt-key' : ''} block w-[22px] h-[18px] rounded-[5px] border-2 border-edge ${
                   i === 8 ? 'bg-secondary' : i % 4 === 0 ? 'bg-sun' : 'bg-muted-extra-light'
                 }`}
                 style={{ animationDelay: `${80 + ((i * 5) % 9) * 55}ms` }}
@@ -245,13 +256,14 @@ export default function ReceiptArt({ classLevel, board: boardProp }: { classLeve
       </div>
 
       {/* Sticker */}
-      <span
+      {ready && <span
+        key={`sticker-${run}`}
         aria-hidden
         className="sticker absolute -left-3 top-24 text-[15px] animate-pop hidden sm:inline-flex"
         style={{ '--delay': `${stampAt + 250}ms`, '--tilt': '-7deg' } as React.CSSProperties}
       >
         <Recycle size={17} strokeWidth={2.6} /> Reused, not reprinted
-      </span>
+      </span>}
     </figure>
   );
 }

@@ -122,16 +122,24 @@ function Slot({ label, value, display, onChange, options, tone = 'sun', flipKey,
 type Demo = { intent: Intent; cls: string; board: string; city: string };
 
 /*
- * Intro: the slots flip through a couple of examples, like a worksheet being
- * filled in, then settle on the real (default) choice. Display-only: the real
- * state, the text below and the receipt never change. Every example is no
- * wider than the final word, and slots are width-locked meanwhile, so the
+ * Intro: right after the billing machine appears, the blanks flip quickly
+ * through a few examples, one to three at a time, like a worksheet being filled
+ * in, then settle on the real choice. Only then does the machine print the bill.
+ * Display-only: the real state and the text below never change. Every example
+ * is no wider than the final word and slots are width-locked meanwhile, so the
  * headline never re-wraps.
  */
-const INTRO: Demo[] = [
-  { intent: 'sell', cls: '8', board: 'ICSE', city: 'Mumbai' },
-  { intent: 'buy', cls: '4', board: 'IB', city: 'Pune' },
+type Step = Partial<Demo>;
+const INTRO_STEPS: Step[] = [
+  { intent: 'sell', city: 'Mumbai' },
+  { cls: '8' },
+  { board: 'ICSE', city: 'Pune', intent: 'buy' },
+  { cls: '4', board: 'IB' },
+  { city: 'Delhi' },
 ];
+const INTRO_START = 250; // ms after load, as the machine pops in
+const INTRO_STEP = 330; // ms between flips
+const INTRO_SETTLE = 280; // pause on the final words before printing
 
 function HeroSentence() {
   const router = useRouter();
@@ -141,41 +149,54 @@ function HeroSentence() {
   const [city, setCity] = useState('Bangalore');
   const [flips, setFlips] = useState({ intent: 0, cls: 0, board: 0, city: 0 });
   const [demo, setDemo] = useState<Demo | null>(null);
+  const [ready, setReady] = useState(false);
   const touched = useRef(false);
 
   const bump = (k: keyof typeof flips) => setFlips((f) => ({ ...f, [k]: f[k] + 1 }));
-  const bumpAll = () =>
-    setFlips((f) => ({ intent: f.intent + 1, cls: f.cls + 1, board: f.board + 1, city: f.city + 1 }));
+
+  const endIntro = () => {
+    setDemo(null);
+    setReady(true);
+  };
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    let i = 0;
-    let id = 0;
-    const start = window.setTimeout(() => {
-      id = window.setInterval(() => {
-        if (touched.current) {
-          window.clearInterval(id);
-          setDemo(null);
-          return;
-        }
-        if (i < INTRO.length) {
-          setDemo(INTRO[i++]);
-        } else {
-          window.clearInterval(id);
-          setDemo(null);
-        }
-        bumpAll();
-      }, 750);
-    }, 450);
-    return () => {
-      window.clearTimeout(start);
-      window.clearInterval(id);
-    };
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setReady(true);
+      return;
+    }
+    const real: Demo = { intent: 'buy', cls: '6', board: 'CBSE', city: 'Bangalore' };
+    const steps: Step[] = [...INTRO_STEPS, real];
+    const timers: number[] = [];
+    let current: Demo = real;
+    steps.forEach((step, i) => {
+      timers.push(
+        window.setTimeout(() => {
+          if (touched.current) return;
+          const isLast = i === steps.length - 1;
+          const next: Demo = isLast ? real : { ...current, ...step };
+          // flip only the slots whose word actually changes
+          setFlips((f) => ({
+            intent: f.intent + (next.intent !== current.intent ? 1 : 0),
+            cls: f.cls + (next.cls !== current.cls ? 1 : 0),
+            board: f.board + (next.board !== current.board ? 1 : 0),
+            city: f.city + (next.city !== current.city ? 1 : 0),
+          }));
+          current = next;
+          setDemo(isLast ? null : next);
+        }, INTRO_START + i * INTRO_STEP),
+      );
+    });
+    timers.push(
+      window.setTimeout(() => {
+        if (!touched.current) setReady(true);
+      }, INTRO_START + (steps.length - 1) * INTRO_STEP + INTRO_SETTLE),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
   }, []);
 
   const change = (k: keyof typeof flips, set: (v: string) => void) => (v: string) => {
     touched.current = true;
-    setDemo(null);
+    endIntro();
     set(v);
     bump(k);
   };
@@ -259,7 +280,7 @@ function HeroSentence() {
           type="button"
           onClick={() => {
             touched.current = true;
-            setDemo(null);
+            endIntro();
             setIntent((i) => (i === 'buy' ? 'sell' : 'buy'));
             bump('intent');
           }}
@@ -269,7 +290,7 @@ function HeroSentence() {
         </button>
       </div>
     </form>
-    <ReceiptArt classLevel={cls} board={board} />
+    <ReceiptArt classLevel={cls} board={board} ready={ready} />
     </div>
   );
 }
