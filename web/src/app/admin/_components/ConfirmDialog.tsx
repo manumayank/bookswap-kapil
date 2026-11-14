@@ -88,7 +88,7 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !isPending) onCancel();
       }}
@@ -98,19 +98,16 @@ export default function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="card-flat w-full max-w-md p-6 bg-[var(--card)]"
+        className="card-premium animate-menu w-full max-w-md p-6"
       >
-        <h2 id={titleId} className="text-lg font-extrabold mb-2">
+        <h2 id={titleId} className="mb-2 text-xl">
           {title}
         </h2>
-        {message && <div className="text-sm text-[var(--muted)] mb-4">{message}</div>}
+        {message && <div className="mb-5 text-sm text-muted">{message}</div>}
 
         {withReason && (
           <div className="mb-4">
-            <label
-              htmlFor={reasonId}
-              className="block text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2"
-            >
+            <label htmlFor={reasonId} className="mb-2 block text-sm font-semibold">
               {reasonLabel}
             </label>
             <textarea
@@ -121,7 +118,7 @@ export default function ConfirmDialog({
               placeholder={reasonPlaceholder}
               rows={3}
               maxLength={500}
-              className="w-full"
+              className="w-full resize-y"
               disabled={isPending}
             />
           </div>
@@ -129,25 +126,15 @@ export default function ConfirmDialog({
 
         <InlineError error={error} />
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onCancel}
-            disabled={isPending}
-            className="btn btn-outline h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          >
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button ref={cancelRef} type="button" onClick={onCancel} disabled={isPending} className="btn btn-outline">
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={() => onConfirm(reason.trim() || undefined)}
             disabled={isPending}
-            className={`btn h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed ${
-              tone === 'danger'
-                ? 'bg-[var(--accent)] text-white border-0 hover:opacity-90'
-                : 'btn-primary'
-            }`}
+            className={`btn ${tone === 'danger' ? 'btn-danger' : 'btn-primary'}`}
           >
             {isPending ? pendingLabel || `${confirmLabel}…` : confirmLabel}
           </button>

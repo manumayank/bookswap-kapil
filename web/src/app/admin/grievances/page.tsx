@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import ConfirmDialog from '../_components/ConfirmDialog';
 import ErrorState, { InlineError } from '../_components/ErrorState';
 import StatusBadge from '../_components/StatusBadge';
 import { enumLabel } from '../_components/labels';
+import PageHeader from '@/components/app/PageHeader';
+import EmptyState from '@/components/app/EmptyState';
 
 const STATUS_OPTIONS = ['OPEN', 'RESOLVED', 'DISMISSED'] as const;
 
@@ -22,6 +24,12 @@ type Grievance = {
   createdAt: string;
   user: { id: string; name: string; email: string };
 };
+
+function formatWhen(value: string) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 
 export default function AdminGrievancesPage() {
   const router = useRouter();
@@ -66,33 +74,34 @@ export default function AdminGrievancesPage() {
   if (!user?.isAdmin) return null;
 
   const grievances = data || [];
+  const filterName = statusFilter ? enumLabel(statusFilter).toLowerCase() : '';
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-2">Grievances</h1>
-        <p className="text-[var(--muted)]">User-submitted reports.</p>
-      </div>
+      <PageHeader
+        size="md"
+        title="Grievances"
+        description={
+          statusFilter === 'OPEN' && !isLoading && !isError
+            ? grievances.length
+              ? `${grievances.length} open ${grievances.length === 1 ? 'report' : 'reports'} from parents.`
+              : 'No open reports from parents.'
+            : 'Reports parents send about a deal or another parent.'
+        }
+      />
 
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-        {['', ...STATUS_OPTIONS].map((s) => {
-          const active = statusFilter === s;
-          return (
-            <button
-              key={s || 'all'}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setStatusFilter(s)}
-              className={`h-10 px-4 rounded-full text-sm font-bold border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${
-                active
-                  ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                  : 'border-[var(--card-border)] hover:bg-[var(--muted-extra-light)]'
-              }`}
-            >
-              {s ? enumLabel(s) : 'All'}
-            </button>
-          );
-        })}
+        {['', ...STATUS_OPTIONS].map((s) => (
+          <button
+            key={s || 'all'}
+            type="button"
+            aria-pressed={statusFilter === s}
+            onClick={() => setStatusFilter(s)}
+            className="chip"
+          >
+            {s ? enumLabel(s) : 'All'}
+          </button>
+        ))}
       </div>
 
       {/* Mutation error not tied to the dismiss dialog (e.g. Mark resolved) */}
@@ -103,36 +112,46 @@ export default function AdminGrievancesPage() {
       )}
 
       {isLoading ? (
-        <div className="card-flat p-12 text-center text-[var(--muted)]">Loading grievances...</div>
-      ) : isError ? (
-        <ErrorState error={error} onRetry={() => refetch()} title="Could not load grievances" />
-      ) : grievances.length === 0 ? (
-        <div className="card-flat p-12 text-center">
-          <CheckCircle size={40} className="mx-auto mb-3 text-[var(--secondary)]" />
-          <p className="text-sm text-[var(--muted)]">No grievances in this view.</p>
+        <div className="space-y-3" aria-busy="true">
+          {[0, 1].map((i) => (
+            <div key={i} className="card-flat space-y-2 p-5">
+              <div className="skeleton h-5 w-1/3" />
+              <div className="skeleton h-3 w-1/4" />
+              <div className="skeleton h-4 w-2/3" />
+            </div>
+          ))}
         </div>
+      ) : isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} title="Couldn’t load grievances" />
+      ) : grievances.length === 0 ? (
+        <EmptyState
+          icon={CheckCircle2}
+          title={filterName ? `No ${filterName} grievances` : 'No grievances yet'}
+          description="Reports from parents show up here."
+        />
       ) : (
-        <div className="space-y-3">
+        <ul className="space-y-3">
           {grievances.map((g) => {
             const busy = updateStatus.isPending && updateStatus.variables?.id === g.id;
             return (
-              <div key={g.id} className="card-flat p-4 sm:p-5">
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <p className="text-sm font-black break-words">{g.subject}</p>
+              <li key={g.id} className="card-flat p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="break-words text-lg font-bold tracking-normal">{g.subject}</h2>
                       <StatusBadge status={g.status} />
+                      {g.transactionCode && <span className="badge badge-muted">Deal {g.transactionCode}</span>}
                     </div>
-                    <p className="text-xs text-[var(--muted)] break-words">
-                      From {g.user.name} ({g.user.email}) — {new Date(g.createdAt).toLocaleString()}
-                      {g.transactionCode && ` — Txn: ${g.transactionCode}`}
+                    <p className="mt-1 break-words text-[13px] text-muted">
+                      From <span className="font-semibold text-foreground">{g.user.name}</span> ({g.user.email})
                     </p>
-                    <p className="text-sm mt-3 whitespace-pre-wrap break-words">{g.description}</p>
+                    <p className="text-[13px] text-muted-light">{formatWhen(g.createdAt)}</p>
+                    <p className="mt-3 max-w-[70ch] whitespace-pre-wrap break-words text-sm">{g.description}</p>
                   </div>
-                  <div className="flex sm:flex-col gap-2 shrink-0">
+                  <div className="flex shrink-0 gap-2 sm:flex-col">
                     <button
                       type="button"
-                      className="btn btn-secondary h-10 px-3 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="btn btn-secondary btn-sm flex-1 sm:flex-none"
                       disabled={g.status === 'RESOLVED' || busy}
                       onClick={() => updateStatus.mutate({ id: g.id, status: 'RESOLVED' })}
                     >
@@ -140,7 +159,7 @@ export default function AdminGrievancesPage() {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-outline h-10 px-3 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="btn btn-outline btn-sm flex-1 sm:flex-none"
                       disabled={g.status === 'DISMISSED' || busy}
                       onClick={() => {
                         updateStatus.reset();
@@ -151,17 +170,23 @@ export default function AdminGrievancesPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       <ConfirmDialog
         open={!!dismissTarget}
         title="Dismiss this grievance?"
-        message={dismissTarget ? <>“{dismissTarget.subject}” from {dismissTarget.user.name} will be marked as dismissed.</> : null}
-        confirmLabel="Dismiss"
+        message={
+          dismissTarget ? (
+            <>
+              &ldquo;{dismissTarget.subject}&rdquo; from {dismissTarget.user.name} will be marked as dismissed.
+            </>
+          ) : null
+        }
+        confirmLabel="Dismiss grievance"
         pendingLabel="Dismissing…"
         tone="danger"
         isPending={updateStatus.isPending}

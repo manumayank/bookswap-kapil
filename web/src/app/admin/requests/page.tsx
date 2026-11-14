@@ -3,16 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { ClipboardList, Search } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import ConfirmDialog from '../_components/ConfirmDialog';
 import ErrorState, { InlineError } from '../_components/ErrorState';
 import StatusBadge from '../_components/StatusBadge';
 import { enumLabel } from '../_components/labels';
-
-const thClass =
-  'text-left px-6 py-4 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] whitespace-nowrap';
+import PageHeader from '@/components/app/PageHeader';
+import EmptyState from '@/components/app/EmptyState';
+import Pagination from '@/components/app/Pagination';
+import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
+import { shortDate } from '@/components/app/status';
 
 export default function AdminRequestsPage() {
   const router = useRouter();
@@ -70,28 +72,33 @@ export default function AdminRequestsPage() {
 
   if (!user?.isAdmin) return null;
 
+  const total: number | undefined = pagination?.total;
+
   return (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-2">Requests</h1>
-        <p className="text-[var(--muted)]">
-          {pagination?.total ?? 0} total book requests
-        </p>
-      </div>
+      <PageHeader
+        size="md"
+        title="Requests"
+        description={
+          total == null
+            ? 'Book requests from parents looking for a specific class and board.'
+            : `${total.toLocaleString('en-IN')} book ${total === 1 ? 'request' : 'requests'}. Approve them so matching listings notify the parent.`
+        }
+      />
 
       {/* Search */}
-      <div className="mb-6 relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
+      <div className="relative mb-5">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
-          type="text"
-          placeholder="Search requests..."
+          type="search"
+          placeholder="Search requests"
           aria-label="Search requests"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="w-full md:w-[420px] pl-11"
+          className="w-full pl-11 md:w-[420px]"
         />
       </div>
 
@@ -102,112 +109,84 @@ export default function AdminRequestsPage() {
       )}
 
       {isError ? (
-        <ErrorState error={error} onRetry={() => refetch()} title="Could not load requests" />
+        <ErrorState error={error} onRetry={() => refetch()} title="Couldn’t load requests" />
       ) : (
-        <div className="card-flat overflow-x-auto">
+        <div className={TABLE_WRAP}>
           {isLoading ? (
-            <div className="p-12 text-center text-[var(--muted)]">Loading requests...</div>
+            <div className="p-12 text-center text-sm text-muted">Loading requests…</div>
+          ) : requests.length === 0 ? (
+            <EmptyState
+              bare
+              icon={ClipboardList}
+              title={search ? 'No requests match your search' : 'No requests yet'}
+              description={search ? 'Try a different search term.' : 'Requests appear here when parents ask for a book that isn’t listed.'}
+            />
           ) : (
-            <table className="w-full min-w-[720px]">
+            <table className={TABLE}>
               <thead>
-                <tr className="border-b border-[var(--card-border)]">
-                  <th className={thClass}>User</th>
-                  <th className={thClass}>Class</th>
-                  <th className={thClass}>Board</th>
-                  <th className={thClass}>City</th>
-                  <th className={thClass}>Status</th>
-                  <th className={thClass}>Created</th>
-                  <th className={thClass}>Actions</th>
+                <tr>
+                  <th className={TH}>Parent</th>
+                  <th className={TH}>Class</th>
+                  <th className={TH}>Board</th>
+                  <th className={TH}>City</th>
+                  <th className={TH}>Status</th>
+                  <th className={TH}>Created</th>
+                  <th className={TH_RIGHT}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {requests.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-12 text-[var(--muted)]">
-                      {search ? 'No requests match your search' : 'No requests yet'}
-                    </td>
-                  </tr>
-                ) : (
-                  requests.map((req: any) => {
-                    const approving = approve.isPending && approve.variables === req.id;
-                    const rejecting = reject.isPending && reject.variables?.id === req.id;
-                    return (
-                      <tr key={req.id} className="border-b border-[var(--card-border)] last:border-0 hover:bg-[var(--muted-extra-light)] transition-colors">
-                        <td className="px-6 py-4 text-sm font-bold">{req.user?.name || '-'}</td>
-                        <td className="px-6 py-4 text-sm whitespace-nowrap">{req.class ? `Class ${req.class}` : '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {req.board ? (
-                            <span className="badge badge-primary">{enumLabel(req.board)}</span>
-                          ) : (
-                            <span className="text-sm text-[var(--muted)]">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm">{req.city || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <StatusBadge status={req.status} />
-                        </td>
-                        <td className="px-6 py-4 text-sm text-[var(--muted)] whitespace-nowrap">
-                          {new Date(req.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          {req.status === 'PENDING_APPROVAL' && (
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className="btn btn-secondary h-10 px-3 text-xs whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                                onClick={() => approve.mutate(req.id)}
-                                disabled={approving || rejecting}
-                              >
-                                {approving ? 'Approving…' : 'Approve'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-outline h-10 px-3 text-xs whitespace-nowrap text-[var(--accent)] disabled:opacity-40 disabled:cursor-not-allowed"
-                                onClick={() => {
-                                  reject.reset();
-                                  setRejectTarget({ id: req.id, name: req.user?.name || 'this user' });
-                                }}
-                                disabled={approving || rejecting}
-                              >
-                                {rejecting ? 'Rejecting…' : 'Reject'}
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                {requests.map((req: any) => {
+                  const approving = approve.isPending && approve.variables === req.id;
+                  const rejecting = reject.isPending && reject.variables?.id === req.id;
+                  return (
+                    <tr key={req.id} className={TR}>
+                      <td className={`${TD} font-bold`}>{req.user?.name || '-'}</td>
+                      <td className={`${TD} whitespace-nowrap`}>{req.class ? `Class ${req.class}` : '-'}</td>
+                      <td className={`${TD} whitespace-nowrap`}>
+                        {req.board ? <span className="badge badge-muted">{enumLabel(req.board)}</span> : <span className="text-muted">-</span>}
+                      </td>
+                      <td className={TD}>{req.city || '-'}</td>
+                      <td className={`${TD} whitespace-nowrap`}>
+                        <StatusBadge status={req.status} />
+                      </td>
+                      <td className={`${TD} whitespace-nowrap text-muted`}>{shortDate(req.createdAt)}</td>
+                      <td className={TD_RIGHT}>
+                        {req.status === 'PENDING_APPROVAL' && (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => approve.mutate(req.id)}
+                              disabled={approving || rejecting}
+                            >
+                              {approving ? 'Approving…' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm text-accent"
+                              onClick={() => {
+                                reject.reset();
+                                setRejectTarget({ id: req.id, name: req.user?.name || 'this parent' });
+                              }}
+                              disabled={approving || rejecting}
+                            >
+                              {rejecting ? 'Rejecting…' : 'Reject'}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
       )}
 
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          <button
-            type="button"
-            onClick={() => setPage(Math.max(1, page - 1))}
-            disabled={page === 1}
-            className="btn btn-outline h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <span className="flex items-center px-4 text-sm text-[var(--muted)]">
-            Page {page} of {pagination.totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
-            disabled={page >= pagination.totalPages}
-            className="btn btn-outline h-10 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {pagination && <Pagination page={page} totalPages={pagination.totalPages} onChange={setPage} />}
 
       <ConfirmDialog
         open={!!rejectTarget}
@@ -217,7 +196,7 @@ export default function AdminRequestsPage() {
         pendingLabel="Rejecting…"
         tone="danger"
         withReason
-        reasonPlaceholder="e.g. Duplicate request (shared with the user)"
+        reasonPlaceholder="For example: duplicate request. The parent will see this."
         isPending={reject.isPending}
         error={reject.error}
         onCancel={() => {

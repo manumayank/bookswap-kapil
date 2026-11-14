@@ -4,14 +4,33 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Users, BookOpen, ClipboardList, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
+import {
+  Users,
+  BookOpen,
+  ClipboardList,
+  ArrowLeftRight,
+  CheckCircle2,
+  Hourglass,
+  School,
+  MessageSquareWarning,
+  ChevronRight,
+  Search,
+} from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import ErrorState from '../_components/ErrorState';
+import { enumLabel } from '../_components/labels';
+import PageHeader from '@/components/app/PageHeader';
+import StatTile from '@/components/app/StatTile';
+import SectionHeader from '@/components/app/SectionHeader';
+import ListingThumb from '@/components/app/ListingThumb';
+import { rupees } from '@/components/app/status';
+
+const QUEUE_PREVIEW = 4;
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user, isAuthenticated, hydrate } = useAuthStore();
+  const { user, hydrate } = useAuthStore();
 
   useEffect(() => {
     hydrate();
@@ -40,133 +59,189 @@ export default function AdminDashboard() {
     enabled: !!user?.isAdmin,
   });
 
-  const statCards = [
-    {
-      label: 'Total Users',
-      value: stats?.totalUsers ?? '-',
-      icon: Users,
-      color: 'text-[var(--primary)]',
-      bg: 'bg-[var(--primary)]/10',
+  // Same key as the Listings page so the queue is shared from cache.
+  const {
+    data: pendingData,
+    isLoading: pendingLoading,
+    isError: pendingIsError,
+    error: pendingError,
+    refetch: refetchPending,
+  } = useQuery({
+    queryKey: ['admin-listings-pending'],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/listings/pending');
+      return data;
     },
-    {
-      label: 'Active Listings',
-      value: stats?.activeListings ?? '-',
-      icon: BookOpen,
-      color: 'text-[var(--secondary)]',
-      bg: 'bg-[var(--secondary)]/10',
-    },
-    {
-      label: 'Pending Listings',
-      value: stats?.pendingListings ?? '-',
-      icon: Clock,
-      color: 'text-amber-600 dark:text-amber-400',
-      bg: 'bg-amber-500/15',
-    },
-    {
-      label: 'Pending Requests',
-      value: stats?.pendingRequests ?? '-',
-      icon: ClipboardList,
-      color: 'text-amber-600 dark:text-amber-400',
-      bg: 'bg-amber-500/15',
-    },
-    {
-      label: 'Open Requests',
-      value: stats?.openRequests ?? '-',
-      icon: ClipboardList,
-      color: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-500/15',
-    },
-    {
-      label: 'Deals',
-      value: stats?.deals ?? '-',
-      icon: ShoppingBag,
-      color: 'text-purple-600 dark:text-purple-400',
-      bg: 'bg-purple-500/15',
-    },
-    {
-      label: 'Completed Deals',
-      value: stats?.completedDeals ?? '-',
-      icon: CheckCircle,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bg: 'bg-emerald-500/15',
-    },
-  ];
+    enabled: !!user?.isAdmin,
+  });
 
   if (!user?.isAdmin) return null;
 
+  const pending: any[] = pendingData?.data || [];
+  const pendingListings: number = stats?.pendingListings ?? pending.length;
+  const pendingRequests: number = stats?.pendingRequests ?? 0;
+  const value = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('en-IN') : '-');
+
+  const waiting: string[] = [];
+  if (pendingListings) waiting.push(`${pendingListings} ${pendingListings === 1 ? 'listing' : 'listings'}`);
+  if (pendingRequests) waiting.push(`${pendingRequests} ${pendingRequests === 1 ? 'request' : 'requests'}`);
+  const summary = isLoading
+    ? 'Loading today’s numbers.'
+    : waiting.length
+      ? `${waiting.join(' and ')} waiting for review.`
+      : 'Nothing is waiting for review.';
+
+  const quickLinks = [
+    { href: '/admin/listings', label: 'Review listings', hint: 'Approve or reject new listings', icon: BookOpen, count: pendingListings },
+    { href: '/admin/requests', label: 'Review requests', hint: 'Approve book requests from parents', icon: ClipboardList, count: pendingRequests },
+    { href: '/admin/grievances', label: 'Grievances', hint: 'Reports from parents about deals', icon: MessageSquareWarning },
+    { href: '/admin/users', label: 'Users', hint: 'Search registered parents', icon: Search },
+    { href: '/admin/schools', label: 'Schools', hint: 'Add or edit schools', icon: School },
+  ];
+
   return (
     <div className="animate-fade-in">
-      <div className="mb-10">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-2">Dashboard</h1>
-        <p className="text-[var(--muted)]">Overview of your Sybrary platform</p>
-      </div>
+      <PageHeader size="md" title="Dashboard" description={summary} />
 
       {isError && (
-        <div className="mb-10">
-          <ErrorState error={error} onRetry={() => refetch()} title="Could not load stats" />
+        <div className="mb-8">
+          <ErrorState error={error} onRetry={() => refetch()} title="Couldn’t load stats" />
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="card-flat p-6">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-[var(--radius-md)] ${stat.bg} flex items-center justify-center`}>
-                  <Icon size={22} className={stat.color} aria-hidden="true" />
-                </div>
-                <div>
-                  <div className="text-2xl font-black">
-                    {isLoading ? (
-                      <span className="inline-block w-8 h-6 bg-[var(--muted-extra-light)] rounded animate-pulse" />
-                    ) : (
-                      stat.value
-                    )}
-                  </div>
-                  <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
-                    {stat.label}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      {/* Stat tiles */}
+      <div className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+        <StatTile
+          label="Listings to review"
+          value={value(stats?.pendingListings)}
+          icon={Hourglass}
+          attention={pendingListings > 0}
+          href="/admin/listings"
+          loading={isLoading}
+        />
+        <StatTile
+          label="Requests to review"
+          value={value(stats?.pendingRequests)}
+          icon={ClipboardList}
+          tone="muted"
+          href="/admin/requests"
+          loading={isLoading}
+        />
+        <StatTile label="Active listings" value={value(stats?.activeListings)} icon={BookOpen} tone="secondary" loading={isLoading} />
+        <StatTile label="Open requests" value={value(stats?.openRequests)} icon={ClipboardList} tone="primary" loading={isLoading} />
+        <StatTile label="Users" value={value(stats?.totalUsers)} icon={Users} tone="primary" loading={isLoading} />
+        <StatTile label="Deals" value={value(stats?.deals)} icon={ArrowLeftRight} tone="muted" loading={isLoading} />
+        <StatTile label="Completed deals" value={value(stats?.completedDeals)} icon={CheckCircle2} tone="secondary" loading={isLoading} />
+        {typeof stats?.schools === 'number' && (
+          <StatTile label="Schools" value={value(stats.schools)} icon={School} tone="muted" href="/admin/schools" />
+        )}
       </div>
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link href="/admin/listings" className="card-premium card-interactive p-6 md:p-8 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="w-10 h-10 shrink-0 rounded-[var(--radius-md)] bg-amber-500/15 flex items-center justify-center">
-              <Clock size={20} className="text-amber-600 dark:text-amber-400" aria-hidden="true" />
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        {/* Review queue preview */}
+        <section aria-labelledby="queue">
+          <SectionHeader
+            id="queue"
+            title="Waiting for review"
+            count={pending.length}
+            action={
+              pending.length > 0 ? (
+                <Link href="/admin/listings" className="btn btn-outline btn-sm">
+                  Open queue
+                </Link>
+              ) : undefined
+            }
+          />
+          {pendingLoading ? (
+            <div className="card-flat divide-y divide-card-border" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                  <div className="skeleton h-12 w-12" />
+                  <div className="flex-1 space-y-2">
+                    <div className="skeleton h-4 w-1/2" />
+                    <div className="skeleton h-3 w-1/3" />
+                  </div>
+                </div>
+              ))}
             </div>
-            <h2 className="text-lg font-extrabold group-hover:text-[var(--primary)] transition-colors">
-              Moderation Queue
-            </h2>
-          </div>
-          <p className="text-sm text-[var(--muted)] md:ml-14">
-            Review and approve pending listings before they go live.
-            {stats?.pendingListings > 0 && (
-              <span className="ml-2 badge badge-primary">{stats.pendingListings} pending</span>
-            )}
-          </p>
-        </Link>
+          ) : pendingIsError ? (
+            <ErrorState error={pendingError} onRetry={() => refetchPending()} title="Couldn’t load the review queue" />
+          ) : pending.length === 0 ? (
+            <div className="card-flat flex items-center gap-3 p-5">
+              <CheckCircle2 size={22} className="shrink-0 text-secondary-dark" aria-hidden="true" />
+              <p className="text-sm">
+                <span className="font-semibold">All caught up.</span>{' '}
+                <span className="text-muted">New listings appear here before they go live.</span>
+              </p>
+            </div>
+          ) : (
+            <ul className="card-flat divide-y divide-card-border overflow-hidden">
+              {pending.slice(0, QUEUE_PREVIEW).map((listing) => {
+                const img = listing.images?.[0];
+                return (
+                  <li key={listing.id}>
+                    <Link
+                      href="/admin/listings"
+                      className="flex min-h-[64px] items-center gap-3 px-3 py-2 transition-colors hover:bg-muted-extra-light"
+                    >
+                      <ListingThumb
+                        id={listing.id}
+                        size="sm"
+                        category={listing.category}
+                        imageUrl={typeof img === 'string' ? img : img?.imageUrl ?? img?.url}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">{listing.title}</p>
+                        <p className="truncate text-[13px] text-muted">
+                          {listing.user?.name || listing.seller?.name || 'Unknown seller'}
+                          {listing.class ? `, Class ${listing.class}` : ''}
+                          {listing.board ? `, ${enumLabel(listing.board)}` : ''}
+                        </p>
+                      </div>
+                      {listing.sellingPrice != null && (
+                        <span className="shrink-0 text-sm font-bold">{rupees(listing.sellingPrice)}</span>
+                      )}
+                      <ChevronRight size={18} className="shrink-0 text-muted" aria-hidden="true" />
+                    </Link>
+                  </li>
+                );
+              })}
+              {pending.length > QUEUE_PREVIEW && (
+                <li className="px-4 py-3 text-sm text-muted">
+                  {pending.length - QUEUE_PREVIEW} more in the queue
+                </li>
+              )}
+            </ul>
+          )}
+        </section>
 
-        <Link href="/admin/users" className="card-premium card-interactive p-6 md:p-8 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="w-10 h-10 shrink-0 rounded-[var(--radius-md)] bg-[var(--primary)]/10 flex items-center justify-center">
-              <Users size={20} className="text-[var(--primary)]" />
-            </div>
-            <h2 className="text-lg font-extrabold group-hover:text-[var(--primary)] transition-colors">
-              Manage Users
-            </h2>
-          </div>
-          <p className="text-sm text-[var(--muted)] md:ml-14">
-            View registered users, their activity, and manage accounts.
-          </p>
-        </Link>
+        {/* Quick links */}
+        <section aria-labelledby="shortcuts">
+          <SectionHeader id="shortcuts" title="Go to" />
+          <ul className="card-flat divide-y divide-card-border overflow-hidden">
+            {quickLinks.map((link) => {
+              const Icon = link.icon;
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="flex min-h-[60px] items-center gap-3 px-4 py-2 transition-colors hover:bg-muted-extra-light"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-muted-extra-light text-foreground">
+                      <Icon size={18} aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold">{link.label}</span>
+                      <span className="block truncate text-[13px] text-muted">{link.hint}</span>
+                    </span>
+                    {!!link.count && <span className="badge badge-sun">{link.count}</span>}
+                    <ChevronRight size={18} className="shrink-0 text-muted" aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       </div>
     </div>
   );

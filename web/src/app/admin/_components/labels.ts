@@ -38,23 +38,8 @@ export function enumLabel(value: string | null | undefined): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-/** Status badge colours, readable in both light and dark mode. */
-export const STATUS_BADGE: Record<string, string> = {
-  PENDING_APPROVAL: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  ACTIVE: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  OPEN: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  MATCHED: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  SOLD: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  FULFILLED: 'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-  RESOLVED: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  REJECTED: 'bg-red-500/15 text-red-700 dark:text-red-300',
-  CANCELLED: 'bg-slate-500/15 text-slate-700 dark:text-slate-300',
-  DISMISSED: 'bg-slate-500/15 text-slate-700 dark:text-slate-300',
-};
-
-export function statusBadgeClass(status: string): string {
-  return STATUS_BADGE[status] || 'bg-slate-500/15 text-slate-700 dark:text-slate-300';
-}
+/** Status badge class (pencil-box .badge-* variants; theme-aware via tokens). */
+export { statusBadgeClass } from '@/components/app/status';
 
 /** Extracts the API error message from an axios error. */
 export function errorMessage(err: unknown, fallback = 'Something went wrong. Please try again.'): string {

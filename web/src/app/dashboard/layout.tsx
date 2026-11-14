@@ -3,13 +3,13 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { LayoutGrid, ArrowLeftRight, Plus } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
 const navItems = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/dashboard/deals', label: 'My Deals' },
-  { href: '/sell', label: 'Give Books' },
-  { href: '/browse', label: 'Find Books' },
+  { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
+  { href: '/dashboard/deals', label: 'Deals', icon: ArrowLeftRight },
+  { href: '/sell', label: 'Sell books', icon: Plus },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -32,35 +32,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container pt-8">
-        {/* In-page section tabs (global Navbar stays the only sticky header) */}
-        <nav
-          aria-label="Dashboard sections"
-          className="flex gap-2 overflow-x-auto pb-2 border-b border-card-border"
-        >
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                  active
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted hover:text-foreground hover:bg-muted-extra-light'
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+      <div className="container pt-6 md:pt-8">
+        {/* In-page section chips (the global Navbar stays the only sticky header) */}
+        <nav aria-label="Your account" className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          <ul className="flex gap-2">
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <li key={item.href} className="shrink-0">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    data-active={active ? 'true' : undefined}
+                    className="chip"
+                  >
+                    <Icon size={16} strokeWidth={2.25} aria-hidden="true" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
       </div>
 
-      <main className="container py-8">
-        {children}
-      </main>
+      <main className="container pb-16 pt-8">{children}</main>
     </div>
   );
 }

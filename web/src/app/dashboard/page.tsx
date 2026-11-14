@@ -4,37 +4,51 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { BookOpen, Hourglass, ArrowLeftRight, Wallet, Search, Inbox, Plus, Phone, RotateCw } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { boardLabel, conditionLabel, statusLabel } from '@/lib/labels';
+import { boardLabel, statusLabel } from '@/lib/labels';
+import PageHeader from '@/components/app/PageHeader';
+import StatTile from '@/components/app/StatTile';
+import SectionHeader from '@/components/app/SectionHeader';
+import ListingThumb from '@/components/app/ListingThumb';
+import EmptyState from '@/components/app/EmptyState';
+import InlineAlert from '@/components/app/InlineAlert';
+import { rupees, statusBadgeClass } from '@/components/app/status';
 
-const STATUS_STYLES: Record<string, string> = {
-  PENDING_APPROVAL: 'background: rgba(234, 179, 8, 0.15); color: #a16207;',
-  ACTIVE: 'background: rgba(16, 185, 129, 0.15); color: #047857;',
-  SOLD: 'background: rgba(99, 102, 241, 0.15); color: #4338ca;',
-  REJECTED: 'background: rgba(244, 63, 94, 0.15); color: #be123c;',
-  CANCELLED: 'background: rgba(113, 113, 122, 0.15); color: #52525b;',
-  EXCHANGED: 'background: rgba(99, 102, 241, 0.15); color: #4338ca;',
-};
+function listingTitle(listing: any): string {
+  return listing?.title || listing?.items?.map((i: any) => i.subject).join(', ') || 'Book set';
+}
 
-const DEAL_STATUS_STYLES: Record<string, string> = {
-  PENDING: 'background: rgba(234, 179, 8, 0.15); color: #a16207;',
-  ACCEPTED: 'background: rgba(16, 185, 129, 0.15); color: #047857;',
-  COMPLETED: 'background: rgba(99, 102, 241, 0.15); color: #4338ca;',
-  REJECTED: 'background: rgba(244, 63, 94, 0.15); color: #be123c;',
-  CANCELLED: 'background: rgba(113, 113, 122, 0.15); color: #52525b;',
-};
+function plural(n: number, one: string, many: string) {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
-function StatusBadge({ status, styleMap }: { status: string; styleMap: Record<string, string> }) {
-  const style = styleMap[status] || styleMap['CANCELLED'] || '';
+function LoadError({ what, onRetry }: { what: string; onRetry: () => void }) {
   return (
-    <span className="badge" style={Object.fromEntries(style.split(';').filter(Boolean).map(s => {
-      const [k, v] = s.split(':').map(x => x.trim());
-      const camelKey = k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-      return [camelKey, v];
-    }))}>
-      {statusLabel(status)}
-    </span>
+    <div role="alert" className="card-flat flex flex-wrap items-center justify-between gap-4 p-5">
+      <p className="font-semibold text-accent">Couldn&apos;t load {what}. Check your connection and try again.</p>
+      <button type="button" onClick={onRetry} className="btn btn-outline btn-sm">
+        <RotateCw size={16} aria-hidden="true" />
+        Try again
+      </button>
+    </div>
+  );
+}
+
+function RowsSkeleton({ rows = 2 }: { rows?: number }) {
+  return (
+    <div className="card-flat divide-y divide-card-border" aria-busy="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 p-4">
+          <div className="skeleton h-16 w-16" />
+          <div className="flex-1 space-y-2">
+            <div className="skeleton h-4 w-1/2" />
+            <div className="skeleton h-3 w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -87,7 +101,7 @@ export default function DashboardPage() {
   });
 
   const onActionError = (err: any) =>
-    setActionError(err?.response?.data?.error || 'That action failed. Please try again.');
+    setActionError(err?.response?.data?.error || 'That action didn’t go through. Please try again.');
 
   const acceptMutation = useMutation({
     mutationFn: (matchId: string) => api.post(`/matches/${matchId}/accept`),
@@ -106,257 +120,338 @@ export default function DashboardPage() {
     onError: onActionError,
   });
 
-  const listingsArray = Array.isArray(listings) ? listings : [];
-  const matchesArray = Array.isArray(matches) ? matches : [];
-  const requestsArray = Array.isArray(requests) ? requests : [];
+  const listingsArray: any[] = Array.isArray(listings) ? listings : [];
+  const matchesArray: any[] = Array.isArray(matches) ? matches : [];
+  const requestsArray: any[] = Array.isArray(requests) ? requests : [];
 
-  const myListingsCount = listingsArray.length;
-  const activeDealsCount = matchesArray.filter(
-    (m: any) => m.status === 'PENDING' || m.status === 'ACCEPTED'
-  ).length;
-  const openRequestsCount = requestsArray.filter(
-    (r: any) => r.status === 'OPEN' || r.status === 'MATCHED'
-  ).length;
+  const liveCount = listingsArray.filter((l) => l.status === 'ACTIVE').length;
+  const pendingApprovalCount = listingsArray.filter((l) => l.status === 'PENDING_APPROVAL').length;
+  const openDealsCount = matchesArray.filter((m) => m.status === 'PENDING' || m.status === 'ACCEPTED').length;
+  const openRequestsCount = requestsArray.filter((r) => r.status === 'OPEN' || r.status === 'MATCHED').length;
+
+  const incoming = matchesArray.filter((m) => m.status === 'PENDING' && m.sellerId === user?.id);
+  const outgoing = matchesArray.filter((m) => m.status === 'PENDING' && m.sellerId !== user?.id);
+  const acceptedCount = matchesArray.filter((m) => m.status === 'ACCEPTED').length;
+  const completedSales = matchesArray.filter((m) => m.status === 'COMPLETED' && m.sellerId === user?.id);
+  const earned = completedSales.reduce(
+    (sum, m) => sum + (Number(m.agreedPrice ?? m.listing?.sellingPrice) || 0),
+    0,
+  );
+
+  const firstName = user?.name?.trim().split(/\s+/)[0];
+  const attention: string[] = [];
+  if (incoming.length) attention.push(`${plural(incoming.length, 'buyer is', 'buyers are')} waiting for your reply`);
+  if (pendingApprovalCount)
+    attention.push(`${plural(pendingApprovalCount, 'listing is', 'listings are')} waiting for approval`);
+  const summary =
+    listingsLoading || matchesLoading
+      ? 'Checking your listings and deals.'
+      : attention.length
+        ? `${attention.join(' and ')}.`.replace(/^./, (c) => c.toUpperCase())
+        : 'Nothing needs your attention right now.';
+
+  const statsLoading = listingsLoading || matchesLoading;
 
   return (
     <div className="animate-fade-in">
-      {/* Welcome Header */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>
-          Welcome{user ? `, ${user.name}` : ''}!
-        </h1>
-        <p style={{ color: 'var(--muted)', fontSize: '0.95rem' }}>
-          Manage your book listings, deals, and requests from here.
-        </p>
+      <PageHeader
+        title={firstName ? `Hi ${firstName}` : 'Your account'}
+        description={summary}
+        actions={
+          <>
+            <Link href="/sell" className="btn btn-primary">
+              <Plus size={18} aria-hidden="true" />
+              List your books
+            </Link>
+            <Link href="/browse" className="btn btn-outline">
+              <Search size={18} aria-hidden="true" />
+              Find books
+            </Link>
+          </>
+        }
+      />
+
+      {/* Stat tiles */}
+      <div className="mb-10 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+        <StatTile label="Listings live" value={liveCount} icon={BookOpen} tone="secondary" loading={statsLoading} />
+        <StatTile
+          label="Pending approval"
+          value={pendingApprovalCount}
+          icon={Hourglass}
+          tone="muted"
+          loading={statsLoading}
+        />
+        <StatTile
+          label="Open deals"
+          value={openDealsCount}
+          icon={ArrowLeftRight}
+          tone="primary"
+          attention={incoming.length > 0}
+          href="/dashboard/deals"
+          loading={statsLoading}
+        />
+        {earned > 0 ? (
+          <StatTile label="Earned from sales" value={rupees(earned)} icon={Wallet} tone="secondary" />
+        ) : (
+          <StatTile label="Open book requests" value={openRequestsCount} icon={Search} tone="muted" loading={statsLoading} />
+        )}
       </div>
 
-      {/* Quick Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-        <div className="card-flat" style={{ padding: '1.5rem' }}>
-          <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--primary)' }}>
-            {myListingsCount}
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            My Listings
-          </div>
-        </div>
-        <div className="card-flat" style={{ padding: '1.5rem' }}>
-          <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--secondary)' }}>
-            {activeDealsCount}
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Active Deals
-          </div>
-        </div>
-        <div className="card-flat" style={{ padding: '1.5rem' }}>
-          <div style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--accent)' }}>
-            {openRequestsCount}
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Open Requests
-          </div>
-        </div>
-      </div>
+      {actionError && <InlineAlert onDismiss={() => setActionError('')}>{actionError}</InlineAlert>}
 
-      {/* Quick Action Buttons */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2.5rem' }}>
-        <Link href="/sell" className="btn btn-primary">
-          Sell a Book
-        </Link>
-        <Link href="/browse" className="btn btn-outline">
-          Browse Books
-        </Link>
-        <Link href="/need" className="btn btn-outline">
-          Request a Book
-        </Link>
-      </div>
+      {/* Needs your reply: incoming deal requests come first */}
+      {(matchesLoading || matchesError || incoming.length > 0) && (
+        <section aria-labelledby="needs-reply" className="mb-12">
+          <SectionHeader
+            id="needs-reply"
+            title="Needs your reply"
+            count={incoming.length}
+            description="Parents who want to buy your books. Accept to share contact details with them."
+          />
+          {matchesLoading ? (
+            <RowsSkeleton />
+          ) : matchesError ? (
+            <LoadError what="your deals" onRetry={() => refetchMatches()} />
+          ) : (
+            <ul className="card-premium divide-y-2 divide-edge overflow-hidden">
+              {incoming.map((match) => {
+                const isConfirming = confirming?.id === match.id;
+                const accepting = acceptMutation.isPending && acceptMutation.variables === match.id;
+                const rejecting = rejectMutation.isPending && rejectMutation.variables === match.id;
+                return (
+                  <li key={match.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                      <ListingThumb
+                        id={match.listing?.id || match.id}
+                        imageUrl={match.listing?.images?.[0]?.imageUrl}
+                        category={match.listing?.category}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">{listingTitle(match.listing)}</p>
+                        <p className="text-sm text-muted">
+                          {match.buyer?.name || 'A parent'} offered{' '}
+                          <span className="font-bold text-foreground">
+                            {rupees(match.agreedPrice ?? match.listing?.sellingPrice) || 'your price'}
+                          </span>
+                        </p>
+                        {match.code && <p className="text-[13px] text-muted-light">Deal {match.code}</p>}
+                      </div>
+                    </div>
 
-      {/* My Listings Section */}
-      <section style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.35rem' }}>My Listings</h2>
-          <Link href="/sell" style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}>
-            + New Listing
-          </Link>
-        </div>
+                    {isConfirming ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">Reject this buyer?</span>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm text-accent"
+                          onClick={() => rejectMutation.mutate(match.id)}
+                          disabled={rejecting}
+                        >
+                          {rejecting ? 'Rejecting…' : 'Yes, reject'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setConfirming(null)}
+                          disabled={rejecting}
+                        >
+                          Keep it
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm flex-1 sm:flex-none"
+                          onClick={() => acceptMutation.mutate(match.id)}
+                          disabled={accepting || rejecting}
+                        >
+                          {accepting ? 'Accepting…' : 'Accept'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm flex-1 text-accent sm:flex-none"
+                          onClick={() => setConfirming({ id: match.id, action: 'reject' })}
+                          disabled={accepting || rejecting}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {acceptedCount > 0 && (
+        <Link
+          href="/dashboard/deals"
+          className="card-soft mb-12 flex items-center gap-3 p-4 font-semibold transition-colors hover:bg-card"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-secondary text-ink">
+            <Phone size={18} aria-hidden="true" />
+          </span>
+          <span className="flex-1">
+            Contact details are ready for {plural(acceptedCount, 'accepted deal', 'accepted deals')}.
+            <span className="block text-sm font-normal text-muted">Open your deals to call or message the other parent.</span>
+          </span>
+          <span className="hidden text-sm text-primary underline decoration-2 underline-offset-4 sm:inline">See deals</span>
+        </Link>
+      )}
+
+      {/* Your listings */}
+      <section aria-labelledby="your-listings" className="mb-12">
+        <SectionHeader
+          id="your-listings"
+          title="Your listings"
+          count={listingsArray.length}
+          action={
+            listingsArray.length > 0 ? (
+              <Link href="/sell" className="btn btn-outline btn-sm">
+                <Plus size={16} aria-hidden="true" />
+                New listing
+              </Link>
+            ) : undefined
+          }
+        />
 
         {listingsLoading ? (
-          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
-            Loading listings...
-          </div>
+          <RowsSkeleton rows={3} />
         ) : listingsError ? (
-          <div role="alert" className="card-flat p-6 flex flex-wrap items-center justify-between gap-4 border-accent/30">
-            <p className="text-accent font-semibold">Couldn&apos;t load your listings.</p>
-            <button type="button" onClick={() => refetchListings()} className="btn btn-outline h-10 text-sm">
-              Try again
-            </button>
-          </div>
+          <LoadError what="your listings" onRetry={() => refetchListings()} />
         ) : listingsArray.length === 0 ? (
-          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
-            No listings yet.{' '}
-            <Link href="/sell" style={{ color: 'var(--primary)', fontWeight: 600 }}>
-              Create your first listing
-            </Link>
-          </div>
+          <EmptyState
+            icon={BookOpen}
+            title="You haven’t listed any books yet"
+            description="Add last year’s textbooks with a price. We check each listing before it goes live."
+            action={
+              <Link href="/sell" className="btn btn-primary">
+                List your books
+              </Link>
+            }
+          />
         ) : (
-          <div className="grid-marketplace">
-            {listingsArray.map((listing: any) => {
-              const title =
-                listing.title ||
-                listing.items?.map((i: any) => i.subject).join(', ') ||
-                'Book Set';
+          <ul className="card-flat divide-y divide-card-border overflow-hidden">
+            {listingsArray.map((listing) => {
+              const viewable = listing.status === 'ACTIVE' || listing.status === 'SOLD';
               return (
-                <div key={listing.id} className="card-flat" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, flex: 1, marginRight: '0.5rem' }}>
-                      {title}
-                    </h3>
-                    <StatusBadge status={listing.status} styleMap={STATUS_STYLES} />
-                  </div>
-                  {listing.sellingPrice != null && (
-                    <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--primary)' }}>
-                      ₹{listing.sellingPrice}
+                <li key={listing.id} className="flex items-center gap-4 p-4">
+                  <ListingThumb id={listing.id} imageUrl={listing.images?.[0]?.imageUrl} category={listing.category} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold">{listingTitle(listing)}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className={`badge ${statusBadgeClass(listing.status)}`}>{statusLabel(listing.status)}</span>
+                      {listing.class && <span className="badge badge-muted">Class {listing.class}</span>}
+                      {listing.board && <span className="badge badge-muted">{boardLabel(listing.board)}</span>}
                     </div>
-                  )}
-                  <div style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>
-                    {conditionLabel(listing.condition) || 'N/A'}
-                    {listing.board && ` · ${boardLabel(listing.board)}`}
-                    {listing.class && ` · Class ${listing.class}`}
                   </div>
-                </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    {listing.sellingPrice != null && (
+                      <span className="text-lg font-extrabold">{rupees(listing.sellingPrice)}</span>
+                    )}
+                    {viewable && (
+                      <Link href={`/listings/${listing.id}`} className="btn btn-outline btn-sm">
+                        View
+                      </Link>
+                    )}
+                  </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </section>
 
-      {/* My Deals Section */}
-      <section style={{ marginBottom: '2.5rem' }}>
-        <h2 style={{ fontSize: '1.35rem', marginBottom: '1.25rem' }}>My Deals</h2>
-
-        {actionError && (
-          <div role="alert" className="mb-4 p-4 rounded-xl bg-accent/10 text-accent font-medium flex items-start justify-between gap-4">
-            <span>{actionError}</span>
-            <button type="button" onClick={() => setActionError('')} aria-label="Dismiss error" className="font-black px-2">
-              &times;
-            </button>
-          </div>
-        )}
-
-        {matchesLoading ? (
-          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
-            Loading deals...
-          </div>
-        ) : matchesError ? (
-          <div role="alert" className="card-flat p-6 flex flex-wrap items-center justify-between gap-4 border-accent/30">
-            <p className="text-accent font-semibold">Couldn&apos;t load your deals.</p>
-            <button type="button" onClick={() => refetchMatches()} className="btn btn-outline h-10 text-sm">
-              Try again
-            </button>
-          </div>
-        ) : matchesArray.length === 0 ? (
-          <div className="card-flat" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
-            No deals yet. Create listings or browse books to get matched!
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {matchesArray.map((match: any) => {
-              const isGiver = match.sellerId === user?.id;
-              const role = isGiver ? 'Seller' : 'Buyer';
-              const listingTitle =
-                match.listing?.title ||
-                match.listing?.items?.map((i: any) => i.subject).join(', ') ||
-                'Book Set';
-
-              return (
-                <div key={match.id} className="card-flat" style={{ padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <span className="badge badge-primary">{role}</span>
-                        <StatusBadge status={match.status} styleMap={DEAL_STATUS_STYLES} />
-                      </div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.5rem' }}>
-                        {listingTitle}
-                      </h3>
-                      <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                        Transaction: <code>{match.code || '—'}</code>
-                      </p>
-                      {match.agreedPrice != null && (
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--secondary)', marginTop: '0.25rem' }}>
-                          ₹{match.agreedPrice}
-                        </div>
-                      )}
-                      <div style={{ color: 'var(--muted)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                        {isGiver ? 'Selling to' : 'Buying from'}{' '}
-                        {(isGiver ? match.buyer?.name : match.seller?.name) || 'Unknown'}
+      {/* Requests the user sent to sellers */}
+      {!matchesLoading && !matchesError && (
+        <section aria-labelledby="your-requests">
+          <SectionHeader
+            id="your-requests"
+            title="Waiting on sellers"
+            count={outgoing.length}
+            action={
+              <Link href="/dashboard/deals" className="btn btn-ghost btn-sm text-primary">
+                All deals
+              </Link>
+            }
+          />
+          {outgoing.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title="No requests waiting"
+              description="When you ask to buy a listing, it shows here until the seller replies."
+              action={
+                <Link href="/browse" className="btn btn-outline">
+                  Find books
+                </Link>
+              }
+            />
+          ) : (
+            <ul className="card-flat divide-y divide-card-border overflow-hidden">
+              {outgoing.map((match) => {
+                const isConfirming = confirming?.id === match.id;
+                const cancelling = rejectMutation.isPending && rejectMutation.variables === match.id;
+                return (
+                  <li key={match.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                      <ListingThumb
+                        id={match.listing?.id || match.id}
+                        imageUrl={match.listing?.images?.[0]?.imageUrl}
+                        category={match.listing?.category}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">{listingTitle(match.listing)}</p>
+                        <p className="text-sm text-muted">
+                          Your offer{' '}
+                          <span className="font-bold text-foreground">
+                            {rupees(match.agreedPrice ?? match.listing?.sellingPrice) || '-'}
+                          </span>
+                          {match.seller?.name ? ` to ${match.seller.name}` : ''}
+                        </p>
                       </div>
                     </div>
-
-                    {/* Action Buttons */}
-                    {match.status === 'PENDING' && confirming?.id === match.id && (
+                    <span className={`badge ${statusBadgeClass(match.status)} self-start sm:self-center`}>
+                      {statusLabel(match.status)}
+                    </span>
+                    {isConfirming ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold">
-                          {confirming?.action === 'reject' ? 'Reject this deal?' : 'Cancel this deal?'}
-                        </span>
+                        <span className="text-sm font-semibold">Cancel this request?</span>
                         <button
                           type="button"
-                          className="btn btn-outline"
-                          style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
+                          className="btn btn-outline btn-sm text-accent"
                           onClick={() => rejectMutation.mutate(match.id)}
-                          disabled={rejectMutation.isPending}
+                          disabled={cancelling}
                         >
-                          {rejectMutation.isPending ? 'Working...' : 'Yes, confirm'}
+                          {cancelling ? 'Cancelling…' : 'Yes, cancel'}
                         </button>
                         <button
                           type="button"
-                          className="btn btn-outline"
-                          style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px' }}
+                          className="btn btn-ghost btn-sm"
                           onClick={() => setConfirming(null)}
-                          disabled={rejectMutation.isPending}
+                          disabled={cancelling}
                         >
-                          Keep
+                          Keep it
                         </button>
                       </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => setConfirming({ id: match.id, action: 'cancel' })}
+                      >
+                        Cancel request
+                      </button>
                     )}
-                    {match.status === 'PENDING' && confirming?.id !== match.id && (
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        {isGiver ? (
-                          <>
-                            <button
-                              className="btn btn-secondary"
-                              style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px' }}
-                              onClick={() => acceptMutation.mutate(match.id)}
-                              disabled={acceptMutation.isPending}
-                            >
-                              Accept
-                            </button>
-                            <button
-                              className="btn btn-outline"
-                              style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
-                              onClick={() => setConfirming({ id: match.id, action: 'reject' })}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            className="btn btn-outline"
-                            style={{ height: '40px', fontSize: '0.8125rem', padding: '0 16px', color: 'var(--accent)' }}
-                            onClick={() => setConfirming({ id: match.id, action: 'cancel' })}
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
 }

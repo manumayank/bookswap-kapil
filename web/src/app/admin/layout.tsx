@@ -10,33 +10,30 @@ import {
   School,
   ClipboardList,
   LogOut,
-  AlertTriangle
+  MessageSquareWarning,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/listings', label: 'Listings', icon: BookOpen },
   { href: '/admin/requests', label: 'Requests', icon: ClipboardList },
+  { href: '/admin/grievances', label: 'Grievances', icon: MessageSquareWarning },
+  { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/schools', label: 'Schools', icon: School },
-  { href: '/admin/grievances', label: 'Grievances', icon: AlertTriangle },
 ];
 
-const focusRing =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-light)] focus-visible:ring-offset-2';
+// Height of the global Navbar (72px row + 2px bottom border).
+const NAV_OFFSET = 'top-[74px]';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col md:flex-row">
-      {/* Mobile nav: horizontal pill row, sticks under the public Navbar */}
-      <nav
-        aria-label="Admin"
-        className="md:hidden sticky top-20 z-40 bg-slate-900 text-white border-b border-white/10"
-      >
-        <ul className="flex gap-2 overflow-x-auto px-4 py-2">
+    <div className="flex min-h-screen flex-col bg-background text-foreground md:flex-row">
+      {/* Phones and tablets: horizontal chip row under the Navbar */}
+      <nav aria-label="Admin" className={`sticky ${NAV_OFFSET} z-40 border-b-2 border-edge bg-background md:hidden`}>
+        <ul className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]">
           {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -45,44 +42,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-2 h-10 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ring-offset-slate-900 ${focusRing} ${
-                    active
-                      ? 'bg-[var(--primary-dark)] text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                  }`}
+                  data-active={active ? 'true' : undefined}
+                  className="chip whitespace-nowrap"
                 >
-                  <Icon size={16} aria-hidden="true" />
+                  <Icon size={16} strokeWidth={2.25} aria-hidden="true" />
                   {item.label}
                 </Link>
               </li>
             );
           })}
           <li className="shrink-0">
-            <Link
-              href="/"
-              className={`flex items-center gap-2 h-10 px-4 rounded-full text-sm font-semibold whitespace-nowrap text-slate-300 hover:bg-white/10 hover:text-white transition-colors ring-offset-slate-900 ${focusRing}`}
-            >
+            <Link href="/" className="chip whitespace-nowrap border-transparent bg-transparent text-muted">
               <LogOut size={16} aria-hidden="true" />
-              Exit
+              Leave admin
             </Link>
           </li>
         </ul>
       </nav>
 
       {/* Sidebar (md and up) */}
-      <aside className="hidden md:flex md:sticky md:top-20 md:h-[calc(100vh-5rem)] w-64 shrink-0 bg-slate-900 text-white flex-col">
-        <div className="p-4 border-b border-white/10">
-          <Link
-            href="/admin/dashboard"
-            aria-label="Sybrary admin"
-            className={`flex items-center gap-2 rounded-lg ring-offset-slate-900 ${focusRing}`}
-          >
-            <Logo variant="short" height={32} theme="dark" />
-            <span className="text-lg font-bold">Sybrary <span className="text-slate-400 font-semibold">Admin</span></span>
+      <aside
+        className={`hidden w-60 shrink-0 flex-col border-r-2 border-edge bg-card md:sticky md:flex ${NAV_OFFSET} md:h-[calc(100vh-74px)]`}
+      >
+        <div className="px-4 pb-4 pt-5">
+          <Link href="/admin/dashboard" aria-label="Sybrary admin home" className="flex items-center gap-3 rounded-md">
+            <Logo variant="short" height={36} theme="auto" />
+            <span className="leading-tight">
+              <span className="block text-base font-extrabold">Sybrary</span>
+              <span className="block text-[13px] font-semibold text-muted">Admin</span>
+            </span>
           </Link>
         </div>
 
-        <nav aria-label="Admin" className="flex-1 p-4 overflow-y-auto">
+        <nav aria-label="Admin" className="flex-1 overflow-y-auto px-3">
           <ul className="space-y-1">
             {navItems.map((item) => {
               const active = isActive(item.href);
@@ -92,13 +84,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Link
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex items-center gap-3 px-4 h-11 rounded-lg font-medium transition-colors ring-offset-slate-900 ${focusRing} ${
+                    className={`flex h-11 items-center gap-3 rounded-md border-2 px-3 text-[15px] font-semibold transition-colors ${
                       active
-                        ? 'bg-[var(--primary-dark)] text-white'
-                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        ? 'border-edge bg-sun text-ink shadow-pop-sm'
+                        : 'border-transparent text-muted hover:bg-muted-extra-light hover:text-foreground'
                     }`}
                   >
-                    <Icon size={20} aria-hidden="true" />
+                    <Icon size={18} strokeWidth={2.25} aria-hidden="true" />
                     {item.label}
                   </Link>
                 </li>
@@ -107,20 +99,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="border-t-2 border-card-border p-3">
           <Link
             href="/"
-            className={`flex items-center gap-3 px-4 h-11 rounded-lg font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors ring-offset-slate-900 ${focusRing}`}
+            className="flex h-11 items-center gap-3 rounded-md border-2 border-transparent px-3 text-[15px] font-semibold text-muted transition-colors hover:bg-muted-extra-light hover:text-foreground"
           >
-            <LogOut size={20} aria-hidden="true" />
-            Exit Admin
+            <LogOut size={18} aria-hidden="true" />
+            Leave admin
           </Link>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 min-w-0 p-4 md:p-8">
-        {children}
+      <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8 lg:px-10">
+        <div className="mx-auto max-w-[1160px]">{children}</div>
       </main>
     </div>
   );
