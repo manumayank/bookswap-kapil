@@ -87,10 +87,12 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   const palette = () => ({
     ink: new THREE.Color(css('--edge') || '#17153a'),
     card: new THREE.Color(css('--card') || '#f7f7fa'),
+    // machine body: its own colour so it reads as a solid object on the dark page
+    body: new THREE.Color(isDark() ? '#3d3c74' : (css('--card') || '#f7f7fa')),
     sun: new THREE.Color('#ffc93c'),
     green: new THREE.Color('#12a874'),
     rose: new THREE.Color('#ff8fa3'),
-    key: new THREE.Color(isDark() ? '#2c2b57' : '#dfdee7'),
+    key: new THREE.Color(isDark() ? '#56558f' : '#dfdee7'),
     sunRoll: new THREE.Color(isDark() ? '#e6b64a' : '#ffc93c'),
     lcd: new THREE.Color('#17153a'),
   });
@@ -106,7 +108,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   machine.position.set(-14, 6, 0);
   scene.add(machine);
   const BASE_W = 380, BASE_H = 54, BASE_D = 250, BASE_Y = -262;
-  const base = inked(new RoundedBoxGeometry(BASE_W, BASE_H, BASE_D, 6, 18), 'card', 2.6);
+  const base = inked(new RoundedBoxGeometry(BASE_W, BASE_H, BASE_D, 6, 18), 'body', 2.6);
   base.position.set(0, BASE_Y, 0);
   machine.add(base);
   for (const [fx, fz] of [[-160, -100], [160, -100], [-160, 100], [160, 100]]) {
@@ -116,7 +118,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   }
   const HOUSE_H = 120, HOUSE_D = 110, HOUSE_Z = -BASE_D / 2 + HOUSE_D / 2 + 6;
   const HOUSE_Y = BASE_Y + BASE_H / 2 + HOUSE_H / 2 - 4;
-  const house = inked(new RoundedBoxGeometry(BASE_W - 6, HOUSE_H, HOUSE_D, 6, 18), 'card', 2.6);
+  const house = inked(new RoundedBoxGeometry(BASE_W - 6, HOUSE_H, HOUSE_D, 6, 18), 'body', 2.6);
   house.position.set(0, HOUSE_Y, HOUSE_Z);
   machine.add(house);
   const roll = inked(new THREE.CylinderGeometry(44, 44, BASE_W - 40, 40), 'sunRoll', 2.2);
@@ -170,7 +172,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   deck.position.set(0, BASE_Y + BASE_H / 2 + 6, HOUSE_FRONT + DECK_D / 2 + 2);
   deck.rotation.x = 0.22;
   machine.add(deck);
-  deck.add(inked(new RoundedBoxGeometry(BASE_W - 20, 14, DECK_D, 4, 6), 'card', 2.2));
+  deck.add(inked(new RoundedBoxGeometry(BASE_W - 20, 14, DECK_D, 4, 6), 'body', 2.2));
   const LEGENDS = ['7', '8', '9', 'C', '4', '5', '6', '×', '1', '2', '3', '−', '0', '00', '.', '='];
   const keyColor = (l: string) => (l === 'C' ? 'rose' : l === '=' ? 'green' : l === '×' || l === '−' ? 'sun' : 'key');
   const keys: THREE.Group[] = [];
@@ -534,8 +536,8 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     toonMats.forEach((m) => m.color.copy(pal[m.userData.key]));
     outlineMats.forEach((m) => m.uniforms.color.value.copy(pal.ink));
     // dark mode: softer light so the machine sits in the page instead of glowing
-    hemi.intensity = isDark() ? 0.95 : 1.15;
-    sunLight.intensity = isDark() ? 1.15 : 1.5;
+    hemi.intensity = isDark() ? 1.2 : 1.15;
+    sunLight.intensity = isDark() ? 1.6 : 1.5;
     paperTint = isDark() ? '#efeadf' : '#fffdf6';
     lastRows = -1;
     drawLcd(lcdValue);
