@@ -34,18 +34,18 @@
   --sun: #ffc93c;
 
   /* Ink + paper */
-  --background-rgb: 255 253 246;
-  --background: #fffdf6;
+  --background-rgb: 238 236 246;
+  --background: #eeecf6;
   --foreground-rgb: 23 21 58;
   --foreground: #17153a;
-  --card-rgb: 255 255 255;
-  --card: #ffffff;
+  --card-rgb: 248 247 252;
+  --card: #f8f7fc;
   --muted-rgb: 77 74 114;
   --muted: #4d4a72;
   --muted-light-rgb: 98 95 136;
   --muted-light: #625f88;
-  --muted-extra-light-rgb: 243 241 255;
-  --muted-extra-light: #f3f1ff;
+  --muted-extra-light-rgb: 226 223 241;
+  --muted-extra-light: #e2dff1;
 
   /* Lines and depth: thick ink outlines with hard offset shadows */
   --edge-rgb: 23 21 58;
@@ -60,7 +60,7 @@
   --badge-primary-text: #3730a3;
   --badge-secondary-text: #0b6b4a;
 
-  --glass-bg: rgba(255, 253, 246, 0.9);
+  --glass-bg: rgba(238, 236, 246, 0.9);
   --glass-border: var(--edge);
   --glass-shadow: none;
 
@@ -99,31 +99,31 @@ html.dark {
   --sun-rgb: 255 214 102;
   --sun: #ffd666;
 
-  --background-rgb: 20 18 58;
-  --background: #14123a;
+  --background-rgb: 37 34 76;
+  --background: #25224c;
   --foreground-rgb: 255 253 246;
   --foreground: #fffdf6;
-  --card-rgb: 31 28 79;
-  --card: #1f1c4f;
+  --card-rgb: 47 43 92;
+  --card: #2f2b5c;
   --muted-rgb: 206 202 240;
   --muted: #cecaf0;
   --muted-light-rgb: 172 167 218;
   --muted-light: #aca7da;
-  --muted-extra-light-rgb: 42 38 98;
-  --muted-extra-light: #2a2662;
+  --muted-extra-light-rgb: 58 53 108;
+  --muted-extra-light: #3a356c;
 
   --edge-rgb: 217 213 255;
   --edge: #d9d5ff;
-  --drop: #07061a;
+  --drop: #13112f;
   --card-border: rgba(217, 213, 255, 0.16);
   --border: rgba(217, 213, 255, 0.3);
 
-  --surface-inverse-rgb: 11 10 38;
+  --surface-inverse-rgb: 22 20 52;
 
   --badge-primary-text: #c7c9ff;
   --badge-secondary-text: #7cf0c6;
 
-  --glass-bg: rgba(20, 18, 58, 0.9);
+  --glass-bg: rgba(37, 34, 76, 0.9);
 }
 
 * {
