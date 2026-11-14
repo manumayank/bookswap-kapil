@@ -284,7 +284,7 @@ function HeroSentence() {
             setIntent((i) => (i === 'buy' ? 'sell' : 'buy'));
             bump('intent');
           }}
-          className="btn btn-ghost"
+          className="btn btn-outline btn-lg"
         >
           {intent === 'buy' ? 'I have books to pass on' : 'I need books instead'}
         </button>
