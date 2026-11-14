@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
 export type SelectOption = { value: string; label: string; hint?: string; disabled?: boolean };
@@ -111,16 +112,33 @@ export default function Select({
     close();
   };
 
-  // Flip upward when there isn't room below; focus the list when it opens.
+  // The menu is rendered in a portal (so no parent stacking context or overflow
+  // can cover or clip it) and positioned against the trigger. It flips upward
+  // when there isn't room below, and follows the trigger on scroll/resize.
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left?: number; right?: number; width: number } | null>(null);
+  const place = useCallback(() => {
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const below = window.innerHeight - r.bottom;
+    const up = below < 300 && r.top > below;
+    setDropUp(up);
+    setPos({
+      ...(up ? { bottom: window.innerHeight - r.top + 8 } : { top: r.bottom + 8 }),
+      ...(align === 'right' ? { right: window.innerWidth - r.right } : { left: r.left }),
+      width: r.width,
+    });
+  }, [align]);
   useLayoutEffect(() => {
     if (!open) return;
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (r) {
-      const below = window.innerHeight - r.bottom;
-      setDropUp(below < 300 && r.top > below);
-    }
+    place();
     listRef.current?.focus({ preventScroll: true });
-  }, [open]);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open, place]);
 
   // Keep the active option in view.
   useEffect(() => {
@@ -133,7 +151,9 @@ export default function Select({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) close(false);
+      const t = e.target as Node;
+      if (wrapRef.current?.contains(t) || listRef.current?.contains(t)) return;
+      close(false);
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -228,7 +248,7 @@ export default function Select({
     'focus-visible:outline-none focus-visible:border-edge focus-visible:shadow-[3px_3px_0_0_var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
-    <div ref={wrapRef} className={`relative ${open ? 'z-[60]' : ''} ${renderTrigger ? 'inline-block' : 'block'} ${className}`}>
+    <div ref={wrapRef} className={`relative ${renderTrigger ? 'inline-block' : 'block'} ${className}`}>
       {name && <input type="hidden" name={name} value={value} required={required} />}
       <button
         ref={triggerRef}
@@ -262,7 +282,7 @@ export default function Select({
         )}
       </button>
 
-      {open && (
+      {open && pos && createPortal(
         <ul
           ref={listRef}
           id={listId}
@@ -272,13 +292,17 @@ export default function Select({
           aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
           onKeyDown={onListKey}
           style={{
+            position: 'fixed',
+            top: pos.top,
+            bottom: pos.bottom,
+            left: pos.left,
+            right: pos.right,
+            width: renderTrigger ? undefined : pos.width,
             minWidth: menuMinWidth ?? (renderTrigger ? 180 : undefined),
             gridTemplateColumns: columns > 1 ? `repeat(${columns}, minmax(0, 1fr))` : undefined,
             transformOrigin: dropUp ? 'bottom' : 'top',
           }}
-          className={`absolute z-50 ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'} ${
-            align === 'right' ? 'right-0' : 'left-0'
-          } ${renderTrigger ? '' : 'w-full'} max-h-72 overflow-auto card-premium p-1.5 animate-menu outline-none text-base font-normal tracking-normal leading-normal text-foreground ${
+          className={`z-[70] max-h-72 overflow-auto card-premium p-1.5 animate-menu outline-none text-base font-normal tracking-normal leading-normal text-foreground ${
             columns > 1 ? 'grid gap-1' : 'flex flex-col gap-0.5'
           }`}
         >
@@ -314,7 +338,8 @@ export default function Select({
               </li>
             );
           })}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );

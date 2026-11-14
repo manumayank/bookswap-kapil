@@ -8,7 +8,7 @@ import { BookOpen, ChevronDown, Leaf, Lock, PencilRuler, Recycle, Wallet } from 
 import BookCard from '@/components/BookCard';
 import ErrorState from '@/components/ui/ErrorState';
 import Reveal from '@/components/Reveal';
-import ReceiptArt from '@/components/home/ReceiptArt';
+import HeroMachine from '@/components/home/HeroMachine';
 import Select from '@/components/ui/Select';
 import api from '@/lib/api';
 import { boardLabel } from '@/lib/labels';
@@ -290,7 +290,7 @@ function HeroSentence() {
         </button>
       </div>
     </form>
-    <ReceiptArt classLevel={cls} board={board} ready={ready} />
+    <HeroMachine classLevel={cls} board={board} ready={ready} />
     </div>
   );
 }
