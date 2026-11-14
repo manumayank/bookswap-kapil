@@ -39,7 +39,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.localClippingEnabled = true;
   const scene = new THREE.Scene();
-  const VIEW_H = 680;
+  const VIEW_H = 712;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -2000, 2000);
   camera.position.set(0, 0, 800);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x9a98c0, 1.15));
@@ -101,7 +101,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
 
   // ---------- machine ----------
   const machine = new THREE.Group();
-  machine.position.y = -12;
+  machine.position.set(-14, 6, 0);
   scene.add(machine);
   const BASE_W = 380, BASE_H = 54, BASE_D = 250, BASE_Y = -262;
   const base = inked(new RoundedBoxGeometry(BASE_W, BASE_H, BASE_D, 6, 18), 'card', 2.6);
@@ -154,7 +154,8 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   const lcdFace = new THREE.Mesh(track(new THREE.PlaneGeometry(186, 66)), track(new THREE.MeshBasicMaterial({ map: lcdTex })));
   lcdFace.position.set(-70, HOUSE_Y - 6, HOUSE_FRONT + 10.5);
   machine.add(lcdFace);
-  const led = new THREE.Mesh(track(new THREE.SphereGeometry(6, 16, 12)), track(new THREE.MeshBasicMaterial({ color: 0x3ee0a5 })));
+  const ledMat = track(new THREE.MeshBasicMaterial({ color: 0x3ee0a5 }));
+  const led = new THREE.Mesh(track(new THREE.SphereGeometry(6, 16, 12)), ledMat);
   led.position.set(110, HOUSE_Y + 20, HOUSE_FRONT + 3);
   machine.add(led);
   const ledRing = inked(new THREE.TorusGeometry(8, 2, 8, 24), 'lcd', 1);
@@ -470,7 +471,6 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
       const fp = THREE.MathUtils.clamp((t - P.burst) / P.feed, 0, 1);
       const stepIdx = Math.floor(fp * 22);
       const stepped = stepIdx / 22;
-      if (phase === 'printing' && stepIdx !== lastStep && fp > 0 && fp < 1) sound.printStep();
       lastStep = stepIdx;
       paperGroup.position.y = THREE.MathUtils.lerp(PAPER_IN, PAPER_OUT, stepped);
       const rows = Math.min(LINES, Math.floor(stepped * (LINES + 1)));
@@ -516,6 +516,13 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     camera.updateProjectionMatrix();
     kick();
   }
+  // power light blinks on/off; each blink renders a single frame
+  let ledOn = true;
+  const blink = window.setInterval(() => {
+    ledOn = !ledOn;
+    ledMat.color.setHex(ledOn ? 0x3ee0a5 : 0x1c5c47);
+    kick();
+  }, 650);
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
 
@@ -586,6 +593,8 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
       drawStamp(r.pct);
       phase = 'printing';
       printT0 = performance.now();
+      // the feed runs from P.burst for P.feed seconds
+      window.setTimeout(() => phase === 'printing' && sound.printRun(P.feed), P.burst * 1000);
       stamp.visible = false;
       stampMat.opacity = 1;
       lcdValue = -1;
@@ -614,6 +623,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     dispose() {
       if (raf) cancelAnimationFrame(raf);
       sound.dispose();
+      window.clearInterval(blink);
       ro.disconnect();
       mo.disconnect();
       canvas.removeEventListener('pointermove', onMove);

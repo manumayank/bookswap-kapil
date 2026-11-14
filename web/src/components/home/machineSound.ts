@@ -8,7 +8,9 @@ const MUTE_KEY = 'sybrary-machine-muted';
 
 export type MachineSound = {
   click: (strength?: number) => void;
-  printStep: () => void;
+  /** continuous thermal-printer sound for `seconds` */
+  printRun: (seconds: number) => void;
+  stopPrint: () => void;
   stamp: () => void;
   isMuted: () => boolean;
   setMuted: (m: boolean) => void;
@@ -20,11 +22,12 @@ export function createMachineSound(): MachineSound {
   let master: GainNode | null = null;
   let noise: AudioBuffer | null = null;
   let muted = false;
+  let current: { stop: () => void } | null = null;
   try {
     muted = localStorage.getItem(MUTE_KEY) === '1';
   } catch {}
 
-  const unlock = () => {
+  const ensure = () => {
     try {
       if (!ctx) {
         const AC = window.AudioContext || (window as any).webkitAudioContext;
@@ -38,10 +41,19 @@ export function createMachineSound(): MachineSound {
         const d = noise.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       }
-      if (ctx.state === 'suspended') ctx.resume();
     } catch {}
   };
-  const events = ['pointerdown', 'keydown'] as const;
+  const unlock = () => {
+    ensure();
+    try {
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    } catch {}
+  };
+  // Create the context straight away: browsers that already trust this site
+  // (e.g. Chrome for frequent visitors) let it run; others start it suspended
+  // and it wakes on the first tap, click or key press anywhere on the page.
+  ensure();
+  const events = ['pointerdown', 'mousedown', 'touchstart', 'keydown'] as const;
   events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
 
   const ready = () => !muted && ctx && master && noise && ctx.state === 'running';
@@ -82,12 +94,50 @@ export function createMachineSound(): MachineSound {
       burst(t, 0.03, 3200 + Math.random() * 900, 4, 0.5 * strength);
       tone(t, 0.04, 'triangle', 420, 160, 0.18 * strength);
     },
-    printStep() {
+    printRun(seconds) {
       if (!ready()) return;
+      this.stopPrint();
       const t = ctx!.currentTime;
-      // thermal print head: a buzzy whirr per paper step
-      tone(t, 0.07, 'sawtooth', 190 + Math.random() * 20, 150, 0.06);
-      burst(t, 0.06, 1800, 1.4, 0.12);
+      const end = t + seconds;
+      const out = ctx!.createGain();
+      out.gain.setValueAtTime(0.0001, t);
+      out.gain.exponentialRampToValueAtTime(1, t + 0.05);
+      out.gain.setValueAtTime(1, end - 0.08);
+      out.gain.exponentialRampToValueAtTime(0.0001, end);
+      out.connect(master!);
+      // paper-feed buzz: band-passed noise chopped by a fast square LFO
+      const src = ctx!.createBufferSource();
+      src.buffer = noise!;
+      src.loop = true;
+      const bp = ctx!.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2400;
+      bp.Q.value = 0.9;
+      const chop = ctx!.createGain();
+      chop.gain.value = 0.12;
+      const lfo = ctx!.createOscillator();
+      lfo.type = 'square';
+      lfo.frequency.value = 11;
+      const lfoAmt = ctx!.createGain();
+      lfoAmt.gain.value = 0.1;
+      lfo.connect(lfoAmt).connect(chop.gain);
+      src.connect(bp).connect(chop).connect(out);
+      // motor hum underneath
+      const hum = ctx!.createOscillator();
+      hum.type = 'sawtooth';
+      hum.frequency.value = 96;
+      const lp = ctx!.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 420;
+      const humGain = ctx!.createGain();
+      humGain.gain.value = 0.07;
+      hum.connect(lp).connect(humGain).connect(out);
+      [src, lfo, hum].forEach((n) => { n.start(t); n.stop(end + 0.05); });
+      current = { stop: () => { try { out.gain.cancelScheduledValues(ctx!.currentTime); out.gain.setTargetAtTime(0.0001, ctx!.currentTime, 0.03); [src, lfo, hum].forEach((n) => n.stop(ctx!.currentTime + 0.12)); } catch {} } };
+    },
+    stopPrint() {
+      current?.stop();
+      current = null;
     },
     stamp() {
       if (!ready()) return;
@@ -98,6 +148,7 @@ export function createMachineSound(): MachineSound {
     isMuted: () => muted,
     setMuted(m) {
       muted = m;
+      if (m) this.stopPrint();
       try {
         localStorage.setItem(MUTE_KEY, m ? '1' : '0');
       } catch {}
