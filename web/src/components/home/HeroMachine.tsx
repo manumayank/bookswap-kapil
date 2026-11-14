@@ -33,6 +33,8 @@ export default function HeroMachine({ classLevel, board, ready }: Props) {
   const [mode, setMode] = useState<'loading' | '3d' | 'fallback'>('loading');
   const active = mode === '3d';
   const [muted, setMuted] = useState(false);
+  // browsers keep audio locked until the visitor's first tap/click/key
+  const [soundLocked, setSoundLocked] = useState(true);
   const readyAt = useRef<number | null>(null);
   const printedKey = useRef<string | null>(null);
 
@@ -54,6 +56,8 @@ export default function HeroMachine({ classLevel, board, ready }: Props) {
           const scene = createMachineScene(canvasRef.current, { onFirstFrame: () => !cancelled && setMode('3d') });
           sceneRef.current = scene;
           setMuted(scene.isMuted());
+          setSoundLocked(!scene.soundUnlocked());
+          scene.onSoundUnlock(() => !cancelled && setSoundLocked(false));
           // catch up with the hero: if the sentence already settled, print now
           if (readyAt.current !== null) {
             const r = receiptFor(cls, label);
@@ -134,17 +138,27 @@ export default function HeroMachine({ classLevel, board, ready }: Props) {
         <button
           type="button"
           onClick={() => {
-            const next = !muted;
-            sceneRef.current?.setMuted(next);
-            setMuted(next);
+            const scene = sceneRef.current;
+            if (!scene) return;
+            if (soundLocked || muted) {
+              // this tap itself unlocks audio; turn sound on and print again so it's heard
+              scene.setMuted(false);
+              setMuted(false);
+              window.setTimeout(() => scene.reprint(), 120);
+            } else {
+              scene.setMuted(true);
+              setMuted(true);
+            }
           }}
-          aria-label={muted ? 'Turn machine sounds on' : 'Turn machine sounds off'}
-          aria-pressed={!muted}
-          title={muted ? 'Sound off' : 'Sound on'}
-          className="btn btn-outline btn-sm btn-icon absolute right-1 bottom-2 z-10"
+          aria-label={soundLocked || muted ? 'Turn machine sounds on' : 'Turn machine sounds off'}
+          aria-pressed={!(soundLocked || muted)}
+          title={soundLocked || muted ? 'Tap for sound' : 'Sound on'}
+          className={`btn btn-outline btn-sm btn-icon absolute right-1 bottom-2 z-10 ${
+            soundLocked && !muted ? 'animate-[soundNudge_1.6s_ease-in-out_infinite]' : ''
+          }`}
           style={{ width: 38, height: 38, borderRadius: 999 }}
         >
-          {muted ? <VolumeX size={17} aria-hidden /> : <Volume2 size={17} aria-hidden />}
+          {soundLocked || muted ? <VolumeX size={17} aria-hidden /> : <Volume2 size={17} aria-hidden />}
         </button>
       )}
       <canvas

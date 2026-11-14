@@ -13,6 +13,9 @@ export type MachineSound = {
   stopPrint: () => void;
   stamp: () => void;
   isMuted: () => boolean;
+  /** true once the browser lets audio play (after a first tap/click/key) */
+  isUnlocked: () => boolean;
+  onUnlock: (cb: () => void) => void;
   setMuted: (m: boolean) => void;
   dispose: () => void;
 };
@@ -23,6 +26,8 @@ export function createMachineSound(): MachineSound {
   let noise: AudioBuffer | null = null;
   let muted = false;
   let current: { stop: () => void } | null = null;
+  const unlockCbs: (() => void)[] = [];
+  let notified = false;
   try {
     muted = localStorage.getItem(MUTE_KEY) === '1';
   } catch {}
@@ -43,10 +48,16 @@ export function createMachineSound(): MachineSound {
       }
     } catch {}
   };
+  const notify = () => {
+    if (notified || !ctx || ctx.state !== 'running') return;
+    notified = true;
+    unlockCbs.splice(0).forEach((cb) => cb());
+  };
   const unlock = () => {
     ensure();
     try {
-      if (ctx && ctx.state === 'suspended') ctx.resume();
+      if (ctx && ctx.state === 'suspended') ctx.resume().then(notify).catch(() => {});
+      else notify();
     } catch {}
   };
   // Create the context straight away: browsers that already trust this site
@@ -105,14 +116,21 @@ export function createMachineSound(): MachineSound {
     click(strength = 1) {
       if (!ready()) return;
       const t = ctx!.currentTime;
-      const v = 0.92 + Math.random() * 0.16; // slight variation so repeats don't sound robotic
-      // 1. plastic tick as the keycap starts to move
-      hp(t, 0.008, 4200 * v, 0.42 * strength);
-      // 2. bottom-out "thock": a mid body plus a short low knock
-      burst(t + 0.012, 0.045, 1050 * v, 2.2, 0.5 * strength);
-      tone(t + 0.012, 0.05, 'sine', 190 * v, 85, 0.22 * strength);
-      // 3. softer tick as the key springs back
-      hp(t + 0.085, 0.006, 3600 * v, 0.14 * strength);
+      const v = 0.9 + Math.random() * 0.2; // vary each pop a little
+      // bubbly pop: a short sine that drops fast in pitch
+      const o = ctx!.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880 * v, t);
+      o.frequency.exponentialRampToValueAtTime(220 * v, t + 0.06);
+      const g = ctx!.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.55 * strength, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      o.connect(g).connect(master!);
+      o.start(t);
+      o.stop(t + 0.11);
+      // tiny transient so it has a "p" at the start
+      hp(t, 0.006, 3000, 0.18 * strength);
     },
     printRun(seconds) {
       if (!ready()) return;
@@ -166,6 +184,11 @@ export function createMachineSound(): MachineSound {
       burst(t, 0.08, 600, 0.8, 0.35);
     },
     isMuted: () => muted,
+    isUnlocked: () => !!ctx && ctx.state === 'running',
+    onUnlock(cb) {
+      if (ctx && ctx.state === 'running') cb();
+      else unlockCbs.push(cb);
+    },
     setMuted(m) {
       muted = m;
       if (m) this.stopPrint();

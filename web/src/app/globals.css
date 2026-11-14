@@ -773,6 +773,11 @@ input[type='checkbox'], input[type='radio'] {
   .receipt-stamp { transform: rotate(-12deg); }
 }
 
+@keyframes soundNudge {
+  0%, 100% { box-shadow: 2px 2px 0 0 var(--drop), 0 0 0 0 rgb(var(--primary-rgb) / 0.45); }
+  50% { box-shadow: 2px 2px 0 0 var(--drop), 0 0 0 7px rgb(var(--primary-rgb) / 0); }
+}
+
 @keyframes loaderBounce {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
   40% { transform: translateY(-8px); opacity: 1; }

@@ -22,6 +22,10 @@ export type MachineScene = {
   refreshTheme: () => void;
   setMuted: (m: boolean) => void;
   isMuted: () => boolean;
+  soundUnlocked: () => boolean;
+  onSoundUnlock: (cb: () => void) => void;
+  /** print the current bill again (no-op before the first print) */
+  reprint: () => void;
   dispose: () => void;
 };
 
@@ -440,6 +444,11 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
   const keyPhase = [0, 0.47, 0.22, 0.69, 0.12, 0.56, 0.34, 0.81, 0.26];
   const typingT0 = performance.now();
   const sound = createMachineSound();
+  sound.onUnlock(() => {
+    if (phase !== 'printing') return;
+    const left = P.burst + P.feed - (performance.now() - printT0) / 1000;
+    if (left > 0.15) sound.printRun(Math.min(P.feed, left));
+  });
   const wasPressed = new Array(16).fill(false);
   let lastStep = -1;
   let stampSounded = false;
@@ -630,6 +639,11 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     refreshTheme: applyTheme,
     setMuted: (m) => sound.setMuted(m),
     isMuted: () => sound.isMuted(),
+    soundUnlocked: () => sound.isUnlocked(),
+    onSoundUnlock: (cb) => sound.onUnlock(cb),
+    reprint() {
+      if (receipt) api.print(receipt);
+    },
     dispose() {
       if (raf) cancelAnimationFrame(raf);
       sound.dispose();
