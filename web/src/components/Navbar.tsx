@@ -7,12 +7,12 @@ import { Menu, X, LayoutDashboard, ArrowLeftRight, Bell, Shield, LogOut, PlusCir
 import { useAuthStore } from '@/stores/authStore';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
-import Logo from '@/components/Logo';
+import Wordmark from '@/components/brand/Wordmark';
 
 // Each link is a sticker: its own fill and resting tilt. Fills are light in
 // both themes, so the text is always ink.
 const NAV_LINKS = [
-  { href: '/', label: 'Home', fill: 'bg-[#ffd8a8]', tilt: 'rotate-2' },
+  { href: '/', label: 'Home', fill: 'bg-[#bfe1ff]', tilt: 'rotate-2' },
   { href: '/browse', label: 'Browse', fill: 'bg-sun', tilt: '-rotate-3' },
   { href: '/need', label: 'Requests', fill: 'bg-[#bfe9d6]', tilt: 'rotate-2' },
   { href: '/papers', label: 'Exam papers', fill: 'bg-[#ffd0d8]', tilt: '-rotate-2' },
@@ -97,8 +97,8 @@ export default function Navbar() {
     <header className="glass border-dashed sticky top-0 z-50 w-full">
       <nav aria-label="Main" className="container flex h-[72px] items-center justify-between gap-3">
         <Link href="/" aria-label="Sybrary home" className="flex items-center shrink-0 rounded-lg">
-          <span className="hidden sm:flex"><Logo variant="full" height={46} /></span>
-          <span className="flex sm:hidden"><Logo variant="short" height={40} /></span>
+          <span className="hidden sm:flex"><Wordmark height={40} /></span>
+          <span className="flex sm:hidden"><Wordmark height={32} /></span>
         </Link>
 
         <ul className="hidden xl:flex items-center gap-2 2xl:gap-3">

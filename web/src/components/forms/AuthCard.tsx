@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import Logo from '@/components/Logo';
+import Wordmark from '@/components/brand/Wordmark';
 
 /** Centred auth layout: logo, outlined card with the pencil stripe, footer links. */
 export default function AuthCard({
@@ -21,7 +21,7 @@ export default function AuthCard({
       <div className={`w-full ${width} animate-fade-in`}>
         <div className="mb-8 flex justify-center">
           <Link href="/" aria-label="Sybrary home" className="inline-flex">
-            <Logo variant="full" height={48} />
+            <Wordmark height={48} />
           </Link>
         </div>
 

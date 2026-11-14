@@ -120,7 +120,7 @@ html.dark {
 
   --edge-rgb: 214 213 228;
   --edge: #d6d5e4;
-  --drop: #07070c;
+  --drop: #45436a;
   --card-border: rgba(214, 213, 228, 0.14);
   --border: rgba(214, 213, 228, 0.28);
 
@@ -561,6 +561,48 @@ input[type='checkbox'], input[type='radio'] {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ---------- Wordmark: r and y write themselves in ---------- */
+.wordmark .wm-hd {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.wm-anim .wm-pre {
+  animation: wmFade 0.35s ease both;
+}
+
+.wm-anim .wm-st {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation-name: wmDraw;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  animation-fill-mode: forwards;
+}
+
+.wm-anim .wm-hd {
+  opacity: 0;
+  animation: wmHead 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Hover: the arrows give a small nudge in their direction of travel */
+a:hover .wordmark .wm-hd-r,
+.wordmark:hover .wm-hd-r {
+  animation: wmNudgeR 0.5s ease 1 both !important;
+  opacity: 1;
+}
+
+a:hover .wordmark .wm-hd-y,
+.wordmark:hover .wm-hd-y {
+  animation: wmNudgeY 0.5s ease 0.08s 1 both !important;
+  opacity: 1;
+}
+
+@keyframes wmFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wmDraw { to { stroke-dashoffset: 0; } }
+@keyframes wmHead { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: none; } }
+@keyframes wmNudgeR { 40% { transform: translate(2px, 1.5px); } }
+@keyframes wmNudgeY { 40% { transform: translate(-1.5px, -2px); } }
 
 /* ---------- Initiative: sticky notes ---------- */
 .sticky-note {

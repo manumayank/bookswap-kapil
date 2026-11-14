@@ -218,7 +218,7 @@ function HeroSentence() {
 
   return (
     <div className="grid gap-12 lg:gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-    <form onSubmit={go} aria-label="Find or sell school books">
+    <form onSubmit={go} aria-label="Find or sell school books" className="relative z-20">
       <h1 className="text-[2.15rem] leading-[1.32] sm:text-[3.4rem] sm:leading-[1.25] lg:text-[3.5rem] xl:text-[4rem] lg:leading-[1.24] font-extrabold tracking-[-0.035em] max-w-[17ch] animate-pop">
         I&apos;m{' '}
         <Slot

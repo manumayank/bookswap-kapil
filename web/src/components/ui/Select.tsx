@@ -228,7 +228,7 @@ export default function Select({
     'focus-visible:outline-none focus-visible:border-edge focus-visible:shadow-[3px_3px_0_0_var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
-    <div ref={wrapRef} className={`relative ${renderTrigger ? 'inline-block' : 'block'} ${className}`}>
+    <div ref={wrapRef} className={`relative ${open ? 'z-[60]' : ''} ${renderTrigger ? 'inline-block' : 'block'} ${className}`}>
       {name && <input type="hidden" name={name} value={value} required={required} />}
       <button
         ref={triggerRef}
