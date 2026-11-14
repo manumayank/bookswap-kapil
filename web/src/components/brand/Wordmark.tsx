@@ -1,5 +1,6 @@
 'use client';
 
+import { useLayoutEffect, useState } from 'react';
 import { WORDMARK } from './wordmarkPaths';
 
 type WordmarkProps = {
@@ -17,14 +18,25 @@ type WordmarkProps = {
 // right-to-left. [delay, duration, drawn end-to-start]
 const T: Record<string, [delay: number, duration: number, reverse?: boolean]> = {
   rStem: [0.2, 0.26],
-  rArm: [0.46, 0.4],
-  yStem: [0.2, 0.26],
-  yTail: [0.46, 0.44],
-  yBowl: [0.34, 0.3, true],
-  yArm: [0.62, 0.18, true],
+  rArm: [0.46, 0.42],
+  yStem: [0.2, 0.68],
+  yBowl: [0.36, 0.5, true],
 };
-const R_HEAD = 0.84;
-const Y_HEAD = 0.88;
+const R_HEAD = 0.86;
+const Y_HEAD = 0.86;
+
+/** Play the draw-in once per visit; later pages show the finished mark. */
+const PLAYED_KEY = 'sybrary-wordmark-played';
+let decided: boolean | null = null; // shared by every instance on the page
+function shouldPlay() {
+  if (decided !== null) return decided;
+  decided = true;
+  try {
+    if (sessionStorage.getItem(PLAYED_KEY)) decided = false;
+    else sessionStorage.setItem(PLAYED_KEY, '1');
+  } catch {}
+  return decided;
+}
 
 const [, , VW, VH] = WORDMARK.viewBox.split(' ').map(Number);
 
@@ -34,7 +46,13 @@ const [, , VW, VH] = WORDMARK.viewBox.split(' ').map(Number);
  */
 export default function Wordmark({ height = 40, animate = true, className = '' }: WordmarkProps) {
   const width = Math.round((height * VW) / VH);
-  const anim = animate ? 'wm-anim' : '';
+  // Server and first client render agree (animated); before the first paint we
+  // switch to the finished mark if this visit has already seen the draw-in.
+  const [play, setPlay] = useState(animate);
+  useLayoutEffect(() => {
+    if (animate && !shouldPlay()) setPlay(false);
+  }, [animate]);
+  const anim = play ? 'wm-anim' : '';
 
   return (
     <svg
