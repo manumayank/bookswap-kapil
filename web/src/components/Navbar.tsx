@@ -9,12 +9,17 @@ import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import Logo from '@/components/Logo';
 
+// Each link is a sticker: its own fill and resting tilt. Fills are light in
+// both themes, so the text is always ink.
 const NAV_LINKS = [
-  { href: '/browse', label: 'Browse' },
-  { href: '/need', label: 'Requests' },
-  { href: '/papers', label: 'Exam papers' },
-  { href: '/initiative', label: 'Our initiative' },
+  { href: '/browse', label: 'Browse', fill: 'bg-sun', tilt: '-rotate-3' },
+  { href: '/need', label: 'Requests', fill: 'bg-[#bfe9d6]', tilt: 'rotate-2' },
+  { href: '/papers', label: 'Exam papers', fill: 'bg-[#ffd0d8]', tilt: '-rotate-2' },
+  { href: '/initiative', label: 'Our initiative', fill: 'bg-[#d9d7ff]', tilt: 'rotate-3' },
 ] as const;
+
+const STICKER =
+  'inline-flex items-center h-10 px-3 xl:px-4 rounded-[10px] border-2 border-[#17153a] text-ink text-[0.9375rem] font-extrabold transition-[transform,box-shadow] duration-200 ease-pop hover:rotate-0 hover:scale-[1.06] active:scale-95';
 
 const MENU_ITEM =
   'flex items-center gap-3 px-3 h-11 text-[0.9375rem] font-semibold rounded-[10px] text-foreground hover:bg-muted-extra-light transition-colors';
@@ -67,14 +72,14 @@ export default function Navbar() {
   const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() || 'U';
 
   return (
-    <header className="glass sticky top-0 z-50 w-full">
+    <header className="glass border-dashed sticky top-0 z-50 w-full">
       <nav aria-label="Main" className="container flex h-[72px] items-center justify-between gap-3">
         <Link href="/" aria-label="Sybrary home" className="flex items-center shrink-0 rounded-lg">
           <span className="hidden sm:flex"><Logo variant="full" height={46} /></span>
           <span className="flex sm:hidden"><Logo variant="short" height={40} /></span>
         </Link>
 
-        <ul className="hidden lg:flex items-center gap-1">
+        <ul className="hidden lg:flex items-center gap-2 xl:gap-3">
           {NAV_LINKS.map((link) => {
             const active = isActive(link.href);
             return (
@@ -82,10 +87,8 @@ export default function Navbar() {
                 <Link
                   href={link.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`inline-flex items-center h-10 px-4 rounded-full text-[0.9375rem] font-semibold border-2 transition-colors ${
-                    active
-                      ? 'bg-sun text-ink border-edge'
-                      : 'border-transparent text-foreground hover:bg-muted-extra-light'
+                  className={`${STICKER} ${link.fill} ${
+                    active ? 'rotate-0 shadow-[3px_3px_0_0_#17153a] -translate-y-0.5' : `${link.tilt} shadow-[2px_2px_0_0_#17153a]`
                   }`}
                 >
                   {link.label}
@@ -189,8 +192,8 @@ export default function Navbar() {
                   <Link
                     href={link.href}
                     aria-current={isActive(link.href) ? 'page' : undefined}
-                    className={`flex items-center h-12 px-4 rounded-md border-2 border-edge font-bold text-lg ${
-                      isActive(link.href) ? 'bg-sun text-ink' : 'bg-card'
+                    className={`flex items-center justify-between h-12 px-4 rounded-[10px] border-2 border-[#17153a] text-ink font-extrabold text-lg transition-transform duration-200 ease-pop active:scale-[.98] ${link.fill} ${
+                      isActive(link.href) ? 'shadow-[3px_3px_0_0_#17153a]' : 'shadow-[2px_2px_0_0_#17153a]'
                     }`}
                   >
                     {link.label}
