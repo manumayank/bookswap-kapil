@@ -110,7 +110,7 @@ export default function Navbar() {
                   href={link.href}
                   aria-current={active ? 'page' : undefined}
                   className={`${STICKER} ${link.fill} ${
-                    active ? 'rotate-0 shadow-[3px_3px_0_0_#17153a] -translate-y-0.5' : `${link.tilt} shadow-[2px_2px_0_0_#17153a]`
+                    active ? `${link.tilt} shadow-[3px_3px_0_0_#17153a] -translate-y-0.5` : `${link.tilt} shadow-[2px_2px_0_0_#17153a]`
                   }`}
                 >
                   {link.label}
