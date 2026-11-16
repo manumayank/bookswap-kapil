@@ -89,15 +89,16 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     return g;
   }
   const palette = () => ({
-    ink: new THREE.Color(css('--edge') || '#17153a'),
+    // outlines stay dark ink in both themes (the machine keeps its light-mode look)
+    ink: new THREE.Color('#17153a'),
     card: new THREE.Color(css('--card') || '#f7f7fa'),
     // machine body: its own colour so it reads as a solid object on the dark page
-    body: new THREE.Color(isDark() ? '#3a3a40' : (css('--card') || '#f7f7fa')),
+    body: new THREE.Color(isDark() ? '#c9c9d0' : '#f7f7fa'),
     sun: new THREE.Color('#ffc93c'),
     green: new THREE.Color('#12a874'),
     rose: new THREE.Color('#ff8fa3'),
-    key: new THREE.Color(isDark() ? '#5a5a63' : '#dfdee7'),
-    sunRoll: new THREE.Color(isDark() ? '#e6b64a' : '#ffc93c'),
+    key: new THREE.Color(isDark() ? '#b9b9c2' : '#dfdee7'),
+    sunRoll: new THREE.Color('#ffc93c'),
     lcd: new THREE.Color('#17153a'),
   });
   const canvasTex = (c: HTMLCanvasElement) => {
@@ -210,7 +211,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
       const cv = document.createElement('canvas');
       cv.width = cv.height = 128;
       const c = cv.getContext('2d')!;
-      c.fillStyle = keyColor(l) === 'key' && isDark() ? '#ffffff' : '#17153a';
+      c.fillStyle = '#17153a';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.font = `800 ${l.length > 1 ? 62 : 84}px ${SANS}`;
@@ -254,12 +255,12 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     c.translate(256 - (vw * s) / 2, 4);
     c.scale(s, s);
     c.translate(-vx, -vy);
-    c.fillStyle = isDark() ? '#f4f3fa' : '#17153a';
+    c.fillStyle = '#17153a';
     c.fill(new Path2D(WORDMARK.prefix));
     c.lineCap = 'butt';
     c.lineJoin = 'round';
-    const ind = css('--primary') || '#5552e8';
-    const grn = isDark() ? '#3ee0a5' : '#12a874';
+    const ind = '#5552e8';
+    const grn = '#12a874';
     WORDMARK.r.forEach((st) => {
       c.strokeStyle = ind;
       c.lineWidth = st.w;
@@ -545,9 +546,9 @@ export function createMachineScene(canvas: HTMLCanvasElement, opts: { onFirstFra
     toonMats.forEach((m) => m.color.copy(pal[m.userData.key]));
     outlineMats.forEach((m) => m.uniforms.color.value.copy(pal.ink));
     // dark mode: softer light so the machine sits in the page instead of glowing
-    hemi.intensity = isDark() ? 1.2 : 1.15;
-    sunLight.intensity = isDark() ? 1.6 : 1.5;
-    paperTint = isDark() ? '#efeadf' : '#fffdf6';
+    hemi.intensity = 1.15;
+    sunLight.intensity = 1.5;
+    paperTint = '#fffdf6';
     lastRows = -1;
     drawLcd(lcdValue);
     drawLegends();
