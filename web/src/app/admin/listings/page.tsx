@@ -1,11 +1,21 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, Clock, BookOpen, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, Hourglass, BookOpen, Image as ImageIcon } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import ConfirmDialog from '../_components/ConfirmDialog';
+import ErrorState, { InlineError } from '../_components/ErrorState';
+import StatusBadge from '../_components/StatusBadge';
+import { enumLabel } from '../_components/labels';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import Pagination from '@/components/app/Pagination';
+import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
+import { rupees } from '@/components/app/status';
 
 type Tab = 'pending' | 'all';
 
@@ -15,6 +25,7 @@ export default function AdminListingsPage() {
   const { user, isAuthenticated, hydrate } = useAuthStore();
   const [activeTab, setActiveTab] = useState<Tab>('pending');
   const [allPage, setAllPage] = useState(1);
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     hydrate();
@@ -35,6 +46,9 @@ export default function AdminListingsPage() {
   const {
     data: pendingData,
     isLoading: pendingLoading,
+    isError: pendingIsError,
+    error: pendingError,
+    refetch: refetchPending,
   } = useQuery({
     queryKey: ['admin-listings-pending'],
     queryFn: async () => {
@@ -48,6 +62,9 @@ export default function AdminListingsPage() {
   const {
     data: allData,
     isLoading: allLoading,
+    isError: allIsError,
+    error: allError,
+    refetch: refetchAll,
   } = useQuery({
     queryKey: ['admin-listings-all', allPage],
     queryFn: async () => {
@@ -67,8 +84,10 @@ export default function AdminListingsPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/admin/listings/${id}/reject`),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      api.put(`/admin/listings/${id}/reject`, { reason }),
     onSuccess: () => {
+      setRejectTarget(null);
       queryClient.invalidateQueries({ queryKey: ['admin-listings-pending'] });
       queryClient.invalidateQueries({ queryKey: ['admin-listings-all'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
@@ -81,61 +100,86 @@ export default function AdminListingsPage() {
 
   if (!user?.isAdmin) return null;
 
+  const pendingCount = pendingListings.length;
+
   return (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-2">Listings</h1>
-        <p className="text-[var(--muted)]">Review, approve, and manage all book listings</p>
-      </div>
+      <PageHeader
+        size="md"
+        title="Listings"
+        description={
+          pendingLoading
+            ? 'Checking the review queue.'
+            : pendingCount
+              ? `${pendingCount} waiting for review. Approved listings go live straight away.`
+              : 'Nothing waiting for review. Every listing is under All listings.'
+        }
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-8">
+      {/* View switch */}
+      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Show listings">
         <button
+          type="button"
           onClick={() => setActiveTab('pending')}
-          className={`btn ${activeTab === 'pending' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ height: 42, fontSize: '0.875rem' }}
+          aria-pressed={activeTab === 'pending'}
+          className="chip"
         >
-          <Clock size={16} />
-          Pending Review
-          {pendingListings.length > 0 && (
-            <span className="ml-1.5 bg-white/20 text-white text-xs font-bold rounded-full px-2 py-0.5">
-              {pendingListings.length}
+          <Hourglass size={16} aria-hidden="true" />
+          Waiting for review
+          {pendingCount > 0 && (
+            <span className="ml-0.5 rounded-full bg-foreground px-2 text-xs font-bold leading-5 text-background">
+              {pendingCount}
             </span>
           )}
         </button>
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`btn ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ height: 42, fontSize: '0.875rem' }}
-        >
-          <BookOpen size={16} />
-          All Listings
+        <button type="button" onClick={() => setActiveTab('all')} aria-pressed={activeTab === 'all'} className="chip">
+          <BookOpen size={16} aria-hidden="true" />
+          All listings
         </button>
       </div>
 
       {/* Pending Tab */}
       {activeTab === 'pending' && (
         <div>
+          {approveMutation.isError && (
+            <div className="mb-4">
+              <InlineError error={approveMutation.error} />
+            </div>
+          )}
           {pendingLoading ? (
-            <div className="card-premium p-12 text-center text-[var(--muted)]">
-              Loading pending listings...
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-busy="true">
+              {[0, 1].map((i) => (
+                <div key={i} className="card-flat flex gap-4 p-4">
+                  <div className="skeleton h-32 w-28" />
+                  <div className="flex-1 space-y-2">
+                    <div className="skeleton h-5 w-2/3" />
+                    <div className="skeleton h-4 w-1/3" />
+                    <div className="skeleton h-4 w-1/2" />
+                  </div>
+                </div>
+              ))}
             </div>
+          ) : pendingIsError ? (
+            <ErrorState error={pendingError} onRetry={() => refetchPending()} title="Couldn’t load the review queue" />
           ) : pendingListings.length === 0 ? (
-            <div className="card-premium p-12 text-center">
-              <CheckCircle size={48} className="mx-auto mb-4 text-[var(--secondary)]" />
-              <p className="text-lg font-bold mb-1">All caught up!</p>
-              <p className="text-sm text-[var(--muted)]">No listings are waiting for review.</p>
-            </div>
+            <EmptyState size="md"
+              icon={CheckCircle2}
+              title="All caught up"
+              description="No listings are waiting for review. New ones appear here as parents submit them."
+            />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {pendingListings.map((listing: any) => (
                 <PendingListingCard
                   key={listing.id}
                   listing={listing}
                   onApprove={() => approveMutation.mutate(listing.id)}
-                  onReject={() => rejectMutation.mutate(listing.id)}
+                  onReject={() => {
+                    rejectMutation.reset();
+                    setRejectTarget({ id: listing.id, title: listing.title });
+                  }}
                   isApproving={approveMutation.isPending && approveMutation.variables === listing.id}
-                  isRejecting={rejectMutation.isPending && rejectMutation.variables === listing.id}
+                  isRejecting={rejectMutation.isPending && rejectMutation.variables?.id === listing.id}
                 />
               ))}
             </div>
@@ -146,81 +190,76 @@ export default function AdminListingsPage() {
       {/* All Listings Tab */}
       {activeTab === 'all' && (
         <div>
-          {allLoading ? (
-            <div className="card-premium p-12 text-center text-[var(--muted)]">
-              Loading listings...
-            </div>
-          ) : allListings.length === 0 ? (
-            <div className="card-premium p-12 text-center text-[var(--muted)]">
-              No listings found.
-            </div>
+          {allIsError ? (
+            <ErrorState error={allError} onRetry={() => refetchAll()} title="Couldn’t load listings" />
           ) : (
             <>
-              <div className="card-premium overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[var(--card-border)]">
-                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Title</th>
-                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Seller</th>
-                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Category</th>
-                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Price</th>
-                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Condition</th>
-                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allListings.map((listing: any) => (
-                      <tr key={listing.id} className="border-b border-[var(--card-border)] last:border-0 hover:bg-[var(--muted-extra-light)] transition-colors">
-                        <td className="px-6 py-4">
-                          <span className="font-bold text-sm">{listing.title}</span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-[var(--muted)]">
-                          {listing.user?.name || listing.seller?.name || '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="badge badge-primary">{listing.category || listing.board || '-'}</span>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-bold">
-                          {listing.sellingPrice != null ? `\u20B9${listing.sellingPrice}` : '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-[var(--muted)]">{listing.condition || '-'}</td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={listing.status} />
-                        </td>
+              <div className={TABLE_WRAP}>
+                {allLoading ? (
+                  <div className="p-12 text-center text-sm text-muted">Loading listings…</div>
+                ) : allListings.length === 0 ? (
+                  <EmptyState size="md" bare icon={BookOpen} title="No listings yet" description="Listings appear here once parents add them." />
+                ) : (
+                  <table className={TABLE}>
+                    <thead>
+                      <tr>
+                        <th className={TH}>Listing</th>
+                        <th className={TH}>Seller</th>
+                        <th className={TH}>Category</th>
+                        <th className={TH_RIGHT}>Price</th>
+                        <th className={TH}>Condition</th>
+                        <th className={TH}>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {allListings.map((listing: any) => (
+                        <tr key={listing.id} className={TR}>
+                          <td className={TD}>
+                            <span className="font-bold">{listing.title}</span>
+                          </td>
+                          <td className={`${TD} text-muted`}>{listing.user?.name || listing.seller?.name || '-'}</td>
+                          <td className={`${TD} whitespace-nowrap`}>
+                            <span className="badge badge-muted">{enumLabel(listing.category || listing.board)}</span>
+                          </td>
+                          <td className={`${TD_RIGHT} whitespace-nowrap font-bold tabular-nums`}>
+                            {listing.sellingPrice != null ? rupees(listing.sellingPrice) : '-'}
+                          </td>
+                          <td className={`${TD} whitespace-nowrap text-muted`}>{enumLabel(listing.condition)}</td>
+                          <td className={`${TD} whitespace-nowrap`}>
+                            <StatusBadge status={listing.status} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
 
-              {/* Pagination */}
-              {allPagination && allPagination.totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-6">
-                  <button
-                    onClick={() => setAllPage(Math.max(1, allPage - 1))}
-                    disabled={allPage === 1}
-                    className="btn btn-outline disabled:opacity-40"
-                    style={{ height: 40, fontSize: '0.875rem' }}
-                  >
-                    Previous
-                  </button>
-                  <span className="flex items-center px-4 text-sm text-[var(--muted)]">
-                    Page {allPage} of {allPagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => setAllPage(Math.min(allPagination.totalPages, allPage + 1))}
-                    disabled={allPage >= allPagination.totalPages}
-                    className="btn btn-outline disabled:opacity-40"
-                    style={{ height: 40, fontSize: '0.875rem' }}
-                  >
-                    Next
-                  </button>
-                </div>
+              {allPagination && (
+                <Pagination page={allPage} totalPages={allPagination.totalPages} onChange={setAllPage} />
               )}
             </>
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!rejectTarget}
+        title="Reject this listing?"
+        message={rejectTarget ? <>&ldquo;{rejectTarget.title}&rdquo; will be rejected and won&rsquo;t go live.</> : null}
+        confirmLabel="Reject listing"
+        pendingLabel="Rejecting…"
+        tone="danger"
+        withReason
+        reasonPlaceholder="e.g. Photos are unclear (shared with the seller)"
+        isPending={rejectMutation.isPending}
+        error={rejectMutation.error}
+        onCancel={() => {
+          setRejectTarget(null);
+          rejectMutation.reset();
+        }}
+        onConfirm={(reason) => rejectTarget && rejectMutation.mutate({ id: rejectTarget.id, reason })}
+      />
     </div>
   );
 }
@@ -240,96 +279,61 @@ function PendingListingCard({
 }) {
   const images = listing.images || listing.imageUrls || [];
   const firstImage = images[0];
+  const firstImageUrl: string | undefined =
+    typeof firstImage === 'string' ? firstImage : firstImage?.imageUrl ?? firstImage?.url;
+  const busy = isApproving || isRejecting;
 
   return (
-    <div className="card-premium overflow-hidden">
-      <div className="flex">
-        {/* Image */}
-        <div className="w-36 min-h-[180px] bg-[var(--muted-extra-light)] flex-shrink-0 flex items-center justify-center overflow-hidden">
-          {firstImage ? (
-            <img
-              src={typeof firstImage === 'string' ? firstImage : firstImage.url}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <ImageIcon size={32} className="text-[var(--muted-light)]" />
-          )}
-        </div>
+    <article className="card-flat flex flex-col overflow-hidden sm:flex-row">
+      {/* Image */}
+      <div className="relative flex h-44 w-full shrink-0 items-center justify-center overflow-hidden border-b-2 border-edge bg-muted-extra-light sm:h-auto sm:min-h-[200px] sm:w-40 sm:border-b-0 sm:border-r-2">
+        {firstImageUrl ? (
+          <img src={firstImageUrl} alt={listing.title} className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex flex-col items-center gap-2 text-muted">
+            <ImageIcon size={28} aria-hidden="true" />
+            <span className="text-[13px] font-semibold">No photo</span>
+          </span>
+        )}
+        {images.length > 1 && (
+          <span className="badge badge-muted absolute bottom-2 left-2 bg-card">{images.length} photos</span>
+        )}
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 p-5 flex flex-col">
-          <div className="flex-1">
-            <h3 className="font-extrabold text-base mb-1 leading-tight">{listing.title}</h3>
-            <p className="text-sm text-[var(--muted)] mb-3">
-              by {listing.user?.name || listing.seller?.name || 'Unknown'}
-            </p>
-
-            <div className="flex flex-wrap gap-2 mb-3">
-              {listing.category && (
-                <span className="badge badge-primary">{listing.category}</span>
-              )}
-              {listing.board && (
-                <span className="badge badge-primary">{listing.board}</span>
-              )}
-              {listing.condition && (
-                <span className="badge badge-secondary">{listing.condition}</span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4 text-sm text-[var(--muted)]">
-              {listing.sellingPrice != null && (
-                <span className="font-bold text-[var(--foreground)]">{'\u20B9'}{listing.sellingPrice}</span>
-              )}
-              {listing.city && <span>{listing.city}</span>}
-              {listing.class && <span>Class {listing.class}</span>}
-            </div>
-
-            {images.length > 1 && (
-              <p className="text-xs text-[var(--muted-light)] mt-2">{images.length} images attached</p>
+      {/* Details */}
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <div className="flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-lg font-bold leading-snug">{listing.title}</h2>
+            {listing.sellingPrice != null && (
+              <span className="shrink-0 text-lg font-extrabold">{rupees(listing.sellingPrice)}</span>
             )}
           </div>
+          <p className="mt-0.5 text-sm text-muted">
+            Listed by {listing.user?.name || listing.seller?.name || 'unknown seller'}
+            {listing.city ? ` in ${listing.city}` : ''}
+          </p>
 
-          {/* Actions */}
-          <div className="flex gap-3 mt-4 pt-4 border-t border-[var(--card-border)]">
-            <button
-              onClick={onApprove}
-              disabled={isApproving || isRejecting}
-              className="btn btn-secondary disabled:opacity-50"
-              style={{ height: 38, fontSize: '0.8125rem', flex: 1 }}
-            >
-              <CheckCircle size={16} />
-              {isApproving ? 'Approving...' : 'Approve'}
-            </button>
-            <button
-              onClick={onReject}
-              disabled={isApproving || isRejecting}
-              className="btn btn-outline disabled:opacity-50"
-              style={{ height: 38, fontSize: '0.8125rem', flex: 1, borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            >
-              <XCircle size={16} />
-              {isRejecting ? 'Rejecting...' : 'Reject'}
-            </button>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {listing.category && <span className="badge badge-muted">{enumLabel(listing.category)}</span>}
+            {listing.class && <span className="badge badge-muted">Class {listing.class}</span>}
+            {listing.board && <span className="badge badge-muted">{enumLabel(listing.board)}</span>}
+            {listing.condition && <span className="badge badge-primary">{enumLabel(listing.condition)}</span>}
           </div>
         </div>
+
+        {/* Actions */}
+        <div className="mt-4 flex flex-col gap-2 border-t border-card-border pt-4 sm:flex-row">
+          <button type="button" onClick={onApprove} disabled={busy} className="btn btn-secondary btn-sm flex-1">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            {isApproving ? 'Approving…' : 'Approve listing'}
+          </button>
+          <button type="button" onClick={onReject} disabled={busy} className="btn btn-outline btn-sm flex-1 text-danger">
+            <XCircle size={16} aria-hidden="true" />
+            {isRejecting ? 'Rejecting…' : 'Reject listing'}
+          </button>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    ACTIVE: 'bg-emerald-500/10 text-emerald-600',
-    PENDING: 'bg-amber-500/10 text-amber-600',
-    APPROVED: 'bg-emerald-500/10 text-emerald-600',
-    REJECTED: 'bg-red-500/10 text-red-600',
-    SOLD: 'bg-blue-500/10 text-blue-600',
-    CANCELLED: 'bg-gray-500/10 text-gray-500',
-  };
-
-  return (
-    <span className={`badge ${styles[status] || 'bg-gray-500/10 text-gray-500'}`}>
-      {status}
-    </span>
+    </article>
   );
 }

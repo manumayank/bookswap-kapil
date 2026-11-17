@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Bell, BellRing, BookCheck, CheckCheck, ChevronLeft, ChevronRight, ShoppingBag, XCircle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
   useNotifications,
@@ -10,6 +13,18 @@ import {
   Notification,
 } from '@/hooks/useNotifications';
 import { getNotificationLink, formatRelativeTime } from '@/lib/notificationLinks';
+import PageHeader from '@/components/ui/PageHeader';
+import FormAlert from '@/components/forms/FormAlert';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
+
+function iconFor(type: string): LucideIcon {
+  if (type === 'NEW_MATCH_FOR_REQUEST') return BellRing;
+  if (type === 'LISTING_APPROVED' || type === 'LISTING_SUBMITTED') return BookCheck;
+  if (type === 'LISTING_REJECTED' || type === 'DEAL_CANCELLED') return XCircle;
+  if (type.startsWith('DEAL_')) return ShoppingBag;
+  return Bell;
+}
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -27,7 +42,7 @@ export default function NotificationsPage() {
     }
   }, [isAuthenticated, router]);
 
-  const { data, isLoading } = useNotifications({ page, limit: 20 });
+  const { data, isLoading, isError, refetch } = useNotifications({ page, limit: 20 });
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
 
@@ -40,64 +55,132 @@ export default function NotificationsPage() {
     router.push(getNotificationLink(n));
   }
 
+  const description = isLoading
+    ? 'Updates on your listings, deals and book requests.'
+    : unread > 0
+      ? `${unread} unread. Updates on your listings, deals and book requests.`
+      : 'You’re all caught up. Updates on your listings, deals and book requests show here.';
+
   return (
-    <div className="container max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-black">Notifications</h1>
-        {unread > 0 && (
-          <button
-            onClick={() => markAll.mutate()}
-            className="text-xs font-bold text-primary hover:underline"
-            disabled={markAll.isPending}
-          >
-            Mark all as read
-          </button>
-        )}
-      </div>
+    <div className="container max-w-3xl py-10 md:py-14">
+      <PageHeader
+        title="Notifications"
+        description={description}
+        actions={
+          unread > 0 ? (
+            <button
+              type="button"
+              onClick={() => markAll.mutate()}
+              disabled={markAll.isPending}
+              className="btn btn-outline btn-sm"
+            >
+              <CheckCheck size={16} strokeWidth={2.5} aria-hidden />
+              {markAll.isPending ? 'Marking…' : 'Mark all as read'}
+            </button>
+          ) : undefined
+        }
+      />
+
+      {markAll.isError && (
+        <FormAlert className="mb-4">We couldn’t mark your notifications as read. Try again.</FormAlert>
+      )}
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-muted">No notifications yet.</p>
-      ) : (
-        <ul className="card-premium p-2 space-y-1">
-          {items.map((n) => (
-            <li key={n.id}>
-              <button
-                onClick={() => handleClickItem(n)}
-                className={`w-full text-left p-4 rounded-lg transition-colors hover:bg-muted-extra-light ${
-                  !n.isRead ? 'bg-primary/5 border-l-2 border-primary' : ''
-                }`}
-              >
-                <p className="text-sm font-bold">{n.title}</p>
-                <p className="text-xs text-muted mt-1">{n.body}</p>
-                <p className="text-[10px] text-muted mt-2">{formatRelativeTime(n.sentAt)}</p>
-              </button>
+        <ul className="card-flat divide-y-2 divide-card-border overflow-hidden" aria-busy="true" aria-label="Loading notifications">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <li key={i} className="flex gap-4 p-4 sm:p-5">
+              <div className="skeleton h-10 w-10 shrink-0 rounded-full" />
+              <div className="flex-1">
+                <div className="skeleton mb-2 h-4 w-1/2" />
+                <div className="skeleton h-4 w-5/6" />
+              </div>
             </li>
           ))}
+        </ul>
+      ) : isError ? (
+        <ErrorState size="lg" title="Notifications didn’t load" onRetry={() => refetch()} />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          actions={
+            <>
+              <Link href="/sell" className="btn btn-primary">
+                List your books
+              </Link>
+              <Link href="/need" className="btn btn-outline">
+                Request a book
+              </Link>
+            </>
+          }
+        >
+          <p>You’ll hear here when a listing is approved, a parent sends you a request, or a book you asked for is listed.</p>
+        </EmptyState>
+      ) : (
+        <ul className="card-flat divide-y-2 divide-card-border overflow-hidden">
+          {items.map((n) => {
+            const Icon = iconFor(n.type);
+            return (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => handleClickItem(n)}
+                  className={`group flex w-full items-start gap-4 p-4 text-left transition-colors hover:bg-muted-extra-light focus-visible:!rounded-none sm:p-5 ${
+                    !n.isRead ? 'bg-primary/5' : ''
+                  }`}
+                >
+                  <span
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 ${
+                      n.isRead ? 'border-card-border bg-card text-muted' : 'border-edge bg-sun text-ink'
+                    }`}
+                    aria-hidden
+                  >
+                    <Icon size={18} strokeWidth={2.25} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start justify-between gap-3">
+                      <span className={`leading-snug ${n.isRead ? 'font-semibold text-muted' : 'font-bold text-foreground'}`}>
+                        {!n.isRead && <span className="sr-only">Unread: </span>}
+                        {n.title}
+                      </span>
+                      <time dateTime={n.sentAt} className="shrink-0 whitespace-nowrap text-[13px] text-muted">
+                        {formatRelativeTime(n.sentAt)}
+                      </time>
+                    </span>
+                    <span className="mt-1 block text-sm text-muted">{n.body}</span>
+                  </span>
+                  {!n.isRead && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" aria-hidden />}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 mt-6">
+        <nav aria-label="Notification pages" className="mt-6 flex items-center justify-between gap-4">
           <button
+            type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="btn btn-secondary text-xs px-4 py-2 disabled:opacity-40"
+            className="btn btn-outline btn-sm"
           >
-            Previous
+            <ChevronLeft size={16} strokeWidth={2.5} aria-hidden />
+            Newer
           </button>
-          <span className="text-xs text-muted">
+          <span className="text-sm text-muted">
             Page {page} of {totalPages}
           </span>
           <button
+            type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="btn btn-secondary text-xs px-4 py-2 disabled:opacity-40"
+            className="btn btn-outline btn-sm"
           >
-            Next
+            Older
+            <ChevronRight size={16} strokeWidth={2.5} aria-hidden />
           </button>
-        </div>
+        </nav>
       )}
     </div>
   );

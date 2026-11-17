@@ -7,6 +7,19 @@ import { generateToken, generateRefreshToken, verifyToken } from '../../lib/jwt'
 const DEV_MODE = process.env.DEV_OTP_MODE === 'true';
 const DEV_OTP = '123456';
 
+// LOCAL TEST LOGINS: emails listed in DEV_LOGIN_EMAILS (comma-separated) always get
+// DEV_LOGIN_OTP and no email is sent. Hard-disabled unless NODE_ENV=development.
+const DEV_LOGIN_ENABLED = process.env.NODE_ENV === 'development';
+const DEV_LOGIN_OTP = process.env.DEV_LOGIN_OTP || '';
+const DEV_LOGIN_EMAILS = (process.env.DEV_LOGIN_EMAILS || '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isDevLogin(email: string) {
+  return DEV_LOGIN_ENABLED && !!DEV_LOGIN_OTP && DEV_LOGIN_EMAILS.includes(email.trim().toLowerCase());
+}
+
 function generateOtp(): string {
   if (DEV_MODE) {
     console.log('🔐 DEV MODE: Using fixed OTP:', DEV_OTP);
@@ -22,12 +35,18 @@ export async function sendOtp(email: string) {
     data: { isUsed: true },
   });
 
-  const otp = generateOtp();
+  const devLogin = isDevLogin(email);
+  const otp = devLogin ? DEV_LOGIN_OTP : generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   await prisma.otp.create({
     data: { email, otp, expiresAt },
   });
+
+  if (devLogin) {
+    console.log(`🔐 DEV LOGIN: fixed code for ${email} (email not sent)`);
+    return { message: 'OTP sent successfully', devMode: true };
+  }
 
   if (DEV_MODE) {
     console.log(`📧 DEV MODE: OTP for ${email} is ${otp} (email not sent)`);

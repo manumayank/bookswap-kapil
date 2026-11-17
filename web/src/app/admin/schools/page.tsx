@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, X, School, Search } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import ErrorState, { InlineError } from '../_components/ErrorState';
+import { enumLabel } from '../_components/labels';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import Select from '@/components/ui/Select';
+import { TABLE_WRAP, TABLE, TH, TH_RIGHT, TR, TD, TD_RIGHT } from '@/components/app/table';
 
 interface SchoolForm {
   name: string;
@@ -16,14 +22,27 @@ interface SchoolForm {
 
 const emptyForm: SchoolForm = { name: '', city: '', board: '', address: '' };
 
+const BOARD_SELECT_OPTIONS = [
+  { value: 'CBSE', label: 'CBSE' },
+  { value: 'ICSE', label: 'ICSE' },
+  { value: 'STATE', label: 'State board' },
+  { value: 'IB', label: 'IB' },
+  { value: 'IGCSE', label: 'IGCSE' },
+];
+
+const labelClass = 'mb-2 block text-sm font-semibold';
+
 export default function AdminSchoolsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, hydrate } = useAuthStore();
+  const { user, hydrate } = useAuthStore();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SchoolForm>(emptyForm);
+  const [boardError, setBoardError] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const fieldId = useId();
 
   useEffect(() => {
     hydrate();
@@ -40,7 +59,7 @@ export default function AdminSchoolsPage() {
     }
   }, [user, router]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-schools', search],
     queryFn: async () => {
       const params: Record<string, any> = {};
@@ -72,11 +91,13 @@ export default function AdminSchoolsPage() {
 
   function resetForm() {
     setForm(emptyForm);
+    setBoardError(false);
     setShowForm(false);
     setEditingId(null);
   }
 
   function startEdit(school: any) {
+    setBoardError(false);
     setForm({
       name: school.name || '',
       city: school.city || '',
@@ -85,10 +106,23 @@ export default function AdminSchoolsPage() {
     });
     setEditingId(school.id);
     setShowForm(true);
+    createMutation.reset();
+    updateMutation.reset();
+    // Wait for the form to render, then bring it into view.
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      formRef.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The custom Select isn't covered by native `required` validation, so check board here.
+    if (!form.board) {
+      setBoardError(true);
+      document.getElementById(`${fieldId}-board`)?.focus();
+      return;
+    }
     if (editingId) {
       updateMutation.mutate({ id: editingId, school: form });
     } else {
@@ -102,183 +136,192 @@ export default function AdminSchoolsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">Schools</h1>
-          <p className="text-[var(--muted)]">Manage the school directory</p>
-        </div>
-        <button
-          onClick={() => {
-            if (showForm) {
-              resetForm();
-            } else {
-              setShowForm(true);
-            }
-          }}
-          className={`btn ${showForm ? 'btn-outline' : 'btn-primary'}`}
-          style={{ height: 42, fontSize: '0.875rem' }}
-        >
-          {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add School</>}
-        </button>
-      </div>
+      <PageHeader
+        size="md"
+        title="Schools"
+        description="The school list parents pick from when they list or request books."
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              if (showForm) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+            className={`btn btn-sm ${showForm ? 'btn-outline' : 'btn-primary'}`}
+          >
+            {showForm ? (
+              <>
+                <X size={16} aria-hidden="true" /> Close form
+              </>
+            ) : (
+              <>
+                <Plus size={16} aria-hidden="true" /> Add school
+              </>
+            )}
+          </button>
+        }
+      />
 
       {/* Add/Edit Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="card-premium p-6 mb-8">
-          <h2 className="font-extrabold text-lg mb-5">
-            {editingId ? 'Edit School' : 'Add New School'}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="card-flat animate-fade-in mb-8 scroll-mt-40 p-4 sm:p-6 md:scroll-mt-28"
+        >
+          <h2 className="mb-5 text-xl">{editingId ? `Edit ${form.name || 'school'}` : 'Add a school'}</h2>
+          <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
-                School Name
+              <label htmlFor={`${fieldId}-name`} className={labelClass}>
+                School name
               </label>
               <input
+                id={`${fieldId}-name`}
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Delhi Public School"
+                placeholder="Full school name, as on the ID card"
                 required
                 className="w-full"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
+              <label htmlFor={`${fieldId}-city`} className={labelClass}>
                 City
               </label>
               <input
+                id={`${fieldId}-city`}
                 type="text"
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
-                placeholder="e.g. Mumbai"
+                placeholder="e.g. Bangalore"
                 required
                 className="w-full"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
+              <label htmlFor={`${fieldId}-board`} className={labelClass}>
                 Board
               </label>
-              <select
+              <Select
+                id={`${fieldId}-board`}
                 value={form.board}
-                onChange={(e) => setForm({ ...form, board: e.target.value })}
+                onChange={(value) => {
+                  setForm({ ...form, board: value });
+                  setBoardError(false);
+                }}
+                options={BOARD_SELECT_OPTIONS}
+                placeholder="Select board"
                 required
-                className="w-full"
-              >
-                <option value="">Select board</option>
-                <option value="CBSE">CBSE</option>
-                <option value="ICSE">ICSE</option>
-                <option value="STATE">State Board</option>
-                <option value="IB">IB</option>
-                <option value="IGCSE">IGCSE</option>
-              </select>
+                invalid={boardError}
+                aria-describedby={boardError ? `${fieldId}-board-error` : undefined}
+              />
+              {boardError && (
+                <p id={`${fieldId}-board-error`} role="alert" className="mt-1.5 text-sm font-semibold text-danger">
+                  Select a board.
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
-                Address
+              <label htmlFor={`${fieldId}-address`} className={labelClass}>
+                Address <span className="font-normal text-muted">(optional)</span>
               </label>
               <input
+                id={`${fieldId}-address`}
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Full address"
+                placeholder="Street, area"
                 className="w-full"
               />
             </div>
           </div>
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="btn btn-primary disabled:opacity-50"
-              style={{ height: 42, fontSize: '0.875rem' }}
-            >
-              {isSaving ? 'Saving...' : editingId ? 'Update School' : 'Add School'}
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={isSaving} className="btn btn-primary btn-sm">
+              {isSaving ? 'Saving…' : editingId ? 'Save changes' : 'Add school'}
             </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="btn btn-outline"
-              style={{ height: 42, fontSize: '0.875rem' }}
-            >
+            <button type="button" onClick={resetForm} disabled={isSaving} className="btn btn-outline btn-sm">
               Cancel
             </button>
           </div>
-          {(createMutation.isError || updateMutation.isError) && (
-            <p className="text-[var(--accent)] text-sm mt-3">
-              Failed to save. Please try again.
-            </p>
-          )}
+          <InlineError error={createMutation.error || updateMutation.error} />
         </form>
       )}
 
       {/* Search */}
-      <div className="mb-6 relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-light)]" />
+      <div className="relative mb-5">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
-          type="text"
-          placeholder="Search schools..."
+          type="search"
+          placeholder="Search schools"
+          aria-label="Search schools"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full md:w-[420px] pl-11"
+          className="w-full pl-11 md:w-[420px]"
         />
       </div>
 
       {/* Schools List */}
-      <div className="card-premium overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-[var(--muted)]">Loading schools...</div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">School</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">City</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Board</th>
-                <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Address</th>
-                <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schools.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} title="Couldn’t load schools" />
+      ) : (
+        <div className={TABLE_WRAP}>
+          {isLoading ? (
+            <div className="p-12 text-center text-sm text-muted">Loading schools…</div>
+          ) : schools.length === 0 ? (
+            <EmptyState size="md"
+              bare
+              icon={School}
+              title={search ? 'No schools match your search' : 'No schools yet'}
+              description={search ? 'Try a different name or city.' : 'Add the first school so parents can pick it.'}
+            />
+          ) : (
+            <table className={TABLE}>
+              <thead>
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-[var(--muted)]">
-                    <School size={36} className="mx-auto mb-3 opacity-30" />
-                    {search ? 'No schools match your search' : 'No schools yet. Add one above.'}
-                  </td>
+                  <th className={TH}>School</th>
+                  <th className={TH}>City</th>
+                  <th className={TH}>Board</th>
+                  <th className={TH}>Address</th>
+                  <th className={TH_RIGHT}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
-              ) : (
-                schools.map((school: any) => (
-                  <tr key={school.id} className="border-b border-[var(--card-border)] last:border-0 hover:bg-[var(--muted-extra-light)] transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-bold text-sm">{school.name}</span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{school.city || '-'}</td>
-                    <td className="px-6 py-4">
+              </thead>
+              <tbody>
+                {schools.map((school: any) => (
+                  <tr key={school.id} className={`${TR} ${editingId === school.id ? 'bg-muted-extra-light' : ''}`}>
+                    <td className={`${TD} font-bold`}>{school.name}</td>
+                    <td className={TD}>{school.city || '-'}</td>
+                    <td className={`${TD} whitespace-nowrap`}>
                       {school.board ? (
-                        <span className="badge badge-primary">{school.board}</span>
+                        <span className="badge badge-muted">{enumLabel(school.board)}</span>
                       ) : (
-                        <span className="text-sm text-[var(--muted)]">-</span>
+                        <span className="text-muted">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[var(--muted)]">{school.address || '-'}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className={`${TD} text-muted`}>{school.address || '-'}</td>
+                    <td className={TD_RIGHT}>
                       <button
+                        type="button"
                         onClick={() => startEdit(school)}
-                        className="btn btn-outline"
-                        style={{ height: 34, fontSize: '0.75rem', padding: '0 12px' }}
+                        aria-label={`Edit ${school.name}`}
+                        className="btn btn-outline btn-sm"
                       >
-                        <Pencil size={14} />
+                        <Pencil size={14} aria-hidden="true" />
                         Edit
                       </button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 }

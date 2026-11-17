@@ -1,46 +1,121 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  BookOpen,
+  Check,
+  CheckCircle2,
+  Home as HomeIcon,
+  ImagePlus,
+  MapPin,
+  PencilRuler,
+  School as SchoolIcon,
+  X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { BOARD_OPTIONS, boardLabel, conditionLabel } from '@/lib/labels';
+import { Field, FieldError, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
+import FormAlert from '@/components/forms/FormAlert';
+import PriceInput from '@/components/forms/PriceInput';
+import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import Select from '@/components/ui/Select';
 
-const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
-const CATEGORIES = ['BOOK', 'STATIONERY'] as const;
-const CONDITIONS = [
-  { label: 'Hardly Used', value: 'HARDLY_USED' },
-  { label: 'Well Maintained', value: 'WELL_MAINTAINED' },
-  { label: 'Marker Used', value: 'MARKER_USED' },
-  { label: 'Stains', value: 'STAINS' },
-  { label: 'Torn Pages', value: 'TORN_PAGES' },
-] as const;
+const CLASS_OPTIONS = CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` }));
+const BOARD_SELECT_OPTIONS = BOARD_OPTIONS.map((b) => ({ value: b, label: boardLabel(b) }));
+const CONDITIONS = ['HARDLY_USED', 'WELL_MAINTAINED', 'MARKER_USED', 'STAINS', 'TORN_PAGES'] as const;
 const PICKUP_OPTIONS = [
-  { label: 'School Gate', value: 'SCHOOL_GATE' },
-  { label: 'My Home/Location', value: 'HOME' },
-  { label: 'Public Place', value: 'PUBLIC' },
+  { label: 'School gate', hint: 'Meet at drop-off or pickup time', value: 'SCHOOL_GATE', icon: SchoolIcon },
+  { label: 'My home', hint: 'The buyer collects from you', value: 'HOME', icon: HomeIcon },
+  { label: 'Public place', hint: 'A mall, park or metro station', value: 'PUBLIC', icon: MapPin },
 ] as const;
+const MAX_PHOTOS = 4;
+const STEPS = ['Photos', 'Details', 'Price'] as const;
 
-interface School {
-  id: string;
-  name: string;
-  city: string;
-  board: string;
+interface Photo {
+  file: File;
+  url: string;
 }
+
+type Values = {
+  title: string;
+  category: string;
+  condition: string;
+  board: string;
+  class: string;
+  subject: string;
+  city: string;
+  sector: string;
+  pickupLocation: string;
+  description: string;
+  buyingPrice: string;
+  sellingPrice: string;
+};
+
+type ErrorKey = keyof Values | 'photos' | 'school';
+type Errors = Partial<Record<ErrorKey, string>>;
+
+const EMPTY: Values = {
+  title: '',
+  // textbooks only for now; stationery listings are switched off
+  category: 'BOOK',
+  condition: '',
+  board: '',
+  class: '',
+  subject: '',
+  city: '',
+  sector: '',
+  pickupLocation: '',
+  description: '',
+  buyingPrice: '',
+  sellingPrice: '',
+};
+
+// First focusable element for each error key
+const FOCUS_ID: Record<ErrorKey, string> = {
+  photos: 'photo-input-0',
+  title: 'sell-title',
+  category: 'sell-category-BOOK',
+  condition: `sell-condition-${CONDITIONS[0]}`,
+  board: 'sell-board',
+  class: 'sell-class',
+  subject: 'sell-subject',
+  school: 'sell-school',
+  city: 'sell-city',
+  sector: 'sell-sector',
+  pickupLocation: `sell-pickup-${PICKUP_OPTIONS[0].value}`,
+  description: 'sell-description',
+  buyingPrice: 'sell-mrp',
+  sellingPrice: 'sell-price',
+};
+
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 export default function SellPage() {
   const router = useRouter();
-  const { isAuthenticated, hydrate } = useAuthStore();
+  const { isAuthenticated, isHydrated, hydrate, user } = useAuthStore();
+  const [step, setStep] = useState(0);
+  const [values, setValues] = useState<Values>(EMPTY);
+  const [errors, setErrors] = useState<Errors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  
+  const [submitError, setSubmitError] = useState('');
+  const [submitted, setSubmitted] = useState<{ photosFailed: boolean } | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const photosRef = useRef<Photo[]>([]);
+  photosRef.current = photos;
+  const topRef = useRef<HTMLDivElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
+
   // School search
   const [schoolSearch, setSchoolSearch] = useState('');
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [selectedSchoolName, setSelectedSchoolName] = useState('');
@@ -49,14 +124,33 @@ export default function SellPage() {
     hydrate();
   }, [hydrate]);
 
-  // Search schools
+  // Start with the seller's own city
+  useEffect(() => {
+    if (user?.city) setValues((v) => (v.city ? v : { ...v, city: user.city }));
+  }, [user]);
+
+  // Release preview object URLs on unmount
+  useEffect(() => {
+    return () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url));
+  }, []);
+
+  // Move to the top of the new step and put focus on its heading
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    stepHeadingRef.current?.focus({ preventScroll: true });
+  }, [step]);
+
   const searchSchools = useCallback(async (query: string) => {
     if (query.length < 2) {
       setSchools([]);
       return;
     }
     try {
-      const { data } = await api.get(`/schools?name=${query}&limit=10`);
+      const { data } = await api.get('/schools', { params: { name: query, limit: 10 } });
       setSchools(data.data?.schools || []);
     } catch (err) {
       console.error('Failed to search schools:', err);
@@ -72,64 +166,118 @@ export default function SellPage() {
     return () => clearTimeout(timeout);
   }, [schoolSearch, selectedSchoolName, searchSchools]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const setField = (key: keyof Values, value: string) => {
+    setValues((v) => ({ ...v, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+  const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setField(key, e.target.value);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const added = Array.from(files).map((file) => ({ file, url: URL.createObjectURL(file) }));
+    setPhotos((prev) => {
+      const next = [...prev, ...added];
+      next.slice(MAX_PHOTOS).forEach((p) => URL.revokeObjectURL(p.url));
+      return next.slice(0, MAX_PHOTOS);
+    });
+    setErrors((prev) => ({ ...prev, photos: undefined }));
+    e.target.value = '';
+  };
 
-    setIsUploading(true);
-    try {
-      Array.from(files).forEach(file => {
-        // Store the actual file for later upload
-        setImageFiles(prev => [...prev, file].slice(0, 4));
-        // Generate preview
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (reader.result) {
-            setUploadedImages(prev => [...prev, reader.result as string].slice(0, 4));
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    } finally {
-      setIsUploading(false);
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const validateStep = (s: number): Errors => {
+    const e: Errors = {};
+    if (s === 0) {
+      if (photos.length === 0) e.photos = 'Add a photo of the front cover to continue.';
     }
+    if (s === 1) {
+      if (!values.title.trim()) e.title = 'Add a title, for example the book name and class.';
+      if (!values.condition) e.condition = 'Choose the condition that fits best.';
+      if (!values.subject.trim()) e.subject = 'Add the subject.';
+      if (!values.description.trim()) e.description = 'Add a short description for buyers.';
+      if (!values.board) e.board = 'Choose the board.';
+      if (!values.class) e.class = 'Choose the class.';
+      if (!schoolSearch.trim()) e.school = 'Add the school name.';
+      if (!values.city.trim()) e.city = 'Add your city.';
+      if (!values.pickupLocation) e.pickupLocation = 'Choose where to hand over the item.';
+    }
+    if (s === 2) {
+      if (!(Number(values.sellingPrice) >= 1)) e.sellingPrice = 'Enter your selling price in rupees.';
+    }
+    return e;
+  };
+
+  const showErrors = (e: Errors) => {
+    setErrors(e);
+    const first = Object.keys(e)[0] as ErrorKey | undefined;
+    if (first) {
+      const el = document.getElementById(FOCUS_ID[first]);
+      el?.focus();
+      if (first === 'photos') topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return !first;
+  };
+
+  const goNext = () => {
+    if (!showErrors(validateStep(step))) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+
+  const goBack = () => {
+    setErrors({});
+    setStep((s) => Math.max(s - 1, 0));
   };
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (step < STEPS.length - 1) {
+      goNext();
+      return;
+    }
     if (!isAuthenticated) return;
 
-    // Validate school name is provided
-    if (!schoolSearch.trim()) {
-      setStatus({ type: 'error', message: 'Please enter a school name' });
-      return;
+    // Re-check every step before sending
+    for (let s = 0; s < STEPS.length; s++) {
+      const stepErrors = validateStep(s);
+      if (Object.keys(stepErrors).length > 0) {
+        setStep(s);
+        setTimeout(() => showErrors(stepErrors), 0);
+        return;
+      }
     }
 
     setIsSubmitting(true);
-    setStatus(null);
+    setSubmitError('');
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
+    const buyingPriceRaw = Number(values.buyingPrice);
 
     try {
-      // Build payload - use schoolId if selected from dropdown, otherwise pass schoolName for auto-creation
+      // Use schoolId if picked from the list, otherwise send schoolName for auto-creation
       const payload: any = {
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-        category: formData.get('category') as string,
-        condition: formData.get('condition') as string,
-        board: formData.get('board') as string,
-        class: Number(formData.get('class')),
-        subject: formData.get('subject') as string,
-        city: formData.get('city') as string,
-        sector: formData.get('sector') as string,
-        pickupLocation: formData.get('pickupLocation') as string,
-        buyingPrice: Number(formData.get('buyingPrice')) || 0,
-        sellingPrice: Number(formData.get('sellingPrice')) || 0,
+        title: values.title,
+        description: values.description,
+        category: values.category,
+        condition: values.condition,
+        board: values.board,
+        class: Number(values.class),
+        subject: values.subject,
+        city: values.city,
+        sector: values.sector || undefined,
+        pickupLocation: values.pickupLocation,
+        // MRP is optional; the API rejects 0, so omit it when empty
+        buyingPrice: buyingPriceRaw > 0 ? buyingPriceRaw : undefined,
+        sellingPrice: Number(values.sellingPrice),
       };
 
-      // If school selected from dropdown, use schoolId
-      // Otherwise, pass schoolName for auto-creation
       if (selectedSchoolId) {
         payload.schoolId = selectedSchoolId;
       } else if (schoolSearch.trim()) {
@@ -139,506 +287,708 @@ export default function SellPage() {
       const { data } = await api.post('/listings', payload);
 
       if (data.success) {
-        // Upload images to the newly created listing
-        if (imageFiles.length > 0 && data.data?.id) {
+        let photosFailed = false;
+        if (photos.length > 0 && data.data?.id) {
           const imageFormData = new FormData();
-          imageFiles.forEach(file => {
-            imageFormData.append('images', file);
-          });
+          photos.forEach((p) => imageFormData.append('images', p.file));
           try {
             await api.post(`/listings/${data.data.id}/images`, imageFormData, {
               headers: { 'Content-Type': 'multipart/form-data' },
             });
           } catch (imgErr) {
             console.error('Image upload failed:', imgErr);
-            // Listing still created, just images failed
+            photosFailed = true;
           }
         }
 
-        setStatus({ type: 'success', message: 'Listing submitted for review!' });
-        form.reset();
-        setUploadedImages([]);
-        setImageFiles([]);
+        setSubmitted({ photosFailed });
+        setValues(EMPTY);
+        photos.forEach((p) => URL.revokeObjectURL(p.url));
+        setPhotos([]);
         setSelectedSchoolId('');
         setSelectedSchoolName('');
         setSchoolSearch('');
-        
-        // Redirect to dashboard after 2 seconds
+
         setTimeout(() => {
           router.push('/dashboard');
         }, 2000);
       } else {
-        setStatus({ type: 'error', message: data.error || 'Something went wrong.' });
+        setSubmitError(data.error || "We couldn't submit your listing. Try again.");
       }
     } catch (err: any) {
-      const message = err?.response?.data?.error || 'Failed to connect to server.';
-      setStatus({ type: 'error', message });
+      setSubmitError(err?.response?.data?.error || "We couldn't reach Sybrary. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (!isAuthenticated) {
+  if (!isHydrated) {
     return (
-      <div className="bg-background min-h-screen py-24">
-        <div className="container max-w-3xl text-center animate-fade-in">
-          <h1 className="text-4xl font-black mb-6 tracking-tight">Please log in</h1>
-          <p className="text-muted font-medium text-lg mb-10">
-            You need to be logged in to list an item for sale.
-          </p>
-          <Link href="/login" className="btn btn-primary text-lg">
-            Go to Login
-          </Link>
+      <div className="container max-w-6xl py-12 md:py-16" aria-busy="true">
+        <div className="skeleton mb-4 h-12 max-w-sm" />
+        <div className="skeleton mb-10 h-6 max-w-md" />
+        <div className="skeleton mb-8 h-12 max-w-xl" />
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="skeleton h-96 rounded-lg" />
+          <div className="skeleton hidden h-96 rounded-lg lg:block" />
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="bg-background min-h-screen py-24">
-      <div className="container max-w-3xl">
-        <header className="mb-20 text-center animate-fade-in">
-          <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-6">
-            <Link href="/" className="hover:underline">Home</Link>
-            <span className="opacity-30">/</span>
-            <span>Post Listing</span>
-          </div>
-          <h1 className="text-6xl font-black mb-6 tracking-tight">List your item</h1>
-          <p className="text-muted font-medium text-lg max-w-md mx-auto leading-relaxed">
-            Join our community of parents saving on school essentials.
-          </p>
-        </header>
+  if (!isAuthenticated) {
+    return (
+      <div className="container max-w-xl py-16 md:py-24 animate-fade-in">
+        <EmptyState
+          icon={BookOpen}
+          title="Log in to list your books"
+          actions={
+            <>
+              <Link href="/login" className="btn btn-primary">
+                Log in
+              </Link>
+              <Link href="/browse" className="btn btn-outline">
+                Browse books instead
+              </Link>
+            </>
+          }
+        >
+          <p>You’ll need a photo of the front cover and your price.</p>
+        </EmptyState>
+      </div>
+    );
+  }
 
-        <form className="flex flex-col gap-12" onSubmit={handleSubmit}>
-          {status && (
-            <div
-              className={`p-6 rounded-3xl font-bold text-center animate-slide-down ${
-                status.type === 'success'
-                  ? 'bg-secondary/10 text-secondary border border-secondary/20'
-                  : 'bg-accent/10 text-accent border border-accent/20'
-              }`}
-            >
-              {status.message}
-            </div>
+  if (submitted) {
+    return (
+      <div className="container max-w-xl py-16 md:py-24 animate-fade-in">
+        <EmptyState
+          icon={CheckCircle2}
+          tone="secondary"
+          title="Submitted for review"
+          actions={
+            <Link href="/dashboard" className="btn btn-primary">
+              Go to dashboard
+            </Link>
+          }
+        >
+          <p>Our team checks every listing before buyers can see it. We’ll notify you when yours is live.</p>
+          {submitted.photosFailed && (
+            <p className="mt-3 font-semibold text-foreground">
+              Your photos didn’t upload. You can add them from your dashboard.
+            </p>
           )}
+          <p className="mt-3 text-sm">Taking you to your dashboard…</p>
+        </EmptyState>
+      </div>
+    );
+  }
 
-          {/* Step 1: Photos & Media */}
-          <section>
-            <div className="flex items-center gap-4 mb-8">
-              <span className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20">
-                01
-              </span>
-              <h2 className="text-2xl font-black tracking-tight">Photos (Required)</h2>
-            </div>
+  const mrp = Number(values.buyingPrice);
+  const price = Number(values.sellingPrice);
+  const savings = mrp > 0 && price > 0 && price < mrp ? mrp - price : 0;
+  const isLast = step === STEPS.length - 1;
 
-            <div className="card-premium p-10 bg-white">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Main Photo */}
-                <label className="aspect-square rounded-[24px] border-2 border-dashed border-primary bg-primary/5 flex flex-col items-center justify-center p-6 group hover:border-primary-dark cursor-pointer transition-all relative overflow-hidden">
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleImageUpload}
-                    disabled={isUploading}
-                  />
-                  {uploadedImages[0] ? (
-                    <img src={uploadedImages[0]} alt="Main" className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <>
-                      <span className="text-4xl mb-3 group-hover:scale-110 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-primary text-center">
-                        Front Cover *
-                      </span>
-                    </>
-                  )}
-                </label>
-                
-                {/* Additional Photos */}
-                {[1, 2, 3].map((i) => (
-                  <label
-                    key={i}
-                    className="aspect-square rounded-[24px] border-2 border-dashed border-card-border/40 flex flex-col items-center justify-center hover:border-primary transition-all cursor-pointer group relative overflow-hidden"
-                  >
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={handleImageUpload}
-                      disabled={isUploading}
-                    />
-                    {uploadedImages[i] ? (
-                      <img src={uploadedImages[i]} alt={`Photo ${i}`} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <span className="text-2xl opacity-20 group-hover:opacity-100 group-hover:text-primary group-hover:scale-125 transition-all mb-2">
-                          +
-                        </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-light">
-                          Optional
-                        </span>
-                      </>
-                    )}
-                  </label>
-                ))}
-              </div>
-              <div className="mt-8 p-4 rounded-xl bg-muted-extra-light/50 border border-card-border flex items-start gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                <p className="text-[11px] text-muted font-medium leading-relaxed">
-                  <span className="font-bold text-foreground">Required:</span> At least one front cover photo. 
-                  Items with clear photos sell <span className="text-secondary font-bold">3x faster</span>.
-                </p>
-              </div>
-            </div>
-          </section>
+  const preview = (
+    <ListingPreview
+      photoUrl={photos[0]?.url}
+      values={values}
+      schoolName={schoolSearch.trim()}
+      savings={savings}
+    />
+  );
 
-          {/* Step 2: Item Details */}
-          <section>
-            <div className="flex items-center gap-4 mb-8">
-              <span className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20">
-                02
-              </span>
-              <h2 className="text-2xl font-black tracking-tight">Item Details</h2>
-            </div>
+  return (
+    <div ref={topRef} className="container max-w-6xl scroll-mt-24 py-10 md:py-14">
+      <PageHeader
+        back={{ href: '/', label: 'Home' }}
+        title="List your books"
+        description="Add photos, details and your price. Buyers see your listing once our team has checked it."
+      />
 
-            <div className="card-premium p-10 bg-white flex flex-col gap-10">
-              {/* Title */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                  What are you selling? *
-                </label>
-                <input
-                  name="title"
-                  type="text"
-                  required
-                  placeholder="e.g. NCERT Mathematics Class X - 2024 Edition"
-                  className="w-full text-base font-bold py-5 px-6 rounded-2xl"
-                />
-              </div>
+      <Stepper step={step} onJump={(i) => i < step && setStep(i)} />
 
-              {/* Category & Condition */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Category *
-                  </label>
-                  <select
-                    name="category"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl appearance-none cursor-pointer"
-                  >
-                    <option value="">Select category</option>
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat === 'BOOK' ? 'Textbooks' : 'Stationery'}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Condition *
-                  </label>
-                  <select
-                    name="condition"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl appearance-none cursor-pointer"
-                  >
-                    <option value="">Select condition</option>
-                    {CONDITIONS.map((cond) => (
-                      <option key={cond.value} value={cond.value}>{cond.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <form noValidate onSubmit={handleSubmit} className="min-w-0 animate-fade-in" key={step}>
+          {/* Step 1: Photos */}
+          {step === 0 && (
+            <section aria-labelledby="step-heading">
+              <StepHeading ref={stepHeadingRef}>Add photos</StepHeading>
+              <p className="mb-6 text-muted">
+                Start with the front cover. Add the back or a few inside pages if they show the condition.
+              </p>
 
-              {/* Board & Class */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Board *
-                  </label>
-                  <select
-                    name="board"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl appearance-none cursor-pointer"
-                  >
-                    <option value="">Select board</option>
-                    {BOARDS.map((board) => (
-                      <option key={board} value={board}>{board}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Class *
-                  </label>
-                  <select
-                    name="class"
-                    required
-                    className="w-full font-bold py-5 px-6 rounded-2xl appearance-none cursor-pointer"
-                  >
-                    <option value="">Select class</option>
-                    {CLASSES.map((cls) => (
-                      <option key={cls} value={cls}>Class {cls}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Subject */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                  Subject *
-                </label>
-                <input
-                  name="subject"
-                  type="text"
-                  required
-                  placeholder="e.g. Mathematics, Science, English..."
-                  className="w-full font-bold py-5 px-6 rounded-2xl"
-                />
-              </div>
-
-              {/* School Search */}
-              <div className="relative">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                  School *
-                </label>
-                <input
-                  type="text"
-                  value={schoolSearch}
-                  onChange={(e) => {
-                    setSchoolSearch(e.target.value);
-                    setSelectedSchoolName('');
-                    setSelectedSchoolId('');
-                    setShowSchoolDropdown(true);
-                  }}
-                  onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
-                  placeholder="Type your school name..."
-                  className="w-full font-bold py-5 px-6 rounded-2xl"
-                />
-                {showSchoolDropdown && schools.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-card-border rounded-2xl mt-2 max-h-60 overflow-y-auto z-10 shadow-xl">
-                    {schools.map((school) => (
-                      <button
-                        key={school.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSchoolId(school.id);
-                          setSelectedSchoolName(school.name);
-                          setSchoolSearch(school.name);
-                          setShowSchoolDropdown(false);
-                        }}
-                        className="w-full text-left px-6 py-4 hover:bg-muted-extra-light border-b border-card-border last:border-0"
-                      >
-                        <div className="font-bold">{school.name}</div>
-                        <div className="text-xs text-muted">{school.city} • {school.board}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showSchoolDropdown && schoolSearch.length >= 2 && schools.length === 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-card-border rounded-2xl mt-2 p-6 z-10 shadow-xl">
-                    <div className="text-center">
-                      <p className="text-muted mb-4">No schools found matching "{schoolSearch}"</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedSchoolName(schoolSearch);
-                          setShowSchoolDropdown(false);
-                        }}
-                        className="btn btn-primary"
-                      >
-                        + Add "{schoolSearch}" as New School
-                      </button>
-                      <p className="text-xs text-muted mt-2">This school will be added to our database</p>
-                    </div>
-                  </div>
-                )}
-                {selectedSchoolName && (
-                  <div className="mt-3 p-3 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center gap-2">
-                    <span className="text-secondary">✓</span>
-                    <span className="text-sm font-medium">
-                      {selectedSchoolId ? 'Selected:' : 'Adding new school:'} {selectedSchoolName}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* City & Sector */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    City *
-                  </label>
-                  <input
-                    name="city"
-                    type="text"
-                    required
-                    placeholder="e.g. Delhi"
-                    className="w-full font-bold py-5 px-6 rounded-2xl"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Sector/Colony/Area
-                  </label>
-                  <input
-                    name="sector"
-                    type="text"
-                    placeholder="e.g. Sector 45, Gurgaon"
-                    className="w-full font-bold py-5 px-6 rounded-2xl"
-                  />
-                </div>
-              </div>
-
-              {/* Pickup Location */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                  Preferred Pickup Location *
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {PICKUP_OPTIONS.map((option) => (
-                    <label key={option.value} style={{ cursor: 'pointer', position: 'relative' }}>
-                      <input
-                        type="radio"
-                        name="pickupLocation"
-                        value={option.value}
-                        required
-                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                      />
-                      <div 
-                        className="pickup-option"
-                        style={{
-                          padding: '24px',
-                          borderRadius: '16px',
-                          border: '2px solid var(--card-border)',
-                          textAlign: 'center',
-                          transition: 'all 0.2s',
-                          backgroundColor: 'var(--card)',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = 'var(--primary)';
-                          e.currentTarget.style.backgroundColor = 'var(--muted-extra-light)';
-                        }}
-                        onMouseLeave={(e) => {
-                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                          if (!input?.checked) {
-                            e.currentTarget.style.borderColor = 'var(--card-border)';
-                            e.currentTarget.style.backgroundColor = 'var(--card)';
-                          }
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{option.label}</div>
+              <div className="card-flat p-4 sm:p-6">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                  {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
+                    const photo = photos[i];
+                    const isMain = i === 0;
+                    if (photo) {
+                      return (
+                        <div
+                          key={photo.url}
+                          className="relative aspect-square overflow-hidden rounded-md border-2 border-edge bg-muted-extra-light"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.url}
+                            alt={isMain ? 'Front cover preview' : `Photo ${i + 1} preview`}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(i)}
+                            aria-label={`Remove ${isMain ? 'front cover' : `photo ${i + 1}`}`}
+                            className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-edge bg-card text-foreground shadow-pop-sm hover:bg-muted-extra-light"
+                          >
+                            <X size={18} strokeWidth={2.5} aria-hidden />
+                          </button>
+                          {isMain && <span className="badge badge-sun absolute bottom-2 left-2">Cover</span>}
+                        </div>
+                      );
+                    }
+                    // Only the next empty slot is an active picker
+                    const isNextSlot = i === photos.length;
+                    const inputId = `photo-input-${i}`;
+                    return (
+                      <div key={`slot-${i}`} className="relative aspect-square">
+                        {isNextSlot && (
+                          <input
+                            id={inputId}
+                            type="file"
+                            className="peer sr-only"
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageUpload}
+                            aria-describedby={errors.photos ? 'photos-error' : 'photos-hint'}
+                          />
+                        )}
+                        <label
+                          htmlFor={isNextSlot ? inputId : undefined}
+                          aria-disabled={!isNextSlot}
+                          className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-3 text-center transition-colors peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                            isNextSlot
+                              ? `cursor-pointer bg-muted-extra-light text-foreground hover:border-solid hover:border-edge ${
+                                  errors.photos ? 'border-danger' : 'border-edge'
+                                }`
+                              : 'cursor-default border-card-border text-muted-light'
+                          }`}
+                        >
+                          {isNextSlot ? (
+                            <>
+                              <span
+                                className={`flex h-11 w-11 items-center justify-center rounded-full border-2 border-edge ${
+                                  isMain ? 'bg-sun text-ink' : 'bg-card'
+                                }`}
+                                aria-hidden
+                              >
+                                <ImagePlus size={20} strokeWidth={2.25} />
+                              </span>
+                              <span className="text-sm font-bold leading-tight">
+                                {isMain ? 'Add front cover' : 'Add photo'}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[13px] font-semibold">Photo {i + 1}</span>
+                          )}
+                        </label>
                       </div>
-                      <style>{`
-                        input[name="pickupLocation"]:checked + div {
-                          border-color: var(--primary) !important;
-                          background-color: rgba(var(--primary-rgb), 0.1) !important;
-                          color: var(--primary) !important;
-                        }
-                        input[name="pickupLocation"]:checked + div div {
-                          font-weight: 900 !important;
-                        }
-                      `}</style>
-                    </label>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                  Description *
-                </label>
-                <textarea
-                  name="description"
-                  rows={5}
-                  required
-                  placeholder="Tell buyers about the condition, any missing pages, highlights, or notes..."
-                  className="w-full font-medium py-5 px-6 rounded-2xl resize-none"
-                ></textarea>
-              </div>
-            </div>
-          </section>
-
-          {/* Step 3: Pricing */}
-          <section>
-            <div className="flex items-center gap-4 mb-8">
-              <span className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20">
-                03
-              </span>
-              <h2 className="text-2xl font-black tracking-tight">Pricing</h2>
-            </div>
-
-            <div className="card-premium p-10 bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="transition-transform focus-within:scale-105 duration-300">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Original Price (MRP)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-2xl text-muted-light">
-                      &#8377;
-                    </span>
-                    <input
-                      name="buyingPrice"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      className="w-full pl-12 pr-6 py-6 text-3xl font-black rounded-2xl"
-                    />
-                  </div>
-                </div>
-                <div className="transition-transform focus-within:scale-105 duration-300">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-light block mb-4">
-                    Your Selling Price *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-2xl text-muted-light">
-                      &#8377;
-                    </span>
-                    <input
-                      name="sellingPrice"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      required
-                      className="w-full pl-12 pr-6 py-6 text-3xl font-black rounded-2xl"
-                    />
-                  </div>
-                  <p className="mt-4 text-[10px] font-bold text-secondary uppercase tracking-widest">
-                    Enter 0 for free giveaway!
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                  <p id="photos-hint" className="text-[13px] text-muted">
+                    {photos.length} of {MAX_PHOTOS} photos. You can pick several at once.
                   </p>
                 </div>
+                <FieldError id="photos-error" message={errors.photos} />
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
-          {/* Submit */}
-          <div className="flex flex-col gap-6 pt-10">
-            <button
-              type="submit"
-              disabled={isSubmitting || uploadedImages.length === 0}
-              className="btn btn-primary h-20 text-xl font-black shadow-2xl rounded-[28px] group disabled:opacity-50"
-            >
-              {isSubmitting ? 'Submitting...' : uploadedImages.length === 0 ? 'Add Photo to Continue' : 'Submit My Listing'}
-              {!isSubmitting && uploadedImages.length > 0 && (
-                <span className="group-hover:translate-x-2 transition-transform inline-block ml-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </span>
-              )}
+          {/* Step 2: Details */}
+          {step === 1 && (
+            <section aria-labelledby="step-heading" className="flex flex-col gap-6">
+              <div>
+                <StepHeading ref={stepHeadingRef}>Describe the item</StepHeading>
+                <p className="text-muted">Parents search by class, board and school, so these matter most.</p>
+              </div>
+
+              <fieldset className="card-flat flex flex-col gap-5 p-5 sm:p-6">
+                <legend className="sr-only">About the item</legend>
+                <h3 className="text-lg font-bold" aria-hidden>
+                  About the item
+                </h3>
+
+                <Field id="sell-title" label="Title" error={errors.title} hint="Name the book or set, e.g. NCERT Mathematics Class 10 (2024 edition)">
+                  <input
+                    {...fieldA11y('sell-title', { error: errors.title, hint: true })}
+                    type="text"
+                    value={values.title}
+                    onChange={set('title')}
+                    placeholder="NCERT Mathematics Class 10"
+                    className={`${controlClass} ${errors.title ? invalidClass : ''}`}
+                  />
+                </Field>
+
+                <RadioGroup
+                  name="condition"
+                  legend="Condition"
+                  error={errors.condition}
+                  value={values.condition}
+                  onChange={(v) => {
+                    setValues((s) => ({ ...s, condition: v }));
+                    setErrors((p) => ({ ...p, condition: undefined }));
+                  }}
+                  options={CONDITIONS.map((c) => ({ value: c, label: conditionLabel(c) }))}
+                  idPrefix="sell-condition"
+                />
+
+                <Field id="sell-subject" label="Subject" error={errors.subject}>
+                  <input
+                    {...fieldA11y('sell-subject', { error: errors.subject })}
+                    type="text"
+                    value={values.subject}
+                    onChange={set('subject')}
+                    placeholder="Mathematics"
+                    className={`${controlClass} ${errors.subject ? invalidClass : ''}`}
+                  />
+                </Field>
+
+                <Field
+                  id="sell-description"
+                  label="Description"
+                  error={errors.description}
+                  hint="Mention missing pages, highlighting, or anything included like a workbook."
+                >
+                  <textarea
+                    {...fieldA11y('sell-description', { error: errors.description, hint: true })}
+                    rows={4}
+                    value={values.description}
+                    onChange={set('description')}
+                    placeholder="Clean copy, a few pencil notes in chapter 3. Comes with the lab manual."
+                    className={`w-full resize-y ${errors.description ? invalidClass : ''}`}
+                  />
+                </Field>
+              </fieldset>
+
+              <fieldset className="card-flat flex flex-col gap-5 p-5 sm:p-6">
+                <legend className="sr-only">Class and school</legend>
+                <h3 className="text-lg font-bold" aria-hidden>
+                  Class and school
+                </h3>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field id="sell-board" label="Board" error={errors.board}>
+                    <Select
+                      id="sell-board"
+                      invalid={!!errors.board}
+                      aria-describedby={errors.board ? 'sell-board-error' : undefined}
+                      value={values.board}
+                      onChange={(value) => setField('board', value)}
+                      options={BOARD_SELECT_OPTIONS}
+                      placeholder="Choose board"
+                    />
+                  </Field>
+                  <Field id="sell-class" label="Class" error={errors.class}>
+                    <Select
+                      id="sell-class"
+                      invalid={!!errors.class}
+                      aria-describedby={errors.class ? 'sell-class-error' : undefined}
+                      value={values.class}
+                      onChange={(value) => setField('class', value)}
+                      options={CLASS_OPTIONS}
+                      placeholder="Choose class"
+                      columns={3}
+                      menuMinWidth={288}
+                      align="right"
+                    />
+                  </Field>
+                </div>
+
+                <Field id="sell-school" label="School" error={errors.school}>
+                  <div className="relative">
+                    <input
+                      {...fieldA11y('sell-school', { error: errors.school })}
+                      type="text"
+                      role="combobox"
+                      aria-expanded={showSchoolDropdown && schoolSearch.length >= 2}
+                      aria-controls="sell-school-suggestions"
+                      aria-autocomplete="list"
+                      value={schoolSearch}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setSchoolSearch(e.target.value);
+                        setSelectedSchoolName('');
+                        setSelectedSchoolId('');
+                        setShowSchoolDropdown(true);
+                        if (errors.school) setErrors((p) => ({ ...p, school: undefined }));
+                      }}
+                      onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setShowSchoolDropdown(false);
+                      }}
+                      placeholder="Start typing the school name"
+                      className={`${controlClass} ${errors.school ? invalidClass : ''}`}
+                    />
+                    <SchoolSuggestions
+                      listId="sell-school-suggestions"
+                      open={showSchoolDropdown && schoolSearch.length >= 2}
+                      schools={schools}
+                      onSelect={(school) => {
+                        setSelectedSchoolId(school.id);
+                        setSelectedSchoolName(school.name);
+                        setSchoolSearch(school.name);
+                        setShowSchoolDropdown(false);
+                      }}
+                      empty={
+                        <div>
+                          <p className="mb-3">
+                            No school called <span className="font-semibold text-foreground">“{schoolSearch}”</span> yet.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSchoolName(schoolSearch);
+                              setShowSchoolDropdown(false);
+                            }}
+                            className="btn btn-outline btn-sm h-auto min-h-[40px] max-w-full whitespace-normal py-2 text-left"
+                          >
+                            Add “{schoolSearch}” as a new school
+                          </button>
+                        </div>
+                      }
+                    />
+                  </div>
+                  {selectedSchoolName && (
+                    <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-secondary-dark">
+                      <Check size={16} strokeWidth={3} aria-hidden />
+                      {selectedSchoolId ? 'School selected' : 'We’ll add this school for you'}
+                    </p>
+                  )}
+                </Field>
+              </fieldset>
+
+              <fieldset className="card-flat flex flex-col gap-5 p-5 sm:p-6">
+                <legend className="sr-only">Pickup</legend>
+                <h3 className="text-lg font-bold" aria-hidden>
+                  Pickup
+                </h3>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field id="sell-city" label="City" error={errors.city}>
+                    <input
+                      {...fieldA11y('sell-city', { error: errors.city })}
+                      type="text"
+                      autoComplete="address-level2"
+                      value={values.city}
+                      onChange={set('city')}
+                      placeholder="Bengaluru"
+                      className={`${controlClass} ${errors.city ? invalidClass : ''}`}
+                    />
+                  </Field>
+                  <Field id="sell-sector" label="Area or sector" optional>
+                    <input
+                      id="sell-sector"
+                      type="text"
+                      value={values.sector}
+                      onChange={set('sector')}
+                      placeholder="HSR Layout"
+                      className={controlClass}
+                    />
+                  </Field>
+                </div>
+
+                <fieldset aria-describedby={errors.pickupLocation ? 'sell-pickup-error' : undefined}>
+                  <legend className="mb-2 text-sm font-semibold">Where should the buyer collect it?</legend>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {PICKUP_OPTIONS.map((option) => {
+                      const Icon = option.icon;
+                      const id = `sell-pickup-${option.value}`;
+                      return (
+                        <label key={option.value} htmlFor={id} className="relative cursor-pointer">
+                          <input
+                            id={id}
+                            type="radio"
+                            name="pickupLocation"
+                            value={option.value}
+                            checked={values.pickupLocation === option.value}
+                            onChange={() => {
+                              setValues((s) => ({ ...s, pickupLocation: option.value }));
+                              setErrors((p) => ({ ...p, pickupLocation: undefined }));
+                            }}
+                            className="peer sr-only"
+                          />
+                          <span
+                            className={`flex h-full min-h-[64px] items-start gap-3 rounded-md border-2 bg-card p-3.5 transition-colors hover:border-edge peer-checked:border-edge peer-checked:bg-sun peer-checked:text-ink peer-checked:shadow-pop-sm peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary peer-checked:[&_.hint]:text-ink ${
+                              errors.pickupLocation ? 'border-danger' : 'border-border'
+                            }`}
+                          >
+                            <Icon size={20} strokeWidth={2.25} className="mt-0.5 shrink-0" aria-hidden />
+                            <span>
+                              <span className="block text-sm font-bold">{option.label}</span>
+                              <span className="hint block text-[13px] leading-snug text-muted">{option.hint}</span>
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <FieldError id="sell-pickup-error" message={errors.pickupLocation} />
+                </fieldset>
+                <p className="text-[13px] text-muted">
+                  Buyers only see your phone number and address after you accept their request.
+                </p>
+              </fieldset>
+            </section>
+          )}
+
+          {/* Step 3: Price */}
+          {step === 2 && (
+            <section aria-labelledby="step-heading" className="flex flex-col gap-6">
+              <div>
+                <StepHeading ref={stepHeadingRef}>Set your price</StepHeading>
+                <p className="text-muted">Adding the printed price (MRP) shows buyers how much they save.</p>
+              </div>
+
+              <div className="card-flat p-5 sm:p-6">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field id="sell-price" label="Your price" error={errors.sellingPrice}>
+                    <PriceInput
+                      {...fieldA11y('sell-price', { error: errors.sellingPrice })}
+                      size="lg"
+                      value={values.sellingPrice}
+                      onChange={set('sellingPrice')}
+                      placeholder="0"
+                      className={errors.sellingPrice ? invalidClass : ''}
+                    />
+                  </Field>
+                  <Field id="sell-mrp" label="MRP" optional>
+                    <PriceInput
+                      id="sell-mrp"
+                      size="lg"
+                      value={values.buyingPrice}
+                      onChange={set('buyingPrice')}
+                      placeholder="0"
+                      aria-describedby="sell-savings"
+                    />
+                  </Field>
+                </div>
+
+                <div id="sell-savings" aria-live="polite" className="mt-5 min-h-[24px]">
+                  {savings > 0 && (
+                    <p className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="badge badge-secondary text-[13px]">Buyers save {rupees(savings)}</span>
+                      <span className="text-muted">{Math.round((savings / mrp) * 100)}% below the MRP</span>
+                    </p>
+                  )}
+                  {mrp > 0 && price > mrp && (
+                    <p className="text-sm text-muted">Your price is higher than the MRP. Check both amounts.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="lg:hidden">
+                <h3 className="mb-3 text-lg font-bold">How buyers will see it</h3>
+                <div className="max-w-[320px]">{preview}</div>
+              </div>
+
+              {submitError && <FormAlert>{submitError}</FormAlert>}
+            </section>
+          )}
+
+          {/* Actions: sticky on phones */}
+          <div className="sticky bottom-0 z-20 -mx-4 mt-8 flex items-center gap-3 border-t-2 border-edge bg-background px-4 py-3 sm:-mx-6 sm:px-6 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0">
+            {step > 0 && (
+              <button type="button" onClick={goBack} className="btn btn-outline">
+                Back
+              </button>
+            )}
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary flex-1 md:ml-auto md:flex-none md:px-8">
+              {isLast ? (isSubmitting ? 'Submitting…' : 'Submit for review') : 'Continue'}
             </button>
-            <p className="text-center text-[11px] text-muted-light font-medium max-w-xs mx-auto">
-              By clicking Submit, you agree to our{' '}
-              <span className="font-black text-foreground underline underline-offset-4 cursor-pointer">
-                Community Guidelines
-              </span>
-              .
-            </p>
           </div>
         </form>
+
+        <aside className="hidden lg:sticky lg:top-28 lg:block" aria-label="Listing preview">
+          <h2 className="mb-3 text-lg font-bold">Preview</h2>
+          {preview}
+          <p className="mt-4 text-[13px] text-muted">This is roughly how your listing will look in search.</p>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Pieces ---------- */
+
+const StepHeading = forwardRef<HTMLHeadingElement, { children: React.ReactNode }>(function StepHeading(
+  { children },
+  ref,
+) {
+  return (
+    <h2 id="step-heading" ref={ref} tabIndex={-1} className="mb-2 text-2xl outline-none md:text-3xl">
+      {children}
+    </h2>
+  );
+});
+
+function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }) {
+  return (
+    <nav aria-label="Listing progress">
+      <p className="sr-only" aria-live="polite">
+        Step {step + 1} of {STEPS.length}: {STEPS[step]}
+      </p>
+      <ol className="flex items-center gap-2 sm:gap-3">
+        {STEPS.map((label, i) => {
+          const done = i < step;
+          const current = i === step;
+          const circle = current
+            ? 'bg-primary text-on-primary shadow-pop-sm'
+            : done
+              ? 'bg-secondary text-ink'
+              : 'bg-card text-muted';
+          const content = (
+            <>
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-edge text-sm font-extrabold ${circle}`}
+                aria-hidden
+              >
+                {done ? <Check size={16} strokeWidth={3} /> : i + 1}
+              </span>
+              <span className={`text-sm font-bold ${current ? 'text-foreground' : 'text-muted'} ${current ? '' : 'hidden sm:inline'}`}>
+                {label}
+              </span>
+            </>
+          );
+          return (
+            <li key={label} className="flex flex-1 items-center gap-2 sm:gap-3 last:flex-none" aria-current={current ? 'step' : undefined}>
+              {done ? (
+                <button
+                  type="button"
+                  onClick={() => onJump(i)}
+                  className="flex min-h-[40px] items-center gap-2 rounded-full pr-1 hover:underline decoration-primary decoration-2 underline-offset-4"
+                  aria-label={`Back to step ${i + 1}: ${label}`}
+                >
+                  {content}
+                </button>
+              ) : (
+                <span className="flex min-h-[40px] items-center gap-2">{content}</span>
+              )}
+              {i < STEPS.length - 1 && (
+                <span className={`h-[3px] flex-1 rounded-full ${i < step ? 'bg-secondary' : 'bg-card-border'}`} aria-hidden />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+function RadioGroup({
+  name,
+  legend,
+  options,
+  value,
+  onChange,
+  error,
+  idPrefix,
+}: {
+  name: string;
+  legend: string;
+  options: { value: string; label: string; icon?: LucideIcon }[];
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+  idPrefix: string;
+}) {
+  return (
+    <fieldset aria-describedby={error ? `${idPrefix}-error` : undefined}>
+      <legend className="mb-2 text-sm font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => {
+          const id = `${idPrefix}-${o.value}`;
+          const Icon = o.icon;
+          return (
+            <label key={o.value} htmlFor={id} className="cursor-pointer">
+              <input
+                id={id}
+                type="radio"
+                name={name}
+                value={o.value}
+                checked={value === o.value}
+                onChange={() => onChange(o.value)}
+                className="peer sr-only"
+              />
+              <span
+                className={`inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted-extra-light peer-checked:border-edge peer-checked:bg-sun peer-checked:text-ink peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                  error ? 'border-danger' : 'border-edge'
+                }`}
+              >
+                {Icon && <Icon size={16} strokeWidth={2.25} aria-hidden />}
+                {o.label}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <FieldError id={`${idPrefix}-error`} message={error} />
+    </fieldset>
+  );
+}
+
+function ListingPreview({
+  photoUrl,
+  values,
+  schoolName,
+  savings,
+}: {
+  photoUrl?: string;
+  values: Values;
+  schoolName: string;
+  savings: number;
+}) {
+  const price = Number(values.sellingPrice);
+  const isStationery = values.category === 'STATIONERY';
+  const Glyph = isStationery ? PencilRuler : BookOpen;
+  const place = [schoolName, values.city].filter(Boolean);
+
+  return (
+    <div className="card-premium overflow-hidden" aria-hidden>
+      <div className="relative aspect-[4/3] border-b-2 border-edge bg-sun">
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-ink">
+            <Glyph size={64} strokeWidth={1.75} />
+          </div>
+        )}
+        <span className="sticker absolute left-3 top-3 text-lg">{price > 0 ? rupees(price) : '₹ —'}</span>
+      </div>
+      <div className="p-4">
+        <p className={`line-clamp-2 text-lg font-bold leading-snug ${values.title ? '' : 'text-muted-light'}`}>
+          {values.title || 'Your title appears here'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {values.class && <span className="badge badge-primary">Class {values.class}</span>}
+          {values.board && <span className="badge badge-muted">{boardLabel(values.board)}</span>}
+          {values.condition && <span className="badge badge-muted">{conditionLabel(values.condition)}</span>}
+          {savings > 0 && <span className="badge badge-secondary">Save {rupees(savings)}</span>}
+          {!values.class && !values.board && !values.condition && savings === 0 && (
+            <span className="badge badge-muted">Class and board</span>
+          )}
+        </div>
+        {place.length > 0 && (
+          <div className="mt-3 text-sm text-muted">
+            {place.map((p) => (
+              <p key={p} className="truncate">
+                {p}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

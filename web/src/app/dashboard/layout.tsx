@@ -1,26 +1,25 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { LayoutGrid, ArrowLeftRight, Plus } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
 const navItems = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/dashboard/deals', label: 'My Deals' },
-  { href: '/dashboard/listings/new', label: 'Give Books' },
-  { href: '/browse', label: 'Find Books' },
+  { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
+  { href: '/dashboard/deals', label: 'Deals', icon: ArrowLeftRight },
+  { href: '/sell', label: 'List your books', icon: Plus },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, hydrate, logout } = useAuthStore();
+  const { isAuthenticated, hydrate } = useAuthStore();
 
   useEffect(() => {
     hydrate();
-  }, []);
+  }, [hydrate]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -31,63 +30,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isAuthenticated, router]);
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/dashboard" className="text-2xl font-bold text-green-600">
-            Sybrary
-          </Link>
+    <div className="min-h-screen bg-background">
+      <div className="container pt-6 md:pt-8">
+        {/* In-page section chips (the global Navbar stays the only sticky header) */}
+        <nav aria-label="Your account" className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          <ul className="flex gap-2">
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <li key={item.href} className="shrink-0">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    data-active={active ? 'true' : undefined}
+                    className="chip"
+                  >
+                    <Icon size={16} strokeWidth={2.25} aria-hidden="true" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
 
-          <nav className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-sm font-medium transition-colors ${
-                  pathname === item.href
-                    ? 'text-green-600'
-                    : 'text-gray-600 hover:text-green-600'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-4">
-            {user && (
-              <span className="text-sm text-gray-600 hidden md:inline">
-                {user.name}
-              </span>
-            )}
-            {user?.isAdmin && (
-              <Link
-                href="/admin/dashboard"
-                className="text-sm text-purple-600 font-medium hover:underline"
-              >
-                Admin
-              </Link>
-            )}
-            <button
-              onClick={handleLogout}
-              className="text-sm text-red-600 hover:text-red-700 font-medium"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        {children}
-      </main>
+      <div className="container pb-16 pt-8">{children}</div>
     </div>
   );
 }

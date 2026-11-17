@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Bell } from 'lucide-react';
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -23,15 +24,21 @@ export default function NotificationBell() {
   const unread = data?.unreadCount ?? 0;
   const items = data?.notifications ?? [];
 
-  // Close on outside click
+  // Close on outside click / Escape
   useEffect(() => {
+    if (!open) return;
     function handle(e: MouseEvent) {
-      if (open && ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
     }
     document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', handle);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
   function handleClickItem(n: Notification) {
@@ -47,14 +54,17 @@ export default function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Notifications"
-        className="relative w-10 h-10 rounded-xl bg-primary/10 border border-card-border flex items-center justify-center text-primary transition-colors hover:bg-primary hover:text-white"
+        aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+        aria-haspopup="true"
+        aria-expanded={open}
+        className="btn btn-outline btn-sm btn-icon relative"
+        style={{ width: 40, height: 40 }}
       >
-        <span aria-hidden className="text-lg">🔔</span>
+        <Bell size={18} strokeWidth={2.4} aria-hidden className={unread > 0 ? 'origin-top animate-[bellRing_1.2s_ease-in-out_1]' : ''} />
         {unread > 0 && (
           <span
-            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-accent text-white text-[10px] font-black flex items-center justify-center"
-            aria-label={`${unread} unread notifications`}
+            aria-hidden
+            className="absolute -top-2 -right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-danger text-on-accent border-2 border-edge text-[11px] font-extrabold flex items-center justify-center"
           >
             {badge}
           </span>
@@ -62,48 +72,61 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 card-premium p-2 z-50">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-card-border mb-1">
-            <p className="text-sm font-bold">Notifications</p>
-            {unread > 0 && (
-              <button
-                onClick={() => markAll.mutate()}
-                className="text-[10px] font-bold text-primary hover:underline"
-                disabled={markAll.isPending}
-              >
-                Mark all as read
-              </button>
+        <div className="fixed inset-x-4 top-[84px] sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-3 sm:w-[340px] z-50">
+          <div className="card-premium p-2 animate-menu">
+            <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-3 mb-1 border-b-2 border-card-border">
+              <p className="font-bold">Notifications</p>
+              {unread > 0 && (
+                <button
+                  type="button"
+                  onClick={() => markAll.mutate()}
+                  className="text-sm font-semibold text-primary hover:underline underline-offset-4 px-2 h-10 rounded-md"
+                  disabled={markAll.isPending}
+                >
+                  Mark all as read
+                </button>
+              )}
+            </div>
+
+            {items.length === 0 ? (
+              <p className="px-3 py-8 text-sm text-muted text-center">
+                You&apos;re all caught up. We&apos;ll let you know when a buyer or seller replies.
+              </p>
+            ) : (
+              <ul className="max-h-96 overflow-y-auto">
+                {items.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleClickItem(n)}
+                      className="w-full text-left px-3 py-3 rounded-[10px] transition-colors hover:bg-muted-extra-light flex gap-3"
+                    >
+                      <span
+                        aria-hidden
+                        className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${n.isRead ? 'bg-transparent' : 'bg-primary'}`}
+                      />
+                      <span className="min-w-0">
+                        <span className={`block text-sm truncate ${n.isRead ? 'font-medium' : 'font-bold'}`}>
+                          {n.title}
+                          {!n.isRead && <span className="sr-only"> (unread)</span>}
+                        </span>
+                        <span className="block text-sm text-muted mt-0.5 line-clamp-2">{n.body}</span>
+                        <span className="block text-xs text-muted-light mt-1">{formatRelativeTime(n.sentAt)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
+
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-center mt-1 h-11 text-sm font-bold text-primary hover:bg-muted-extra-light rounded-[10px] transition-colors"
+            >
+              See all notifications
+            </Link>
           </div>
-
-          {items.length === 0 ? (
-            <p className="px-3 py-6 text-xs text-muted text-center">No notifications yet.</p>
-          ) : (
-            <ul className="max-h-96 overflow-y-auto">
-              {items.map((n) => (
-                <li key={n.id}>
-                  <button
-                    onClick={() => handleClickItem(n)}
-                    className={`w-full text-left px-3 py-3 rounded-lg transition-colors hover:bg-muted-extra-light ${
-                      !n.isRead ? 'bg-primary/5 border-l-2 border-primary' : ''
-                    }`}
-                  >
-                    <p className="text-xs font-bold truncate">{n.title}</p>
-                    <p className="text-[11px] text-muted mt-0.5 line-clamp-2">{n.body}</p>
-                    <p className="text-[10px] text-muted mt-1">{formatRelativeTime(n.sentAt)}</p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <Link
-            href="/notifications"
-            onClick={() => setOpen(false)}
-            className="block mt-1 px-3 py-2 text-center text-[11px] font-bold text-primary hover:bg-muted-extra-light rounded-lg transition-colors"
-          >
-            View all notifications
-          </Link>
         </div>
       )}
     </div>

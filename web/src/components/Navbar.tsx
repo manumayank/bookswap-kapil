@@ -1,127 +1,250 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { Menu, X, LayoutDashboard, ArrowLeftRight, Bell, Shield, LogOut, PlusCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import NotificationBell from './NotificationBell';
+import ThemeToggle from './ThemeToggle';
+import Wordmark from '@/components/brand/Wordmark';
 
+// Each link is a sticker: its own fill and resting tilt. Fills are light in
+// both themes, so the text is always ink.
 const NAV_LINKS = [
-  { href: '/browse', label: 'Browse' },
-  { href: '/need', label: 'Requests' },
-  { href: '/papers', label: 'Papers' },
+  { href: '/', label: 'Home', fill: 'bg-[#bfe1ff]', tilt: 'rotate-2' },
+  { href: '/browse', label: 'Browse', fill: 'bg-sun', tilt: '-rotate-3' },
+  { href: '/need', label: 'Requests', fill: 'bg-[#bfe9d6]', tilt: 'rotate-2' },
+  { href: '/papers', label: 'Exam papers', fill: 'bg-[#ffd0d8]', tilt: '-rotate-2' },
+  { href: '/initiative', label: 'Our initiative', fill: 'bg-[#d9d7ff]', tilt: 'rotate-3' },
 ] as const;
 
+const STICKER =
+  'inline-flex items-center h-10 px-3 2xl:px-4 rounded-[10px] border-2 border-[#17153a] text-ink text-[0.9375rem] font-extrabold transition-[transform,box-shadow] duration-200 ease-pop hover:rotate-0 hover:scale-[1.06] active:scale-95';
+
+const MENU_ITEM =
+  'group/item flex items-center gap-3 px-3 h-12 text-[0.9375rem] font-semibold rounded-[10px] text-foreground hover:bg-muted-extra-light transition-colors';
+
+/** Coloured icon tile for account menu rows (fills are light in both themes, so ink icons). */
+const MENU_TONES = {
+  sun: 'bg-sun',
+  mint: 'bg-[#bfe9d6]',
+  pink: 'bg-[#ffd0d8]',
+  lavender: 'bg-[#d9d7ff]',
+  rose: 'bg-[#ffb3c0]',
+} as const;
+
+function MenuIcon({ tone, children }: { tone: keyof typeof MENU_TONES; children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex w-8 h-8 shrink-0 items-center justify-center rounded-[8px] border-2 border-[#17153a] text-ink transition-transform duration-200 ease-pop group-hover/item:-rotate-6 group-hover/item:scale-105 ${MENU_TONES[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default function Navbar() {
-  const { user, isAuthenticated, logout, hydrate } = useAuthStore();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isHydrated, logout, hydrate } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
+  // Close menus on navigation
+  useEffect(() => {
+    setMenuOpen(false);
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Close avatar menu on outside click / Escape
+  useEffect(() => {
+    if (!menuOpen && !mobileOpen) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setMobileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen, mobileOpen]);
+
+  const isActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname?.startsWith(`${href}/`);
+
+  const handleLogout = () => {
+    setMenuOpen(false);
+    setMobileOpen(false);
+    logout();
+  };
+
+  const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() || 'U';
+
   return (
-    <nav className="glass sticky top-0 z-50 w-full animate-slide-down">
-      <div className="container flex h-20 items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
-            S
-          </div>
-          <span className="text-xl font-black tracking-tight text-foreground">
-            Sybrary
-          </span>
+    <header className="glass border-dashed sticky top-0 z-50 w-full">
+      <nav aria-label="Main" className="container flex h-[72px] items-center justify-between gap-3">
+        <Link href="/" aria-label="Sybrary home" className="flex items-center shrink-0 rounded-lg">
+          <span className="hidden sm:flex"><Wordmark height={40} /></span>
+          <span className="flex sm:hidden"><Wordmark height={32} /></span>
         </Link>
 
-        <div className="hidden lg:flex items-center gap-10">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-[11px] font-black uppercase tracking-widest text-muted hover:text-primary transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        <ul className="hidden xl:flex items-center gap-2 2xl:gap-3">
+          {NAV_LINKS.map((link) => {
+            const active = isActive(link.href);
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`${STICKER} ${link.fill} ${
+                    active ? `${link.tilt} shadow-[3px_3px_0_0_#17153a] -translate-y-0.5` : `${link.tilt} shadow-[2px_2px_0_0_#17153a]`
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
 
-        <div className="flex items-center gap-4">
-          {isAuthenticated && user ? (
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+
+          {!isHydrated ? (
+            <div className="flex items-center gap-2" aria-hidden>
+              <div className="skeleton w-10 h-10" />
+              <div className="skeleton hidden sm:block w-36 h-10" />
+            </div>
+          ) : isAuthenticated && user ? (
             <>
               <NotificationBell />
-              <div className="relative group">
-                <button className="w-10 h-10 rounded-xl bg-primary/10 border border-card-border flex items-center justify-center text-sm font-black text-primary transition-colors hover:bg-primary hover:text-white">
-                  {user.name?.charAt(0)?.toUpperCase() || 'U'}
+              <div ref={menuRef} className="relative hidden xl:block">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  aria-label="Account menu"
+                  className="btn btn-sun btn-sm btn-icon rounded-full text-base font-extrabold"
+                  style={{ width: 40, height: 40, borderRadius: 999 }}
+                >
+                  {initial}
                 </button>
-                <div className="absolute right-0 top-full mt-2 w-52 card-premium p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  <div className="px-3 py-2 border-b border-card-border mb-1">
-                    <p className="text-sm font-bold truncate">{user.name}</p>
-                    <p className="text-[10px] text-muted truncate">{user.email}</p>
+                {menuOpen && (
+                  <div className="absolute right-0 top-full pt-3 w-64 z-50">
+                    <div role="menu" className="card-premium p-2 animate-menu">
+                      <div className="px-3 pt-2 pb-3 mb-1 border-b-2 border-card-border">
+                        <p className="font-bold truncate">{user.name}</p>
+                        <p className="text-sm text-muted truncate">{user.email}</p>
+                      </div>
+                      <Link role="menuitem" href="/dashboard" className={MENU_ITEM}>
+                        <MenuIcon tone="sun"><LayoutDashboard size={16} strokeWidth={2.5} /></MenuIcon> Your dashboard
+                      </Link>
+                      <Link role="menuitem" href="/dashboard/deals" className={MENU_ITEM}>
+                        <MenuIcon tone="mint"><ArrowLeftRight size={16} strokeWidth={2.5} /></MenuIcon> Your deals
+                      </Link>
+                      <Link role="menuitem" href="/notifications" className={MENU_ITEM}>
+                        <MenuIcon tone="pink"><Bell size={16} strokeWidth={2.5} /></MenuIcon> Notifications
+                      </Link>
+                      {user.isAdmin && (
+                        <Link role="menuitem" href="/admin/dashboard" className={MENU_ITEM}>
+                          <MenuIcon tone="lavender"><Shield size={16} strokeWidth={2.5} /></MenuIcon> Admin
+                        </Link>
+                      )}
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={handleLogout}
+                        className={`${MENU_ITEM} w-full text-left !text-danger hover:!bg-accent/10`}
+                      >
+                        <MenuIcon tone="rose"><LogOut size={16} strokeWidth={2.5} /></MenuIcon> Log out
+                      </button>
+                    </div>
                   </div>
-                  <Link href="/dashboard" className="block px-3 py-2 text-xs font-semibold rounded-lg hover:bg-muted-extra-light transition-colors">
-                    My Dashboard
-                  </Link>
-                  <Link href="/sell" className="block px-3 py-2 text-xs font-semibold rounded-lg hover:bg-muted-extra-light transition-colors">
-                    List a Book
-                  </Link>
-                  <Link href="/notifications" className="block px-3 py-2 text-xs font-semibold rounded-lg hover:bg-muted-extra-light transition-colors">
-                    Notifications
-                  </Link>
-                  {user.isAdmin && (
-                    <Link href="/admin/dashboard" className="block px-3 py-2 text-xs font-semibold rounded-lg hover:bg-muted-extra-light transition-colors">
-                      Admin Panel
-                    </Link>
-                  )}
-                  <button
-                    onClick={logout}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-accent/10 text-accent transition-colors"
-                  >
-                    Log out
-                  </button>
-                </div>
+                )}
               </div>
+              <Link href="/sell" className="btn btn-primary btn-sm hidden sm:inline-flex">
+                <PlusCircle size={18} aria-hidden /> List your books
+              </Link>
             </>
           ) : (
             <>
-              <Link href="/login" className="text-xs font-bold px-4 py-2 hover:text-primary transition-colors">Log in</Link>
-              <Link href="/sell" className="btn btn-primary h-11 px-6 text-xs font-black uppercase tracking-widest shadow-xl shadow-primary/20">List a Book</Link>
+              <Link href="/login" className="btn btn-ghost btn-sm hidden sm:inline-flex">
+                Log in
+              </Link>
+              <Link href="/sell" className="btn btn-primary btn-sm hidden sm:inline-flex">
+                List your books
+              </Link>
             </>
           )}
 
-          {/* Mobile menu toggle */}
           <button
-            className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl border border-card-border"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
+            type="button"
+            className="btn btn-outline btn-sm btn-icon xl:hidden"
+            style={{ width: 40, height: 40 }}
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
           >
-            <span className="text-lg">{mobileOpen ? '✕' : '☰'}</span>
+            {mobileOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
           </button>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div className="lg:hidden glass border-t border-card-border animate-slide-down">
-          <div className="container flex flex-col gap-1 py-4 px-6">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
-            {isAuthenticated ? (
-              <>
-                <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-muted hover:text-primary py-3 transition-colors">Dashboard</Link>
-                <Link href="/sell" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-primary py-3 transition-colors">List a Book</Link>
-              </>
-            ) : (
-              <Link href="/sell" onClick={() => setMobileOpen(false)} className="text-xs font-black uppercase tracking-widest text-primary py-3 transition-colors">List a Book</Link>
-            )}
+        <div id="mobile-menu" className="xl:hidden border-t-2 border-edge bg-background animate-slide-down">
+          <div className="container py-4 flex flex-col gap-2 max-h-[calc(100dvh-72px)] overflow-y-auto">
+            <ul className="grid grid-cols-1 gap-2">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    aria-current={isActive(link.href) ? 'page' : undefined}
+                    className={`flex items-center justify-between h-12 px-4 rounded-[10px] border-2 border-[#17153a] text-ink font-extrabold text-lg transition-transform duration-200 ease-pop active:scale-[.98] ${link.fill} ${
+                      isActive(link.href) ? 'shadow-[3px_3px_0_0_#17153a]' : 'shadow-[2px_2px_0_0_#17153a]'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            {isHydrated && isAuthenticated && user ? (
+              <div className="card-flat p-2 mt-2">
+                <p className="px-3 pt-2 pb-2 text-sm text-muted truncate">Signed in as {user.name}</p>
+                <Link href="/dashboard" className={MENU_ITEM}><MenuIcon tone="sun"><LayoutDashboard size={16} strokeWidth={2.5} /></MenuIcon> Your dashboard</Link>
+                <Link href="/dashboard/deals" className={MENU_ITEM}><MenuIcon tone="mint"><ArrowLeftRight size={16} strokeWidth={2.5} /></MenuIcon> Your deals</Link>
+                <Link href="/notifications" className={MENU_ITEM}><MenuIcon tone="pink"><Bell size={16} strokeWidth={2.5} /></MenuIcon> Notifications</Link>
+                {user.isAdmin && (
+                  <Link href="/admin/dashboard" className={MENU_ITEM}><MenuIcon tone="lavender"><Shield size={16} strokeWidth={2.5} /></MenuIcon> Admin</Link>
+                )}
+                <button type="button" onClick={handleLogout} className={`${MENU_ITEM} w-full text-left !text-danger`}>
+                  <MenuIcon tone="rose"><LogOut size={16} strokeWidth={2.5} /></MenuIcon> Log out
+                </button>
+              </div>
+            ) : isHydrated ? (
+              <Link href="/login" className="btn btn-outline w-full mt-2">Log in</Link>
+            ) : null}
+
+            <Link href="/sell" className="btn btn-primary w-full">List your books</Link>
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

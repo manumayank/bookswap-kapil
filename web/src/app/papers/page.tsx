@@ -2,26 +2,35 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { Download, FilePlus, FileText, Paperclip, Upload } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { BOARD_OPTIONS, boardLabel } from '@/lib/labels';
+import PageHeader from '@/components/ui/PageHeader';
+import Select from '@/components/ui/Select';
+import { Field, FieldError, fieldA11y, controlClass, invalidClass } from '@/components/forms/Field';
+import FormAlert from '@/components/forms/FormAlert';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
+import SchoolSuggestions, { type SchoolOption } from '@/components/forms/SchoolSuggestions';
 
-const BOARDS = ['CBSE', 'ICSE', 'STATE', 'IB', 'IGCSE'] as const;
 const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
 const TYPES = [
-  { label: 'Annual Exam', value: 'ANNUAL_EXAM' },
-  { label: 'Half Yearly', value: 'HALF_YEARLY' },
-  { label: 'Unit Test', value: 'UNIT_TEST' },
-  { label: 'Pre-Board', value: 'PRE_BOARD' },
+  { label: 'Annual exam', value: 'ANNUAL_EXAM' },
+  { label: 'Half-yearly', value: 'HALF_YEARLY' },
+  { label: 'Unit test', value: 'UNIT_TEST' },
+  { label: 'Pre-board', value: 'PRE_BOARD' },
   { label: 'Olympiad', value: 'OLYMPIAD' },
   { label: 'Quiz', value: 'QUIZ' },
 ] as const;
 
-interface School {
-  id: string;
-  name: string;
-  city: string;
-  board: string;
-}
+const CLASS_OPTIONS = CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` }));
+const YEAR_OPTIONS = YEARS.map((y) => ({ value: String(y), label: String(y) }));
+const TYPE_OPTIONS = TYPES.map((t) => ({ value: t.value as string, label: t.label as string }));
+const BOARD_SELECT_OPTIONS = BOARD_OPTIONS.map((b) => ({ value: b as string, label: boardLabel(b) }));
+
+const typeLabel = (v: string) => TYPES.find((t) => t.value === v)?.label || v;
 
 interface Paper {
   id: string;
@@ -39,23 +48,22 @@ interface Paper {
   createdAt: string;
 }
 
+const EMPTY_FILTERS = { board: '', class: '', subject: '', year: '', type: '', schoolId: '' };
+
+type UploadErrorKey = 'file' | 'title' | 'subject' | 'board' | 'class' | 'type';
+
 export default function PapersPage() {
   const { isAuthenticated, hydrate } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse');
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    board: '',
-    class: '',
-    subject: '',
-    year: '',
-    type: '',
-    schoolId: '',
-  });
+  const [fetchError, setFetchError] = useState('');
+  const [downloadError, setDownloadError] = useState('');
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   // School search for filters
   const [schoolSearch, setSchoolSearch] = useState('');
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const [selectedSchoolName, setSelectedSchoolName] = useState('');
 
@@ -70,12 +78,13 @@ export default function PapersPage() {
     schoolId: '',
   });
   const [uploadSchoolSearch, setUploadSchoolSearch] = useState('');
-  const [uploadSchools, setUploadSchools] = useState<School[]>([]);
+  const [uploadSchools, setUploadSchools] = useState<SchoolOption[]>([]);
   const [showUploadSchoolDropdown, setShowUploadSchoolDropdown] = useState(false);
   const [selectedUploadSchoolName, setSelectedUploadSchoolName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<Partial<Record<UploadErrorKey, string>>>({});
 
   useEffect(() => {
     hydrate();
@@ -84,6 +93,7 @@ export default function PapersPage() {
 
   const fetchPapers = async () => {
     setIsLoading(true);
+    setFetchError('');
     try {
       const params = new URLSearchParams();
       if (filters.board) params.append('board', filters.board);
@@ -95,8 +105,9 @@ export default function PapersPage() {
 
       const { data } = await api.get(`/papers?${params.toString()}`);
       setPapers(data.data?.papers || []);
-    } catch (err) {
-      console.error('Failed to fetch papers:', err);
+    } catch (err: any) {
+      setPapers([]);
+      setFetchError(err?.response?.data?.error || "We couldn't load papers. Check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +117,6 @@ export default function PapersPage() {
     fetchPapers();
   }, [filters]);
 
-  // Search schools for filter
   const searchSchools = useCallback(async (query: string) => {
     if (query.length < 2) {
       setSchools([]);
@@ -129,7 +139,6 @@ export default function PapersPage() {
     return () => clearTimeout(timeout);
   }, [schoolSearch, selectedSchoolName, searchSchools]);
 
-  // Search schools for upload
   const searchUploadSchools = useCallback(async (query: string) => {
     if (query.length < 2) {
       setUploadSchools([]);
@@ -152,20 +161,31 @@ export default function PapersPage() {
     return () => clearTimeout(timeout);
   }, [uploadSchoolSearch, selectedUploadSchoolName, searchUploadSchools]);
 
+  const setUpload = (key: keyof typeof uploadForm, value: string) => {
+    setUploadForm((prev) => ({ ...prev, [key]: value }));
+    if (key in uploadErrors) setUploadErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !isAuthenticated) {
-      setUploadStatus({ type: 'error', message: 'Please select a file and login first' });
-      return;
-    }
+    setUploadStatus(null);
 
-    if (!uploadForm.title.trim()) {
-      setUploadStatus({ type: 'error', message: 'Title is required' });
+    const errs: Partial<Record<UploadErrorKey, string>> = {};
+    if (!selectedFile) errs.file = 'Choose the paper file (PDF, JPG or PNG).';
+    if (!uploadForm.title.trim()) errs.title = 'Add a title so parents can find it.';
+    if (!uploadForm.subject.trim()) errs.subject = 'Add the subject.';
+    if (!uploadForm.board) errs.board = 'Choose the board.';
+    if (!uploadForm.class) errs.class = 'Choose the class.';
+    if (!uploadForm.type) errs.type = 'Choose the exam type.';
+    setUploadErrors(errs);
+    const first = Object.keys(errs)[0];
+    if (first) {
+      document.getElementById(`paper-${first}`)?.focus();
       return;
     }
+    if (!selectedFile || !isAuthenticated) return;
 
     setIsUploading(true);
-    setUploadStatus(null);
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -183,7 +203,7 @@ export default function PapersPage() {
       await api.post('/papers', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setUploadStatus({ type: 'success', message: 'Paper uploaded successfully!' });
+      setUploadStatus({ type: 'success', message: 'Paper uploaded. Thanks for sharing it with other parents.' });
       setUploadForm({
         title: '',
         subject: '',
@@ -199,9 +219,9 @@ export default function PapersPage() {
       setActiveTab('browse');
       fetchPapers();
     } catch (err: any) {
-      setUploadStatus({ 
-        type: 'error', 
-        message: err.response?.data?.error || 'Upload failed. Please try again.' 
+      setUploadStatus({
+        type: 'error',
+        message: err.response?.data?.error || "We couldn't upload the paper. Check the file is under 10 MB and try again.",
       });
     } finally {
       setIsUploading(false);
@@ -209,134 +229,141 @@ export default function PapersPage() {
   };
 
   const handleDownload = async (paper: Paper) => {
+    setDownloadError('');
     try {
       await api.post(`/papers/${paper.id}/download`);
       window.open(paper.fileUrl, '_blank');
-    } catch (err) {
-      console.error('Download failed:', err);
+    } catch (err: any) {
+      setDownloadError(err?.response?.data?.error || "We couldn't start the download. Try again.");
     }
   };
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--background)' }}>
-      {/* Header */}
-      <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--card-border)' }}>
-        <div className="container" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <Link href="/" style={{ textDecoration: 'none' }}>
-                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>←</span>
-              </Link>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>Question Papers</h1>
-                <p style={{ color: 'var(--muted)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
-                  Previous year papers - Free to upload & download
-                </p>
-              </div>
-            </div>
-            
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                onClick={() => setActiveTab('browse')}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  background: activeTab === 'browse' ? 'var(--primary)' : 'var(--muted-extra-light)',
-                  color: activeTab === 'browse' ? 'white' : 'var(--foreground)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Browse Papers
-              </button>
-              <button
-                onClick={() => setActiveTab('upload')}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  background: activeTab === 'upload' ? 'var(--primary)' : 'var(--muted-extra-light)',
-                  color: activeTab === 'upload' ? 'white' : 'var(--foreground)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Upload Paper
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  const hasFilters = Object.values(filters).some(Boolean);
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setSchoolSearch('');
+    setSelectedSchoolName('');
+  };
 
-      <div className="container" style={{ padding: '2rem 1.5rem' }}>
-        {activeTab === 'browse' ? (
-          <div>
-            {/* Filters */}
-            <div className="card-premium" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Board</label>
-                  <select
-                    value={filters.board}
-                    onChange={(e) => setFilters({ ...filters, board: e.target.value })}
-                    style={{ width: '100%', marginTop: '0.5rem' }}
-                  >
-                    <option value="">All Boards</option>
-                    {BOARDS.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Class</label>
-                  <select
-                    value={filters.class}
-                    onChange={(e) => setFilters({ ...filters, class: e.target.value })}
-                    style={{ width: '100%', marginTop: '0.5rem' }}
-                  >
-                    <option value="">All Classes</option>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(c => (
-                      <option key={c} value={c}>Class {c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Subject</label>
+  const tabClass = (on: boolean) =>
+    `inline-flex min-h-[40px] items-center gap-2 rounded-sm px-4 text-sm font-bold transition-colors ${
+      on ? 'bg-sun text-ink' : 'text-muted hover:bg-muted-extra-light hover:text-foreground'
+    }`;
+
+  return (
+    <div className="container py-10 md:py-14">
+      <PageHeader
+        back={{ href: '/', label: 'Home' }}
+        title="Exam papers"
+        description="Past papers from schools and boards, free to download. Share yours to help other parents prepare."
+        actions={
+          <div role="tablist" aria-label="Exam papers" className="inline-flex gap-1 rounded-md border-2 border-edge bg-card p-1">
+            <button
+              type="button"
+              role="tab"
+              id="tab-browse"
+              aria-controls="panel-browse"
+              aria-selected={activeTab === 'browse'}
+              onClick={() => setActiveTab('browse')}
+              className={tabClass(activeTab === 'browse')}
+            >
+              <FileText size={16} strokeWidth={2.5} aria-hidden />
+              Browse
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-upload"
+              aria-controls="panel-upload"
+              aria-selected={activeTab === 'upload'}
+              onClick={() => {
+                setUploadStatus((s) => (s?.type === 'success' ? null : s));
+                setActiveTab('upload');
+              }}
+              className={tabClass(activeTab === 'upload')}
+            >
+              <Upload size={16} strokeWidth={2.5} aria-hidden />
+              Upload a paper
+            </button>
+          </div>
+        }
+      />
+
+      {activeTab === 'browse' ? (
+        <div id="panel-browse" role="tabpanel" aria-labelledby="tab-browse" className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+          {/* Filters */}
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            aria-label="Filter papers"
+            className="card-flat flex flex-col gap-4 p-5 lg:sticky lg:top-28"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-bold">Filter</h2>
+              {hasFilters && (
+                <button type="button" onClick={clearFilters} className="btn btn-ghost btn-sm -mr-2">
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
+              <Field id="filter-board" label="Board">
+                <Select
+                  id="filter-board"
+                  value={filters.board}
+                  onChange={(value) => setFilters({ ...filters, board: value })}
+                  options={[{ value: '', label: 'All boards' }, ...BOARD_SELECT_OPTIONS]}
+                />
+              </Field>
+              <Field id="filter-class" label="Class">
+                <Select
+                  id="filter-class"
+                  value={filters.class}
+                  onChange={(value) => setFilters({ ...filters, class: value })}
+                  options={[{ value: '', label: 'All classes' }, ...CLASS_OPTIONS]}
+                  columns={3}
+                  menuMinWidth={288}
+                  align="right"
+                />
+              </Field>
+              <Field id="filter-subject" label="Subject">
+                <input
+                  id="filter-subject"
+                  type="text"
+                  value={filters.subject}
+                  onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
+                  placeholder="Maths"
+                  className={controlClass}
+                />
+              </Field>
+              <Field id="filter-year" label="Year">
+                <Select
+                  id="filter-year"
+                  value={filters.year}
+                  onChange={(value) => setFilters({ ...filters, year: value })}
+                  options={[{ value: '', label: 'All years' }, ...YEAR_OPTIONS]}
+                  columns={3}
+                  menuMinWidth={240}
+                  align="right"
+                />
+              </Field>
+              <Field id="filter-type" label="Exam type" className="col-span-2 lg:col-span-1">
+                <Select
+                  id="filter-type"
+                  value={filters.type}
+                  onChange={(value) => setFilters({ ...filters, type: value })}
+                  options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
+                />
+              </Field>
+              <Field id="filter-school" label="School" className="col-span-2 lg:col-span-1">
+                <div className="relative">
                   <input
+                    id="filter-school"
                     type="text"
-                    value={filters.subject}
-                    onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
-                    placeholder="e.g. Maths"
-                    style={{ width: '100%', marginTop: '0.5rem' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Year</label>
-                  <select
-                    value={filters.year}
-                    onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-                    style={{ width: '100%', marginTop: '0.5rem' }}
-                  >
-                    <option value="">All Years</option>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Type</label>
-                  <select
-                    value={filters.type}
-                    onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                    style={{ width: '100%', marginTop: '0.5rem' }}
-                  >
-                    <option value="">All Types</option>
-                    {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                {/* School Filter */}
-                <div style={{ position: 'relative' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>School</label>
-                  <input
-                    type="text"
+                    role="combobox"
+                    aria-expanded={showSchoolDropdown && schools.length > 0}
+                    aria-controls="filter-school-suggestions"
+                    aria-autocomplete="list"
+                    autoComplete="off"
                     value={schoolSearch}
                     onChange={(e) => {
                       setSchoolSearch(e.target.value);
@@ -345,348 +372,309 @@ export default function PapersPage() {
                       setShowSchoolDropdown(true);
                     }}
                     onFocus={() => schoolSearch.length >= 2 && setShowSchoolDropdown(true)}
-                    placeholder="Search school..."
-                    style={{ width: '100%', marginTop: '0.5rem' }}
+                    onKeyDown={(e) => e.key === 'Escape' && setShowSchoolDropdown(false)}
+                    placeholder="Search by name"
+                    className={controlClass}
                   />
-                  {showSchoolDropdown && schools.length > 0 && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      background: 'var(--card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-md)',
-                      marginTop: '4px',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      zIndex: 10,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    }}>
-                      {schools.map((school) => (
-                        <button
-                          key={school.id}
-                          type="button"
-                          onClick={() => {
-                            setFilters({ ...filters, schoolId: school.id });
-                            setSelectedSchoolName(school.name);
-                            setSchoolSearch(school.name);
-                            setShowSchoolDropdown(false);
-                          }}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '12px 16px',
-                            background: 'transparent',
-                            border: 'none',
-                            borderBottom: '1px solid var(--border)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <div style={{ fontWeight: 600 }}>{school.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{school.city} • {school.board}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <SchoolSuggestions
+                    listId="filter-school-suggestions"
+                    open={showSchoolDropdown}
+                    schools={schools}
+                    onSelect={(school) => {
+                      setFilters({ ...filters, schoolId: school.id });
+                      setSelectedSchoolName(school.name);
+                      setSchoolSearch(school.name);
+                      setShowSchoolDropdown(false);
+                    }}
+                  />
                 </div>
-              </div>
+              </Field>
             </div>
+          </form>
 
-            {/* Papers List */}
+          {/* Results */}
+          <section aria-label="Papers" aria-busy={isLoading} className="min-w-0">
+            {uploadStatus?.type === 'success' && (
+              <FormAlert tone="success" className="mb-4">
+                {uploadStatus.message}
+              </FormAlert>
+            )}
+            {downloadError && <FormAlert className="mb-4">{downloadError}</FormAlert>}
+
             {isLoading ? (
-              <div style={{ textAlign: 'center', padding: '4rem' }}>
-                <p>Loading papers...</p>
-              </div>
+              <ul className="card-flat divide-y-2 divide-card-border overflow-hidden" aria-label="Loading papers">
+                {[0, 1, 2, 3].map((i) => (
+                  <li key={i} className="flex items-start gap-4 p-5">
+                    <div className="skeleton h-12 w-12 shrink-0" />
+                    <div className="flex-1">
+                      <div className="skeleton mb-3 h-5 w-2/3" />
+                      <div className="skeleton h-4 w-1/2" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : fetchError ? (
+              <ErrorState size="lg" title="Papers didn’t load" message={fetchError} onRetry={fetchPapers} />
             ) : papers.length === 0 ? (
-              <div className="card-premium" style={{ padding: '4rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
-                <h3>No papers found</h3>
-                <p style={{ color: 'var(--muted)' }}>Be the first to upload a question paper!</p>
-                <button
-                  onClick={() => setActiveTab('upload')}
-                  className="btn btn-primary"
-                  style={{ marginTop: '1.5rem' }}
-                >
-                  Upload Paper
-                </button>
-              </div>
+              <EmptyState
+                icon={FileText}
+                title={hasFilters ? 'No papers match these filters' : 'No papers shared yet'}
+                actions={
+                  <>
+                    <button type="button" onClick={() => setActiveTab('upload')} className="btn btn-primary">
+                      <Upload size={18} strokeWidth={2.5} aria-hidden />
+                      Upload a paper
+                    </button>
+                    {hasFilters && (
+                      <button type="button" onClick={clearFilters} className="btn btn-outline">
+                        Clear filters
+                      </button>
+                    )}
+                  </>
+                }
+              >
+                <p>
+                  {hasFilters
+                    ? 'Try fewer filters, or share a paper from your child’s school.'
+                    : 'Have past exam papers at home? Upload one so other parents can use it to prepare.'}
+                </p>
+              </EmptyState>
             ) : (
-              <div style={{ display: 'grid', gap: '1rem' }}>
-                {papers.map((paper) => (
-                  <div key={paper.id} className="card-premium" style={{ padding: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.125rem' }}>{paper.title}</h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                          <span style={{ padding: '4px 12px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
-                            {paper.board}
-                          </span>
-                          <span style={{ padding: '4px 12px', background: 'var(--muted-extra-light)', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                            Class {paper.class}
-                          </span>
-                          <span style={{ padding: '4px 12px', background: 'var(--muted-extra-light)', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                            {paper.subject}
-                          </span>
-                          <span style={{ padding: '4px 12px', background: 'var(--muted-extra-light)', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                            {paper.year}
-                          </span>
-                          <span style={{ padding: '4px 12px', background: 'var(--secondary-glow)', color: 'var(--secondary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                            {TYPES.find(t => t.value === paper.type)?.label || paper.type}
-                          </span>
-                          {paper.school && (
-                            <span style={{ padding: '4px 12px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '9999px', fontSize: '0.75rem' }}>
-                              {paper.school.name}
-                            </span>
-                          )}
+              <>
+                <p className="mb-3 text-sm text-muted" aria-live="polite">
+                  {papers.length} {papers.length === 1 ? 'paper' : 'papers'}
+                </p>
+                <ul className="card-flat divide-y-2 divide-card-border overflow-hidden">
+                  {papers.map((paper) => (
+                    <li key={paper.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
+                      <div
+                        className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-md border-2 border-edge bg-muted-extra-light text-primary sm:flex"
+                        aria-hidden
+                      >
+                        <FileText size={22} strokeWidth={2.25} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg font-bold leading-snug">{paper.title}</h3>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="badge badge-primary">Class {paper.class}</span>
+                          <span className="badge badge-primary">{boardLabel(paper.board)}</span>
+                          <span className="badge badge-muted">{paper.subject}</span>
+                          <span className="badge badge-muted">{paper.year}</span>
+                          <span className="badge badge-secondary">{typeLabel(paper.type)}</span>
                         </div>
-                        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>
-                          Uploaded by {paper.uploadedBy.name} • {paper.downloadCount} downloads
-                        </p>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
+                          {paper.school && <span>{paper.school.name}</span>}
+                          <span>Shared by {paper.uploadedBy.name}</span>
+                          <span>
+                            {paper.downloadCount.toLocaleString('en-IN')} {paper.downloadCount === 1 ? 'download' : 'downloads'}
+                          </span>
+                        </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => handleDownload(paper)}
-                        className="btn btn-primary"
-                        style={{ height: '44px', padding: '0 24px', whiteSpace: 'nowrap' }}
+                        className="btn btn-outline btn-sm shrink-0 self-start"
+                        aria-label={`Download ${paper.title}`}
                       >
+                        <Download size={16} strokeWidth={2.5} aria-hidden />
                         Download
                       </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
-          </div>
-        ) : (
-          /* Upload Form */
-          <div className="card-premium" style={{ maxWidth: '640px', margin: '0 auto', padding: '2rem' }}>
-            {!isAuthenticated ? (
-              <div style={{ textAlign: 'center', padding: '2rem' }}>
-                <p>Please login to upload papers</p>
-                <Link href="/login" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
-                  Go to Login
+          </section>
+        </div>
+      ) : (
+        <div id="panel-upload" role="tabpanel" aria-labelledby="tab-upload" className="max-w-2xl animate-fade-in">
+          {!isAuthenticated ? (
+            <EmptyState
+              icon={FilePlus}
+              title="Log in to share a paper"
+              actions={
+                <Link href="/login" className="btn btn-primary">
+                  Log in
                 </Link>
+              }
+            >
+              <p>Anyone can download papers. To upload one, log in with your email.</p>
+            </EmptyState>
+          ) : (
+            <form onSubmit={handleUpload} noValidate className="card-flat flex flex-col gap-5 p-5 sm:p-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl">Upload a paper</h2>
+                <p className="mt-2 text-muted">A clear scan or photo works. Hide any student names before uploading.</p>
               </div>
-            ) : (
-              <form onSubmit={handleUpload}>
-                <h2 style={{ margin: '0 0 1.5rem 0' }}>Upload Question Paper</h2>
-                
-                {uploadStatus && (
-                  <div
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 'var(--radius-md)',
-                      marginBottom: '1.5rem',
-                      background: uploadStatus.type === 'success' ? 'var(--secondary-glow)' : 'var(--accent-glow)',
-                      color: uploadStatus.type === 'success' ? 'var(--secondary)' : 'var(--accent)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {uploadStatus.message}
-                  </div>
-                )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  {/* File Upload */}
-                  <div>
-                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                      Paper File (PDF/Image) *
-                    </label>
-                    <label
-                      style={{
-                        display: 'block',
-                        padding: '2rem',
-                        border: '2px dashed var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        marginTop: '0.5rem',
-                      }}
+              {uploadStatus?.type === 'error' && <FormAlert>{uploadStatus.message}</FormAlert>}
+
+              {/* File */}
+              <div>
+                <p className="mb-2 text-sm font-semibold" id="paper-file-label">
+                  Paper file
+                </p>
+                <div className="relative">
+                  <input
+                    id="paper-file"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      setSelectedFile(e.target.files?.[0] || null);
+                      setUploadErrors((p) => ({ ...p, file: undefined }));
+                    }}
+                    className="peer sr-only"
+                    aria-labelledby="paper-file-label paper-file-status"
+                    aria-describedby={uploadErrors.file ? 'paper-file-error' : undefined}
+                  />
+                  <label
+                    htmlFor="paper-file"
+                    className={`flex cursor-pointer items-center gap-4 rounded-md border-2 p-5 transition-colors hover:border-solid hover:bg-muted-extra-light peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                      selectedFile ? 'border-solid border-edge bg-muted-extra-light' : 'border-dashed'
+                    } ${uploadErrors.file ? 'border-danger' : 'border-edge'}`}
+                  >
+                    <span
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-edge ${
+                        selectedFile ? 'bg-secondary text-ink' : 'bg-sun text-ink'
+                      }`}
+                      aria-hidden
                     >
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                        required
-                        style={{ display: 'none' }}
-                      />
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📎</div>
-                      <p style={{ margin: 0, fontWeight: 600 }}>
-                        {selectedFile ? selectedFile.name : 'Click to select file'}
-                      </p>
-                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
-                        PDF, JPG, PNG up to 10MB
-                      </p>
-                    </label>
-                  </div>
-
-                  {/* Title - Required */}
-                  <div>
-                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                      Paper Title * <span style={{ color: 'var(--accent)' }}>(Required)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={uploadForm.title}
-                      onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                      placeholder="e.g. DPS Gurgaon Class 10 Maths Annual Exam 2024"
-                      required
-                      style={{ width: '100%', marginTop: '0.5rem' }}
-                    />
-                    <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0.25rem 0 0 0' }}>
-                      Include school name, class, subject, and exam type for better searchability
-                    </p>
-                  </div>
-
-                  {/* Subject */}
-                  <div>
-                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>Subject *</label>
-                    <input
-                      type="text"
-                      value={uploadForm.subject}
-                      onChange={(e) => setUploadForm({ ...uploadForm, subject: e.target.value })}
-                      placeholder="e.g. Mathematics"
-                      required
-                      style={{ width: '100%', marginTop: '0.5rem' }}
-                    />
-                  </div>
-
-                  {/* Board & Class */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>Board *</label>
-                      <select
-                        value={uploadForm.board}
-                        onChange={(e) => setUploadForm({ ...uploadForm, board: e.target.value })}
-                        required
-                        style={{ width: '100%', marginTop: '0.5rem' }}
-                      >
-                        <option value="">Select</option>
-                        {BOARDS.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>Class *</label>
-                      <select
-                        value={uploadForm.class}
-                        onChange={(e) => setUploadForm({ ...uploadForm, class: e.target.value })}
-                        required
-                        style={{ width: '100%', marginTop: '0.5rem' }}
-                      >
-                        <option value="">Select</option>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(c => (
-                          <option key={c} value={c}>Class {c}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* School - Optional */}
-                  <div style={{ position: 'relative' }}>
-                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                      School <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={uploadSchoolSearch}
-                      onChange={(e) => {
-                        setUploadSchoolSearch(e.target.value);
-                        setSelectedUploadSchoolName('');
-                        setUploadForm({ ...uploadForm, schoolId: '' });
-                        setShowUploadSchoolDropdown(true);
-                      }}
-                      onFocus={() => uploadSchoolSearch.length >= 2 && setShowUploadSchoolDropdown(true)}
-                      placeholder="Search for your school..."
-                      style={{ width: '100%', marginTop: '0.5rem' }}
-                    />
-                    {showUploadSchoolDropdown && uploadSchools.length > 0 && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                        background: 'var(--card)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        marginTop: '4px',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        zIndex: 10,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      }}>
-                        {uploadSchools.map((school) => (
-                          <button
-                            key={school.id}
-                            type="button"
-                            onClick={() => {
-                              setUploadForm({ ...uploadForm, schoolId: school.id });
-                              setSelectedUploadSchoolName(school.name);
-                              setUploadSchoolSearch(school.name);
-                              setShowUploadSchoolDropdown(false);
-                            }}
-                            style={{
-                              width: '100%',
-                              textAlign: 'left',
-                              padding: '12px 16px',
-                              background: 'transparent',
-                              border: 'none',
-                              borderBottom: '1px solid var(--border)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <div style={{ fontWeight: 600 }}>{school.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{school.city} • {school.board}</div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Year & Type */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>Year *</label>
-                      <select
-                        value={uploadForm.year}
-                        onChange={(e) => setUploadForm({ ...uploadForm, year: e.target.value })}
-                        required
-                        style={{ width: '100%', marginTop: '0.5rem' }}
-                      >
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase' }}>Exam Type *</label>
-                      <select
-                        value={uploadForm.type}
-                        onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
-                        required
-                        style={{ width: '100%', marginTop: '0.5rem' }}
-                      >
-                        <option value="">Select</option>
-                        {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isUploading || !selectedFile}
-                    className="btn btn-primary"
-                    style={{
-                      width: '100%',
-                      marginTop: '1rem',
-                      opacity: isUploading || !selectedFile ? 0.6 : 1,
-                    }}
-                  >
-                    {isUploading ? 'Uploading...' : 'Upload Paper'}
-                  </button>
+                      <Paperclip size={20} strokeWidth={2.25} />
+                    </span>
+                    <span className="min-w-0">
+                      <span id="paper-file-status" className="block truncate font-bold">
+                        {selectedFile ? selectedFile.name : 'Choose a file'}
+                      </span>
+                      <span className="block text-[13px] text-muted">
+                        {selectedFile ? 'Tap to choose a different file' : 'PDF, JPG or PNG, up to 10 MB'}
+                      </span>
+                    </span>
+                  </label>
                 </div>
-              </form>
-            )}
-          </div>
-        )}
-      </div>
+                <FieldError id="paper-file-error" message={uploadErrors.file} />
+              </div>
+
+              <Field
+                id="paper-title"
+                label="Title"
+                error={uploadErrors.title}
+                hint="Include the school, class, subject and exam so parents can find it."
+              >
+                <input
+                  {...fieldA11y('paper-title', { error: uploadErrors.title, hint: true })}
+                  type="text"
+                  value={uploadForm.title}
+                  onChange={(e) => setUpload('title', e.target.value)}
+                  placeholder="Class 10 Maths annual exam 2025"
+                  className={`${controlClass} ${uploadErrors.title ? invalidClass : ''}`}
+                />
+              </Field>
+
+              <Field id="paper-subject" label="Subject" error={uploadErrors.subject}>
+                <input
+                  {...fieldA11y('paper-subject', { error: uploadErrors.subject })}
+                  type="text"
+                  value={uploadForm.subject}
+                  onChange={(e) => setUpload('subject', e.target.value)}
+                  placeholder="Mathematics"
+                  className={`${controlClass} ${uploadErrors.subject ? invalidClass : ''}`}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <Field id="paper-board" label="Board" error={uploadErrors.board}>
+                  <Select
+                    id="paper-board"
+                    invalid={!!uploadErrors.board}
+                    aria-describedby={uploadErrors.board ? 'paper-board-error' : undefined}
+                    value={uploadForm.board}
+                    onChange={(value) => setUpload('board', value)}
+                    options={BOARD_SELECT_OPTIONS}
+                    placeholder="Choose board"
+                  />
+                </Field>
+                <Field id="paper-class" label="Class" error={uploadErrors.class}>
+                  <Select
+                    id="paper-class"
+                    invalid={!!uploadErrors.class}
+                    aria-describedby={uploadErrors.class ? 'paper-class-error' : undefined}
+                    value={uploadForm.class}
+                    onChange={(value) => setUpload('class', value)}
+                    options={CLASS_OPTIONS}
+                    placeholder="Choose class"
+                    columns={3}
+                    menuMinWidth={288}
+                    align="right"
+                  />
+                </Field>
+                <Field id="paper-year" label="Year">
+                  <Select
+                    id="paper-year"
+                    value={uploadForm.year}
+                    onChange={(value) => setUpload('year', value)}
+                    options={YEAR_OPTIONS}
+                    columns={3}
+                    menuMinWidth={240}
+                  />
+                </Field>
+                <Field id="paper-type" label="Exam type" error={uploadErrors.type}>
+                  <Select
+                    id="paper-type"
+                    invalid={!!uploadErrors.type}
+                    aria-describedby={uploadErrors.type ? 'paper-type-error' : undefined}
+                    value={uploadForm.type}
+                    onChange={(value) => setUpload('type', value)}
+                    options={TYPE_OPTIONS}
+                    placeholder="Choose type"
+                    align="right"
+                  />
+                </Field>
+              </div>
+
+              <Field id="paper-school" label="School" optional>
+                <div className="relative">
+                  <input
+                    id="paper-school"
+                    type="text"
+                    role="combobox"
+                    aria-expanded={showUploadSchoolDropdown && uploadSchools.length > 0}
+                    aria-controls="paper-school-suggestions"
+                    aria-autocomplete="list"
+                    autoComplete="off"
+                    value={uploadSchoolSearch}
+                    onChange={(e) => {
+                      setUploadSchoolSearch(e.target.value);
+                      setSelectedUploadSchoolName('');
+                      setUploadForm({ ...uploadForm, schoolId: '' });
+                      setShowUploadSchoolDropdown(true);
+                    }}
+                    onFocus={() => uploadSchoolSearch.length >= 2 && setShowUploadSchoolDropdown(true)}
+                    onKeyDown={(e) => e.key === 'Escape' && setShowUploadSchoolDropdown(false)}
+                    placeholder="Search by school name"
+                    className={controlClass}
+                  />
+                  <SchoolSuggestions
+                    listId="paper-school-suggestions"
+                    open={showUploadSchoolDropdown}
+                    schools={uploadSchools}
+                    onSelect={(school) => {
+                      setUploadForm({ ...uploadForm, schoolId: school.id });
+                      setSelectedUploadSchoolName(school.name);
+                      setUploadSchoolSearch(school.name);
+                      setShowUploadSchoolDropdown(false);
+                    }}
+                  />
+                </div>
+              </Field>
+
+              <button type="submit" disabled={isUploading} className="btn btn-primary btn-lg mt-2 w-full sm:w-auto sm:self-start">
+                <Upload size={18} strokeWidth={2.5} aria-hidden />
+                {isUploading ? 'Uploading…' : 'Upload paper'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }
